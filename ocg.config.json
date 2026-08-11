@@ -1,0 +1,159 @@
+{
+  "$schema": "./ocg.config.schema.json",
+  "project": {
+    "title": "Example Capability Vocabulary",
+    "shortName": "ECV",
+    "slug": "example-capability-vocabulary",
+    "description": "A built-in demonstration ontology that shows how to configure OCG for one vocabulary-oriented GitHub Pages site per fork.",
+    "namespace": "https://example.org/ecv#",
+    "canonicalUri": "https://example.org/ecv",
+    "version": "0.1.0",
+    "maintainer": "OCG Template Example"
+  },
+  "sources": {
+    "ontology": "source/ontology/example-capability.ttl",
+    "ontologyFormat": "auto",
+    "shapes": "source/shapes/example-capability.shacl.ttl",
+    "shex": "source/shex/example-capability.shex",
+    "spec": "source/spec/index.html",
+    "examples": [
+      {
+        "key": "basic",
+        "label": "Basic Capability Example",
+        "path": "source/examples/basic-capability.ttl",
+        "description": "Smallest useful graph that exercises the core classes and properties."
+      },
+      {
+        "key": "advanced",
+        "label": "Advanced Capability Example",
+        "path": "source/examples/advanced-capability.ttl",
+        "description": "More expressive example showing multiple constraints, labels, and concept references."
+      }
+    ]
+  },
+  "features": {
+    "referencePage": true,
+    "graphPage": true,
+    "termPages": true,
+    "rawViewer": true,
+    "overviewCards": true,
+    "hierarchyAsset": true,
+    "specPage": true,
+    "usageGuidePage": true
+  },
+  "graph": {
+    "defaultView": "custom",
+    "custom": {
+      "enabled": true,
+      "defaultMode": "predicate-nodes",
+      "modes": {
+        "predicateNodes": true,
+        "predicateEdges": true
+      }
+    },
+    "webvowl": {
+      "enabled": true,
+      "serviceUrl": "https://service.tib.eu/webvowl/",
+      "ontologyUrl": "",
+      "height": 760
+    },
+    "colors": {
+      "class": "#b7dcf6",
+      "objectProperty": "#bee7c3",
+      "datatypeProperty": "#f7d7ab",
+      "annotationProperty": "#f2c8cf",
+      "concept": "#d3c5f6",
+      "declaredTerm": "#e1e8ef",
+      "external": "#dfe6ee",
+      "subClassOf": "#1f6f92",
+      "domain": "#2f8040",
+      "range": "#ab6b22",
+      "broader": "#7b5ca7"
+    }
+  },
+  "theme": {
+    "fonts": {
+      "heading": "Space Grotesk",
+      "body": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
+    },
+    "colors": {
+      "pageBackground": "#f6f1ea",
+      "pageBackgroundAlt": "#edf3f7",
+      "panelBackground": "#ffffff",
+      "cardBackground": "#ffffff",
+      "text": "#1d1f22",
+      "mutedText": "#5f6b7a",
+      "accent": "#1f6f78",
+      "accentStrong": "#13535a",
+      "border": "#d6dee6"
+    }
+  },
+  "site": {
+    "basePath": "/",
+    "hero": {
+      "kicker": "Forkable Single-Ontology Template",
+      "headline": "A config-first companion site for one ontology per repository.",
+      "body": "This default repository content is a working test/example. Replace the files in source/, update this config document, and the build regenerates the GitHub Pages site around your ontology."
+    },
+    "resourcePanel": {
+      "title": "Published Artifacts",
+      "body": "Every linked artifact below is derived from the configured source package and exposed through a static site that can be deployed directly with GitHub Actions."
+    },
+    "overviewCards": [
+      {
+        "title": "Replace the Example Source",
+        "body": "Swap the built-in ontology, shapes, examples, and specification with your own files, keeping the same source/ directory structure or updating the config paths.",
+        "linkText": "Read Setup Instructions",
+        "linkHref": "assets/README-source-guide.txt"
+      },
+      {
+        "title": "Customize the Website",
+        "body": "Colors, hero text, featured terms, raw viewer tabs, and custom narrative sections all come from ocg.config.json.",
+        "linkText": "Config Schema",
+        "linkHref": "assets/ocg.config.schema.json"
+      },
+      {
+        "title": "Publish with GitHub Pages",
+        "body": "The included workflow rebuilds the site and deploys the generated output directory on every push to main.",
+        "linkText": "Review Workflow",
+        "linkHref": "assets/publish-pages.yml"
+      }
+    ],
+    "customSections": [
+      {
+        "title": "How This Example Helps",
+        "body": "The default files intentionally exercise each major surface of the template so new users can inspect a working ontology, SHACL file, ShEx schema, examples, spec page, graph, reference page, and per-term HTML output before replacing anything.",
+        "items": [
+          "The ontology declares classes, object properties, datatype properties, annotation properties, and SKOS concepts.",
+          "The examples use the declared terms so the term pages show realistic cross-links.",
+          "The config demonstrates featured terms, viewer tab selection, custom cards, and footer text."
+        ]
+      }
+    ],
+    "footer": {
+      "primary": "Ontology Companion Generator template example.",
+      "secondary": "Edit ocg.config.json and the source/ files to adapt this repo to your own vocabulary."
+    },
+    "generator": {
+      "repositoryUrl": "https://github.com/ecrum19/ocg",
+      "documentationUrl": "https://github.com/ecrum19/ocg#readme"
+    }
+  },
+  "curation": {
+    "featuredTerms": [
+      "ecv:Capability",
+      "ecv:OnlineCapability",
+      "ecv:hasRequirement",
+      "ecv:DeveloperAudience"
+    ],
+    "viewerTabs": [
+      "ontology",
+      "shapes",
+      "shex",
+      "example:basic",
+      "example:advanced",
+      "config"
+    ]
+  }
+}

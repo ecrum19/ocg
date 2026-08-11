@@ -1,0 +1,14 @@
+{
+  "name": "ontology-companion-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "clean": "node scripts/build-site.mjs --clean",
+    "test": "node --test tests/build.test.mjs"
+  },
+  "dependencies": {
+    "rdf-parse": "5.0.0"
+  }
+}

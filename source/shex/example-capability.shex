@@ -1,0 +1,13 @@
+PREFIX ecv: <https://example.org/ecv#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+<CapabilityShape> {
+  a [ecv:Capability] ;
+  ecv:hasRequirement IRI + ;
+  ecv:hasConstraint @<ConstraintShape> *
+}
+
+<ConstraintShape> {
+  a [ecv:Constraint] ;
+  ecv:maxRequests xsd:integer ?
+}

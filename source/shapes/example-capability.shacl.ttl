@@ -1,0 +1,30 @@
+@prefix ecv: <https://example.org/ecv#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ecv:CapabilityShape
+  a sh:NodeShape ;
+  sh:targetClass ecv:Capability ;
+  sh:property [
+    sh:path ecv:hasRequirement ;
+    sh:minCount 1 ;
+    sh:class ecv:Requirement ;
+    sh:message "Capabilities should declare at least one requirement."@en
+  ] ;
+  sh:property [
+    sh:path ecv:hasConstraint ;
+    sh:class ecv:Constraint ;
+    sh:message "Constraints linked from capabilities must be typed as ecv:Constraint."@en
+  ] .
+
+ecv:ConstraintShape
+  a sh:NodeShape ;
+  sh:targetClass ecv:Constraint ;
+  sh:property [
+    sh:path ecv:maxRequests ;
+    sh:datatype xsd:integer ;
+    sh:maxCount 1 ;
+    sh:message "A constraint may declare one integer maxRequests value."@en
+  ] .

@@ -1,0 +1,80 @@
+@prefix ecv: <https://example.org/ecv#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/ecv>
+  a owl:Ontology ;
+  rdfs:label "Example Capability Vocabulary"@en ;
+  rdfs:comment "A compact ontology used to demonstrate the Ontology Companion Generator template."@en .
+
+ecv:Capability
+  a owl:Class ;
+  rdfs:label "Capability"@en ;
+  rdfs:comment "A feature or service capability that can be described and published."@en .
+
+ecv:OnlineCapability
+  a owl:Class ;
+  rdfs:subClassOf ecv:Capability ;
+  rdfs:label "Online Capability"@en ;
+  rdfs:comment "A capability that is exposed by an online service endpoint."@en .
+
+ecv:Requirement
+  a owl:Class ;
+  rdfs:label "Requirement"@en ;
+  rdfs:comment "A precondition that must hold before a capability can be used."@en .
+
+ecv:Constraint
+  a owl:Class ;
+  rdfs:label "Constraint"@en ;
+  rdfs:comment "A boundary or operational limitation associated with a capability."@en .
+
+ecv:Audience
+  a owl:Class ;
+  rdfs:label "Audience"@en ;
+  rdfs:comment "A target user group for documentation or examples."@en .
+
+ecv:hasRequirement
+  a owl:ObjectProperty ;
+  rdfs:domain ecv:Capability ;
+  rdfs:range ecv:Requirement ;
+  rdfs:label "has requirement"@en ;
+  rdfs:comment "Links a capability to a requirement."@en .
+
+ecv:hasConstraint
+  a owl:ObjectProperty ;
+  rdfs:domain ecv:Capability ;
+  rdfs:range ecv:Constraint ;
+  rdfs:label "has constraint"@en ;
+  rdfs:comment "Links a capability to a declared operational constraint."@en .
+
+ecv:recommendedForAudience
+  a owl:ObjectProperty ;
+  rdfs:domain ecv:Capability ;
+  rdfs:range ecv:Audience ;
+  rdfs:label "recommended for audience"@en ;
+  rdfs:comment "Indicates which audience a capability description is particularly relevant for."@en .
+
+ecv:maxRequests
+  a owl:DatatypeProperty ;
+  rdfs:domain ecv:Constraint ;
+  rdfs:range xsd:integer ;
+  rdfs:label "maximum requests"@en ;
+  rdfs:comment "A numeric threshold representing an upper request boundary."@en .
+
+ecv:statusNote
+  a owl:AnnotationProperty ;
+  rdfs:label "status note"@en ;
+  rdfs:comment "Free-text note for editorial or publication status."@en .
+
+ecv:DeveloperAudience
+  a skos:Concept ;
+  skos:prefLabel "Developer Audience"@en ;
+  rdfs:comment "Audience profile for client developers integrating the capability."@en .
+
+ecv:PublisherAudience
+  a skos:Concept ;
+  skos:prefLabel "Publisher Audience"@en ;
+  rdfs:comment "Audience profile for maintainers or publishers exposing the capability."@en .

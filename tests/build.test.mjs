@@ -1,0 +1,244 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+import { execFileSync } from "node:child_process";
+
+const ROOT = "/Users/eliascrum/PhD_Things/ocg";
+
+test("build-site produces the expected publish artifacts for the bundled example", () => {
+  execFileSync("node", ["scripts/build-site.mjs"], {
+    cwd: ROOT,
+    stdio: "pipe"
+  });
+
+  const requiredFiles = [
+    "site/index.html",
+    "site/ontology-reference.html",
+    "site/ontology-graph.html",
+    "site/spec/index.html",
+    "site/usage-guide.html",
+    "site/assets/ontology_graph_data.json",
+    "site/assets/ontology_hierarchy.ttl",
+    "site/terms/Capability.html",
+    "site/terms/index.html"
+  ];
+
+  for (const relative of requiredFiles) {
+    assert.equal(fs.existsSync(path.join(ROOT, relative)), true, `${relative} should exist`);
+  }
+
+  const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
+  assert.match(indexHtml, /Example Capability Vocabulary/);
+  assert.match(indexHtml, /Forkable Single-Ontology Template/);
+  assert.match(indexHtml, />OWL Ontology</);
+  assert.match(indexHtml, />Specification</);
+  assert.doesNotMatch(indexHtml, />Spec Page</);
+  assert.match(indexHtml, /href="terms\/index\.html">Terms</);
+  assert.match(indexHtml, /href="spec\/index\.html">Specification</);
+  assert.match(indexHtml, /hero-action-group--artifacts" style="--artifact-count: 3/);
+  assert.match(indexHtml, /class="site-footer-generator"/);
+  assert.match(indexHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg"/);
+  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg#readme"/);
+  assert.match(indexHtml, /href="usage-guide\.html#home">How To</);
+  assert.match(indexHtml, /href="usage-guide\.html#artifacts">How To</);
+  assert.match(indexHtml, />View File</);
+  assert.doesNotMatch(indexHtml, />Open (TTL|File|Example)</);
+  assert.doesNotMatch(indexHtml, /<dt>Namespace<\/dt>/);
+  assert.match(indexHtml, /id="copy-namespace"/);
+
+  const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
+  const navOrder = [
+    'href="index.html">Home',
+    'href="ontology-reference.html">Reference',
+    'href="terms/index.html">Terms',
+    'href="ontology-graph.html">Graph',
+    'href="spec/index.html">Specification'
+  ];
+  let previousNavIndex = -1;
+  for (const item of navOrder) {
+    const itemIndex = navHtml.indexOf(item);
+    assert.ok(itemIndex > previousNavIndex, `${item} should follow the configured navigation order`);
+    previousNavIndex = itemIndex;
+  }
+
+  const graphData = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8")
+  );
+  assert.equal(graphData.project.shortName, "ECV");
+  assert.ok(graphData.nodes.some((node) => node.qname === "ecv:Capability"));
+  assert.ok(graphData.nodes.every((node) => Number.isFinite(node.degree)));
+  assert.ok(graphData.edges.every((edge) => edge.id && edge.predicateQname));
+  assert.equal(graphData.modes["predicate-nodes"].nodes.length, graphData.nodes.length);
+  assert.equal(graphData.modes["predicate-nodes"].edges.length, graphData.edges.length);
+  assert.ok(
+    graphData.modes["predicate-edges"].nodes.every(
+      (node) => !["objectProperty", "datatypeProperty", "annotationProperty"].includes(node.termType)
+    )
+  );
+  assert.ok(graphData.modes["predicate-edges"].edges.some((edge) => edge.predicateQname === "ecv:hasRequirement"));
+
+  const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
+  assert.match(graphHtml, /Custom Graph/);
+  assert.match(graphHtml, /WebVOWL/);
+  assert.match(graphHtml, /graphology\.umd\.min\.js/);
+  assert.match(graphHtml, /sigma\.min\.js/);
+  assert.match(graphHtml, /id="webvowl-frame"/);
+  assert.match(graphHtml, /service\.tib\.eu\/webvowl/);
+  assert.match(graphHtml, /id="sigma-toggle-external"/);
+  assert.match(graphHtml, /class="sigma-panel"/);
+  assert.match(graphHtml, /Predicates as Nodes/);
+  assert.match(graphHtml, /Predicates as Edges/);
+  assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
+
+  const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
+  assert.match(specHtml, /Tools\/respec\/respec-w3c/);
+  assert.match(specHtml, /var respecConfig/);
+  assert.match(specHtml, /features\.specPage/);
+  assert.match(specHtml, /class="ocg-spec-header"/);
+  assert.match(specHtml, /href="\.\.\/index\.html"/);
+  assert.match(specHtml, /is-active" href="\.\.\/spec\/index\.html"/);
+  assert.match(specHtml, /class="ocg-spec-footer"/);
+  assert.match(specHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(specHtml, /href="\.\.\/usage-guide\.html#specification">How To</);
+
+  const guideHtml = fs.readFileSync(path.join(ROOT, "site/usage-guide.html"), "utf8");
+  assert.match(guideHtml, /id="getting-started"/);
+  assert.match(guideHtml, /id="accepted-input-formats"/);
+  assert.match(guideHtml, /<h2>Accepted Input Formats<\/h2>/);
+  assert.match(guideHtml, /OWL\/XML/);
+  assert.match(guideHtml, /source\/ontology\/my-vocabulary\.jsonld/);
+  assert.match(guideHtml, /<section class="guide-hero section">\s*<details class="guide-toc" open>/);
+  assert.doesNotMatch(guideHtml, />On This Page</);
+  assert.match(guideHtml, /class="guide-toc-summary"/);
+  assert.match(guideHtml, /aria-label="Usage Guide table of contents"/);
+  assert.match(guideHtml, /class="guide-toc-list"/);
+  assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-0"/);
+  assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-1"/);
+  assert.match(guideHtml, /href="#graph">.*Ontology Graph/);
+  assert.match(guideHtml, /href="#branding">.*Theme, Footer, and Generator Links/);
+  assert.match(guideHtml, /id="components"/);
+  assert.match(guideHtml, /id="configuration"/);
+  for (const componentId of [
+    "project",
+    "home",
+    "artifacts",
+    "reference",
+    "graph",
+    "terms",
+    "specification",
+    "usage-guide",
+    "branding"
+  ]) {
+    assert.match(guideHtml, new RegExp(`id="${componentId}"`));
+  }
+  for (const option of [
+    "$schema",
+    "project.maintainer",
+    "sources.examples[].description",
+    "features.hierarchyAsset",
+    "site.customSections[].items",
+    "graph.custom.modes.predicateEdges",
+    "graph.webvowl.height",
+    "graph.colors.broader",
+    "theme.colors.accentStrong",
+    "site.generator.documentationUrl",
+    "curation.viewerTabs"
+  ]) {
+    assert.match(guideHtml, new RegExp(`<code>${option.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</code>`));
+  }
+  assert.match(guideHtml, /Predicates as Edges/);
+  assert.match(guideHtml, /Complete Configuration Example/);
+  assert.match(guideHtml, /Basic Example/);
+  assert.match(guideHtml, /npm run build/);
+});
+
+test("build-site accepts the documented primary ontology formats", () => {
+  const configPath = path.join(ROOT, "ocg.config.json");
+  const originalConfigText = fs.readFileSync(configPath, "utf8");
+  const originalConfig = JSON.parse(originalConfigText);
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-format-test-"));
+  const formatInputs = [
+    {
+      format: "turtle",
+      extension: "ttl",
+      content: `@prefix ecv: <https://example.org/ecv#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+ecv:FormatClass a owl:Class ; rdfs:label "Format Class" .`
+    },
+    {
+      format: "rdfxml",
+      extension: "rdf",
+      content: `<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:owl="http://www.w3.org/2002/07/owl#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+  <owl:Class rdf:about="https://example.org/ecv#FormatClass"><rdfs:label>Format Class</rdfs:label></owl:Class>
+</rdf:RDF>`
+    },
+    {
+      format: "jsonld",
+      extension: "jsonld",
+      content: JSON.stringify({
+        "@context": {
+          ecv: "https://example.org/ecv#",
+          owl: "http://www.w3.org/2002/07/owl#",
+          rdfs: "http://www.w3.org/2000/01/rdf-schema#"
+        },
+        "@id": "ecv:FormatClass",
+        "@type": "owl:Class",
+        "rdfs:label": "Format Class"
+      })
+    },
+    {
+      format: "ntriples",
+      extension: "nt",
+      content: `<https://example.org/ecv#FormatClass> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Class> .\n<https://example.org/ecv#FormatClass> <http://www.w3.org/2000/01/rdf-schema#label> "Format Class" .`
+    }
+  ];
+
+  try {
+    for (const input of formatInputs) {
+      const sourcePath = path.join(tempDir, `ontology.${input.extension}`);
+      fs.writeFileSync(sourcePath, input.content);
+      const testConfig = {
+        ...originalConfig,
+        sources: {
+          ...originalConfig.sources,
+          ontology: sourcePath,
+          ontologyFormat: input.format
+        }
+      };
+      fs.writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
+      execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+
+      const graphData = JSON.parse(
+        fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8")
+      );
+      assert.equal(graphData.sourceFormat, input.format);
+      assert.ok(graphData.nodes.some((node) => node.uri === "https://example.org/ecv#FormatClass"));
+    }
+
+    const unsupportedPath = path.join(tempDir, "ontology.trig");
+    fs.writeFileSync(unsupportedPath, "<https://example.org/ecv#FormatClass> {} .");
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          ...originalConfig,
+          sources: { ...originalConfig.sources, ontology: unsupportedPath, ontologyFormat: "auto" }
+        },
+        null,
+        2
+      )
+    );
+    assert.throws(
+      () => execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" }),
+      (error) => `${error.stdout || ""}${error.stderr || ""}`.includes("Unsupported ontology format")
+    );
+  } finally {
+    fs.writeFileSync(configPath, originalConfigText);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+  }
+});
