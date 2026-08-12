@@ -1,24 +1,48 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { rdfParser } from "rdf-parse";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const ROOT = path.resolve(__dirname, "..");
-const CONFIG_PATH = path.join(ROOT, "ocg.config.json");
-const CONFIG_SCHEMA_PATH = path.join(ROOT, "ocg.config.schema.json");
-const PACKAGE_PATH = path.join(ROOT, "package.json");
-const WORKFLOW_PATH = path.join(ROOT, ".github", "workflows", "publish-pages.yml");
-const SOURCE_GUIDE_PATH = path.join(ROOT, "source", "README-source-guide.txt");
-const FAVICON_PNG_PATH = path.join(ROOT, "source", "branding", "favicon.png");
-const FAVICON_ICO_PATH = path.join(ROOT, "source", "branding", "favicon.ico");
-const SITE_DIR = path.join(ROOT, "site");
+const require = createRequire(import.meta.url);
+const PACKAGE_ROOT = path.resolve(__dirname, "..");
+const CLI_ARGS = process.argv.slice(2);
+const PROJECT_ROOT = path.resolve(
+  getOptionValue(CLI_ARGS, "--project-root") || process.env.OCG_PROJECT_ROOT || process.cwd()
+);
+const CONFIG_PATH = resolveProjectPath(
+  getOptionValue(CLI_ARGS, "--config") || "ocg.config.json"
+);
+const CONFIG_SCHEMA_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "ocg.config.schema.json");
+const PROJECT_SCHEMA_PATH = path.join(PROJECT_ROOT, "ocg.config.schema.json");
+const PACKAGE_PATH = path.join(PACKAGE_ROOT, "package.json");
+const WORKFLOW_TEMPLATE_PATH = path.join(PACKAGE_ROOT, ".github", "workflows", "publish-pages.yml");
+const PROJECT_WORKFLOW_PATH = path.join(PROJECT_ROOT, ".github", "workflows", "publish-pages.yml");
+const SOURCE_GUIDE_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "source", "README-source-guide.txt");
+const PROJECT_SOURCE_GUIDE_PATH = path.join(PROJECT_ROOT, "source", "README-source-guide.txt");
+const FAVICON_PNG_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "source", "branding", "favicon.png");
+const FAVICON_ICO_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "source", "branding", "favicon.ico");
+const FAVICON_PNG_PROJECT_PATH = path.join(PROJECT_ROOT, "source", "branding", "favicon.png");
+const FAVICON_ICO_PROJECT_PATH = path.join(PROJECT_ROOT, "source", "branding", "favicon.ico");
+const SITE_DIR = resolveProjectPath(getOptionValue(CLI_ARGS, "--output") || "site");
 const ASSETS_DIR = path.join(SITE_DIR, "assets");
+const VENDOR_ASSETS_DIR = path.join(ASSETS_DIR, "vendor");
 const TERMS_DIR = path.join(SITE_DIR, "terms");
 const OCG_VERSION = JSON.parse(fs.readFileSync(PACKAGE_PATH, "utf8")).version || "development";
+const GRAPH_VENDOR_ASSETS = [
+  {
+    sourcePath: resolveDependencyAsset("graphology/dist/graphology.umd.min.js"),
+    destinationName: "graphology.umd.min.js"
+  },
+  {
+    sourcePath: resolveDependencyAsset("sigma/build/sigma.min.js"),
+    destinationName: "sigma.min.js"
+  }
+];
 
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
@@ -170,17 +194,26 @@ async function main() {
   const config = loadConfig(CONFIG_PATH);
   validateConfig(config);
 
+  const assets = buildAssetManifest(config);
+  if (args.has("--check")) {
+    const ontologyInfo = await parseOntology(config, assets);
+    console.log(
+      `Configuration valid: parsed ${ontologyInfo.stats.declaredTerms} declared terms and ${ontologyInfo.edges.length} relationships.`
+    );
+    return;
+  }
+
   fs.rmSync(SITE_DIR, { recursive: true, force: true });
   ensureDir(ASSETS_DIR);
   ensureDir(TERMS_DIR);
 
-  const assets = buildAssetManifest(config);
   const ontologyInfo = await parseOntology(config, assets);
   const relationshipSummary = buildRelationshipSummary(ontologyInfo);
   const hierarchyTtl = buildHierarchyTtl(ontologyInfo);
 
   copyAssets(assets);
   copyBrandingAssets();
+  copyGraphVendorAssets();
   writeText(path.join(ASSETS_DIR, "ontology_graph_data.json"), JSON.stringify(ontologyInfo, null, 2));
   writeText(
     path.join(ASSETS_DIR, "ontology_relationships_overview.json"),
@@ -295,18 +328,19 @@ function validateConfig(config) {
   }
   requiredPaths.push(
     CONFIG_PATH,
-    CONFIG_SCHEMA_PATH,
+    CONFIG_SCHEMA_TEMPLATE_PATH,
     PACKAGE_PATH,
-    WORKFLOW_PATH,
-    SOURCE_GUIDE_PATH,
-    FAVICON_PNG_PATH,
-    FAVICON_ICO_PATH
+    getProjectOrPackageResource(PROJECT_WORKFLOW_PATH, WORKFLOW_TEMPLATE_PATH),
+    getProjectOrPackageResource(PROJECT_SOURCE_GUIDE_PATH, SOURCE_GUIDE_TEMPLATE_PATH),
+    getProjectOrPackageResource(FAVICON_PNG_PROJECT_PATH, FAVICON_PNG_TEMPLATE_PATH),
+    getProjectOrPackageResource(FAVICON_ICO_PROJECT_PATH, FAVICON_ICO_TEMPLATE_PATH)
   );
+  requiredPaths.push(...GRAPH_VENDOR_ASSETS.map((asset) => asset.sourcePath));
 
   for (const filePath of requiredPaths) {
-    const absolute = path.isAbsolute(filePath) ? filePath : path.join(ROOT, filePath);
+    const absolute = path.isAbsolute(filePath) ? filePath : resolveProjectPath(filePath);
     if (!fs.existsSync(absolute)) {
-      throw new Error(`Configured file does not exist: ${path.relative(ROOT, absolute)}`);
+      throw new Error(`Configured file does not exist: ${path.relative(PROJECT_ROOT, absolute)}`);
     }
   }
 
@@ -357,8 +391,8 @@ function validateConfig(config) {
 function buildAssetManifest(config) {
   const assets = [];
   const addAsset = ({ key, label, filePath, description, kind, destinationName }) => {
-    const absolute = path.isAbsolute(filePath) ? filePath : path.join(ROOT, filePath);
-    const relativeSource = path.relative(ROOT, absolute).replaceAll("\\", "/");
+    const absolute = path.isAbsolute(filePath) ? filePath : resolveProjectPath(filePath);
+    const relativeSource = path.relative(PROJECT_ROOT, absolute).replaceAll("\\", "/");
     const destName = destinationName || path.basename(absolute);
     assets.push({
       key,
@@ -421,7 +455,7 @@ function buildAssetManifest(config) {
   addAsset({
     key: "config-schema",
     label: "Config Schema",
-    filePath: CONFIG_SCHEMA_PATH,
+    filePath: getProjectOrPackageResource(PROJECT_SCHEMA_PATH, CONFIG_SCHEMA_TEMPLATE_PATH),
     description: "JSON Schema reference for ocg.config.json.",
     kind: "config",
     destinationName: "ocg.config.schema.json"
@@ -429,7 +463,7 @@ function buildAssetManifest(config) {
   addAsset({
     key: "workflow",
     label: "GitHub Pages Workflow",
-    filePath: WORKFLOW_PATH,
+    filePath: getProjectOrPackageResource(PROJECT_WORKFLOW_PATH, WORKFLOW_TEMPLATE_PATH),
     description: "GitHub Actions deployment workflow shipped with the template.",
     kind: "workflow",
     destinationName: "publish-pages.yml"
@@ -437,8 +471,8 @@ function buildAssetManifest(config) {
   addAsset({
     key: "source-guide",
     label: "Source Replacement Guide",
-    filePath: SOURCE_GUIDE_PATH,
-    description: "Quick instructions for replacing the bundled example package.",
+    filePath: getProjectOrPackageResource(PROJECT_SOURCE_GUIDE_PATH, SOURCE_GUIDE_TEMPLATE_PATH),
+    description: "Quick instructions for integrating OCG into an existing ontology repository.",
     kind: "guide",
     destinationName: "README-source-guide.txt"
   });
@@ -453,14 +487,25 @@ function copyAssets(assets) {
 }
 
 function copyBrandingAssets() {
-  fs.copyFileSync(FAVICON_PNG_PATH, path.join(SITE_DIR, "favicon.png"));
-  fs.copyFileSync(FAVICON_ICO_PATH, path.join(SITE_DIR, "favicon.ico"));
+  fs.copyFileSync(
+    getProjectOrPackageResource(FAVICON_PNG_PROJECT_PATH, FAVICON_PNG_TEMPLATE_PATH),
+    path.join(SITE_DIR, "favicon.png")
+  );
+  fs.copyFileSync(
+    getProjectOrPackageResource(FAVICON_ICO_PROJECT_PATH, FAVICON_ICO_TEMPLATE_PATH),
+    path.join(SITE_DIR, "favicon.ico")
+  );
+}
+
+function copyGraphVendorAssets() {
+  ensureDir(VENDOR_ASSETS_DIR);
+  for (const asset of GRAPH_VENDOR_ASSETS) {
+    fs.copyFileSync(asset.sourcePath, path.join(VENDOR_ASSETS_DIR, asset.destinationName));
+  }
 }
 
 function writeSpecPage(config) {
-  const sourcePath = path.isAbsolute(config.sources.spec)
-    ? config.sources.spec
-    : path.join(ROOT, config.sources.spec);
+  const sourcePath = resolveProjectPath(config.sources.spec);
   const destination = path.join(SITE_DIR, "spec", "index.html");
   ensureDir(path.dirname(destination));
   const source = fs.readFileSync(sourcePath, "utf8");
@@ -1274,6 +1319,38 @@ function buildGuidePage(context) {
   const configExampleHtml = escapeHtml(JSON.stringify(configExample, null, 2));
   const componentSections = [
     {
+      id: "package-cli",
+      badge: "Developer Workflow",
+      title: "Package and CLI",
+      description: "Installs OCG into an existing ontology repository and controls initialization, validation, generation, cleanup, and local preview.",
+      options: [
+        ["npm install --save-dev ontology-companion-generator", "Installs the OCG CLI and its RDF, Sigma.js, and Graphology runtime dependencies."],
+        ["ocg init --ontology path", "Creates an initial config, schema, Pages workflow, and npm scripts; namespace and common companion files are inferred when possible."],
+        ["ocg init --force", "Replaces the generated ocg.config.json while preserving an existing schema and workflow."],
+        ["ocg check", "Validates configuration, source paths, dependency assets, and ontology parsing without writing site output."],
+        ["ocg build", "Generates the static site and vendors Sigma.js and Graphology browser bundles into site/assets/vendor/."],
+        ["ocg dev", "Builds the site and serves it locally at http://127.0.0.1:4173/."],
+        ["ocg clean", "Removes the generated site directory."],
+        ["--config path", "Uses an alternate configuration file relative to the repository root."],
+        ["--output path", "Writes generated output to an alternate directory instead of site/."],
+        ["--host host / --port port", "Changes the host or port used by the local ocg dev server."]
+      ],
+      example: {
+        scripts: {
+          "ocg:check": "ocg check",
+          "ocg:build": "ocg build",
+          "ocg:dev": "ocg dev",
+          "ocg:clean": "ocg clean"
+        },
+        commands: [
+          "npm install --save-dev ontology-companion-generator",
+          "npx ocg init --ontology vocab/my-vocabulary.ttl",
+          "npm run ocg:check",
+          "npm run ocg:build"
+        ]
+      }
+    },
+    {
       id: "project",
       badge: "Site Foundation",
       title: "Project Identity",
@@ -1364,7 +1441,7 @@ function buildGuidePage(context) {
       id: "graph",
       badge: "Interactive Page",
       title: "Ontology Graph",
-      description: "Configures the Sigma.js graph, its two predicate modes, WebVOWL, and graph colors.",
+      description: "Configures the Sigma.js graph, its two predicate modes, WebVOWL, graph colors, and interactive behavior generated from the ontology.",
       options: [
         ["features.graphPage", "Set to false to omit ontology-graph.html and its navigation link."],
         ["graph.defaultView", "Initial representation: custom or webvowl. The selected representation must be enabled."],
@@ -1456,14 +1533,15 @@ function buildGuidePage(context) {
   ];
   const componentSectionsHtml = componentSections.map(guideComponentSection).join("");
   const guideTocItems = [
-    { id: "getting-started", label: "Getting Started", level: 0, marker: "01" },
-    { id: "repository-layout", label: "Repository Layout", level: 0, marker: "02" },
-    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "03" },
-    { id: "components", label: "Component Overview", level: 0, marker: "04" },
+    { id: "existing-repository", label: "Existing Repository Integration", level: 0, marker: "01" },
+    { id: "getting-started", label: "Getting Started", level: 0, marker: "02" },
+    { id: "repository-layout", label: "Repository Layout", level: 0, marker: "03" },
+    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "04" },
+    { id: "components", label: "Component Overview", level: 0, marker: "05" },
     ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1, marker: "" })),
-    { id: "configuration", label: "Complete Configuration", level: 0, marker: "05" },
-    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "06" },
-    { id: "commands", label: "Useful Commands", level: 0, marker: "07" }
+    { id: "configuration", label: "Complete Configuration", level: 0, marker: "06" },
+    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "07" },
+    { id: "commands", label: "Useful Commands", level: 0, marker: "08" }
   ];
   const guideToc = `
     <details class="guide-toc" open>
@@ -1492,38 +1570,75 @@ function buildGuidePage(context) {
         <div class="guide-hero-copy">
           <div class="eyebrow">Usage Guide</div>
           <h1>Guide to generating an ontology companion site using OCG.</h1>
-          <p>This guide shows how OCG and its configurations can generate a companion site from your ontology and <code>ocg.config.json</code> preferences. Use this guide to replace the example files, customize the generated pages, and understand what each part of the generated site does.</p>
+          <p>This guide shows how to add OCG to an existing ontology repository, point it at your current source files, customize the generated pages, and publish the companion site from that repository's <code>main</code> branch.</p>
           <div class="guide-quick-links">
-            <a class="btn btn--primary" href="#getting-started">Get Started</a>
+            <a class="btn btn--primary" href="#existing-repository">Integrate OCG</a>
             <a class="btn btn--ghost" href="#configuration">Configure OCG</a>
             <a class="btn btn--ghost" href="#components">Explore Generated Components</a>
           </div>
         </div>
       </section>
 
-      <section id="getting-started" class="section guide-section">
-        <div class="section-head"><h2>Getting Started</h2><p class="section-note">A forked repository is intentionally focused on one ontology or vocabulary.</p></div>
+      <section id="existing-repository" class="section guide-section">
+        <div class="section-head"><h2>Existing Repository Integration</h2><p class="section-note">Keep your ontology repository as the source of truth and install OCG alongside it.</p></div>
         <ol class="guide-steps">
-          <li><strong>Replace the source package.</strong> Put the primary ontology in <code>source/ontology/</code>. Add SHACL, ShEx, examples, and an optional ReSpec document in their matching directories.</li>
+          <li><strong>Install the package.</strong> Run <code>npm install --save-dev ontology-companion-generator</code>. The package supplies the generator, schema fallback, branding, Sigma.js, Graphology, and RDF parser dependencies.</li>
+          <li><strong>Initialize the repository.</strong> Run <code>npx ocg init --ontology vocab/my-vocabulary.ttl</code>. OCG creates the config, schema, Pages workflow, and npm scripts, and attempts to infer the namespace and common companion files.</li>
+          <li><strong>Review and customize the config.</strong> Paths in <code>sources</code> are relative to the repository root, so an existing <code>vocab/</code>, <code>shapes/</code>, <code>shex/</code>, <code>examples/</code>, or <code>spec/</code> layout can remain unchanged.</li>
+          <li><strong>Validate and build.</strong> Run <code>npm run ocg:check</code>, then <code>npm run ocg:build</code>. Use <code>npm run ocg:dev</code> to inspect the generated site locally.</li>
+          <li><strong>Publish from main.</strong> Enable GitHub Actions as the Pages source and push <code>main</code>. Feature branches should build and validate without deploying over the live site.</li>
+        </ol>
+        <h3>Existing source layout example</h3>
+        ${guideCode({
+          sources: {
+            ontology: "vocab/my-vocabulary.ttl",
+            ontologyFormat: "turtle",
+            shapes: "shapes/my-vocabulary.shacl.ttl",
+            shex: "shex/my-vocabulary.shex",
+            spec: "spec/index.html",
+            examples: [
+              {
+                key: "basic",
+                label: "Basic Example",
+                path: "examples/basic.ttl",
+                description: "A minimal valid instance graph."
+              }
+            ]
+          }
+        })}
+        <h3>Required integration files</h3>
+        ${guideOptions([
+          ["ocg.config.json", "Project-specific metadata, source paths, feature switches, graph settings, theme, and curation."],
+          ["package.json + package-lock.json", "The OCG package and its locked dependencies."],
+          [".github/workflows/publish-pages.yml", "Builds and deploys site/ from main through GitHub Pages."],
+          ["ocg.config.schema.json", "Optional local copy created by ocg init for editor completion."]
+        ])}
+        <div class="guide-callout"><strong>Do not copy OCG internals into the ontology repository.</strong> The installed package owns the generator code and browser assets. The ontology repository owns the config, source files, package manifest, workflow, and generated site.</div>
+      </section>
+
+      <section id="getting-started" class="section guide-section">
+        <div class="section-head"><h2>Getting Started</h2><p class="section-note">The primary workflow adds OCG to an existing ontology repository; forking this repository is an optional alternative.</p></div>
+        <ol class="guide-steps">
+          <li><strong>Keep your existing source layout.</strong> OCG can use ontology, SHACL, ShEx, example, and ReSpec files wherever they already live in the repository.</li>
           <li><strong>Update the config.</strong> Change project metadata, source paths, feature switches, graph options, theme, landing-page copy, and generator links in <code>ocg.config.json</code>.</li>
-          <li><strong>Build locally.</strong> Run <code>npm run build</code> to regenerate <code>site/</code>, then inspect the pages and run <code>npm test</code>.</li>
-          <li><strong>Publish with GitHub Pages.</strong> Push to <code>main</code>. The included workflow rebuilds and deploys <code>site/</code> through GitHub Actions.</li>
+          <li><strong>Build locally.</strong> Run <code>npm run ocg:build</code> to regenerate <code>site/</code> and vendor the Sigma.js/Graphology browser bundles under <code>site/assets/vendor/</code>, then inspect the pages.</li>
+          <li><strong>Publish with GitHub Pages.</strong> Push the ontology repository's <code>main</code> branch. The workflow rebuilds and deploys <code>site/</code> through GitHub Actions.</li>
         </ol>
       </section>
 
       <section id="repository-layout" class="section guide-section">
-        <div class="section-head"><h2>Repository Layout</h2><p class="section-note">The source ontology should be in a valid RDF format and let OCG generate the site output.</p></div>
+        <div class="section-head"><h2>Repository Layout</h2><p class="section-note">OCG support files can sit beside an existing ontology layout; source paths do not need to use source/.</p></div>
         <pre class="guide-code"><code>.
 ├── ocg.config.json
 ├── ocg.config.schema.json
-├── source/
-│   ├── ontology/
-│   ├── shapes/
-│   ├── shex/
-│   ├── examples/
-│   └── spec/
-├── scripts/build-site.mjs
-└── site/                  # generated, do not edit by hand</code></pre>
+├── package.json             # contains the OCG dependency and scripts
+├── package-lock.json
+├── vocab/                   # existing ontology files
+├── shapes/                  # existing SHACL files
+├── shex/                    # existing ShEx files
+├── examples/                # existing instance data
+├── spec/                    # existing ReSpec source
+└── site/                   # generated, do not edit by hand</code></pre>
       </section>
 
       <section id="accepted-input-formats" class="section guide-section">
@@ -1548,6 +1663,7 @@ function buildGuidePage(context) {
       <section id="components" class="section guide-section">
         <div class="section-head"><h2>Companion Site Components</h2><p class="section-note">Use the component-level How To links throughout the site to return directly to these explanations. Each detailed section includes an option table and a complete example.</p></div>
         <div class="guide-grid">
+          <article id="package-cli-summary" class="guide-card"><div class="term-badge">Developer Workflow</div><h3><a href="#package-cli">Package and CLI</a></h3><p>Install OCG as a development dependency and use the CLI to initialize, validate, build, preview, and clean the companion site.</p><p><strong>Customize:</strong> CLI paths, output directory, local preview host, and the full <code>ocg.config.json</code> surface.</p></article>
           <article id="home-summary" class="guide-card"><div class="term-badge">Landing Page</div><h3><a href="#home">Home</a></h3><p>The home page presents your project identity, navigation, source artifacts, ontology snapshot, configurable overview cards, featured terms, examples, and the raw artifact viewer.</p><p><strong>Customize:</strong> <code>site.hero</code>, <code>site.resourcePanel</code>, <code>site.overviewCards</code>, <code>site.customSections</code>, and <code>curation.featuredTerms</code>.</p></article>
           <article id="artifacts-summary" class="guide-card"><div class="term-badge">Source Package</div><h3><a href="#artifacts">Artifacts and Viewer</a></h3><p>OWL Ontology, SHACL, ShEx, examples, configuration, and workflow files are copied into <code>site/assets/</code>. The home page can expose them as buttons and configurable raw-viewer tabs.</p><p><strong>Customize:</strong> <code>sources</code>, <code>features.rawViewer</code>, and <code>curation.viewerTabs</code>.</p></article>
           <article id="reference-summary" class="guide-card"><div class="term-badge">Generated Page</div><h3><a href="#reference">Vocabulary Reference</a></h3><p>The reference page extracts declared terms from the configured ontology and groups them by class, property, concept, and declared-term type.</p><p><strong>Enable or disable:</strong> <code>features.referencePage</code>.</p></article>
@@ -1568,15 +1684,19 @@ function buildGuidePage(context) {
       </section>
 
       <section id="github-pages" class="section guide-section">
-        <div class="section-head"><h2>GitHub Pages Deployment</h2><p class="section-note">The included workflow builds on pushes to <code>main</code> and deploys the generated <code>site/</code> directory.</p></div>
-        <div class="guide-callout"><strong>Required repository setting:</strong> in GitHub, open Settings → Pages and select GitHub Actions as the deployment source. Change the source package or config and rebuild instead of editing generated HTML.</div>
+        <div class="section-head"><h2>GitHub Pages Deployment</h2><p class="section-note">The included workflow builds the ontology repository on pushes to <code>main</code> and deploys the generated <code>site/</code> directory.</p></div>
+        <div class="guide-callout"><strong>Required repository setting:</strong> in GitHub, open Settings → Pages and select GitHub Actions as the deployment source. The workflow intentionally deploys only <code>main</code> so feature branches cannot overwrite the live site.</div>
+        <p>GitHub Pages does not dynamically follow the branch currently selected in the GitHub file browser. Deploying every branch would send each build to the same Pages site, with the latest deployment replacing the previous one. Build and test feature branches locally or with build-only CI, then merge to <code>main</code> for publication.</p>
       </section>
 
       <section id="commands" class="section guide-section">
         <div class="section-head"><h2>Useful Commands</h2><p class="section-note">Run these from the repository root.</p></div>
-        <pre class="guide-code"><code>npm run build   # generate site/
-npm test        # run the bundled build test
-npm run clean   # remove generated site/</code></pre>
+        <pre class="guide-code"><code>npm install --save-dev ontology-companion-generator
+npx ocg init --ontology vocab/my-vocabulary.ttl
+npm run ocg:check   # validate config and parse ontology
+npm run ocg:build   # generate site/
+npm run ocg:dev     # preview at http://127.0.0.1:4173/
+npm run ocg:clean   # remove generated site/</code></pre>
       </section>
     `
   });
@@ -2177,8 +2297,8 @@ function buildSigmaGraphScript(config) {
     external: "external terms"
   };
   return `
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
+      <script src="assets/vendor/graphology.umd.min.js"></script>
+      <script src="assets/vendor/sigma.min.js"></script>
       <script>
         (() => {
           const TYPE_COLOR = ${JSON.stringify(config.graph.colors)};
@@ -2221,6 +2341,8 @@ function buildSigmaGraphScript(config) {
           let nodeById = new Map();
           let draggedNode = null;
           let draggingNode = false;
+          let dragStartedAt = null;
+          let dragMoved = false;
           let suppressNextClick = false;
 
           function escapeHtml(value) {
@@ -2244,6 +2366,21 @@ function buildSigmaGraphScript(config) {
 
           function setStatus(message) {
             statusEl.textContent = message || "";
+          }
+
+          function toViewportPoint(eventLike) {
+            if (!eventLike) {
+              return null;
+            }
+            if (typeof eventLike.x === "number" && typeof eventLike.y === "number") {
+              return { x: eventLike.x, y: eventLike.y };
+            }
+            const original = eventLike.original || eventLike;
+            if (original && typeof original.clientX === "number" && typeof original.clientY === "number") {
+              const rect = container.getBoundingClientRect();
+              return { x: original.clientX - rect.left, y: original.clientY - rect.top };
+            }
+            return null;
           }
 
           function setCustomMode(mode, initializing = false) {
@@ -2433,6 +2570,35 @@ function buildSigmaGraphScript(config) {
               "<div><strong>Incoming</strong></div><ul>" + (incoming || "<li>None</li>") + "</ul>";
           }
 
+          function updateDetailForEdge(edgeId) {
+            const edge = edgeById.get(edgeId);
+            if (!edge) {
+              updateDetail(null);
+              return;
+            }
+            detailEl.innerHTML = "<div><strong>Selected relationship</strong></div>" +
+              "<div><strong>Relation:</strong> <code>" + escapeHtml(relationLabel(edge.relation)) + "</code></div>" +
+              "<div><strong>Predicate:</strong> <code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>" +
+              "<div><strong>Source:</strong> " + termLink(edge.source) + "</div>" +
+              "<div><strong>Target:</strong> " + termLink(edge.target) + "</div>";
+          }
+
+          function selectEdge(edgeId) {
+            if (!edgeId || !visibleEdges.has(edgeId)) {
+              return;
+            }
+            selectedNode = null;
+            selectedNeighborhood = new Set();
+            selectedEdge = edgeId;
+            refreshSelectionContext();
+            updateDetailForEdge(edgeId);
+            clearNodeTooltip();
+            updateEdgeHoverInfo(edgeId, null, true);
+            renderer.refresh();
+            const edge = edgeById.get(edgeId);
+            setStatus(edge ? "Selected edge: " + (edge.predicateQname || edge.relation) + "." : "Selected edge.");
+          }
+
           function clearEdgeHoverInfo() {
             edgeHoverEl.innerHTML = "Hover an edge to inspect relationship information.";
             edgeTooltipEl.classList.remove("visible");
@@ -2455,28 +2621,30 @@ function buildSigmaGraphScript(config) {
               "<div><strong>Predicate:</strong> <code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>" +
               "<div><strong>Source:</strong> " + termLink(edge.source) + "</div>" +
               "<div><strong>Target:</strong> " + termLink(edge.target) + "</div>";
-            const event = payload?.event?.original || payload?.event;
-            if (!event || typeof event.clientX !== "number") {
+            const point = toViewportPoint(payload?.event);
+            if (!point) {
+              edgeTooltipEl.classList.remove("visible");
+              edgeTooltipEl.innerHTML = "";
               return;
             }
             const rect = container.getBoundingClientRect();
-            edgeTooltipEl.style.left = Math.min(rect.width - 340, Math.max(8, event.clientX - rect.left + 12)) + "px";
-            edgeTooltipEl.style.top = Math.min(rect.height - 78, Math.max(8, event.clientY - rect.top + 12)) + "px";
+            edgeTooltipEl.style.left = Math.min(Math.max(8, rect.width - 340), Math.max(8, point.x + 12)) + "px";
+            edgeTooltipEl.style.top = Math.min(Math.max(8, rect.height - 78), Math.max(8, point.y + 12)) + "px";
             edgeTooltipEl.innerHTML = "<div><strong>" + escapeHtml(edge.sourceQname) + " → " + escapeHtml(edge.targetQname) + "</strong></div><div><code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>";
             edgeTooltipEl.classList.add("visible");
           }
 
           function updateNodeTooltip(nodeId, payload) {
             const node = nodeById.get(nodeId);
-            const event = payload?.event?.original || payload?.event;
-            if (!node || !event || typeof event.clientX !== "number") {
+            const point = toViewportPoint(payload?.event);
+            if (!node || !point) {
               clearNodeTooltip();
               return;
             }
             const rect = container.getBoundingClientRect();
-            nodeTooltipEl.style.left = Math.min(rect.width - 300, Math.max(8, event.clientX - rect.left + 10)) + "px";
-            nodeTooltipEl.style.top = Math.min(rect.height - 74, Math.max(8, event.clientY - rect.top + 10)) + "px";
-            nodeTooltipEl.innerHTML = "<div><strong>" + escapeHtml(node.qname) + "</strong></div><div>" + escapeHtml(TYPE_LABEL[node.termType] || node.termType) + "</div>" + (node.label !== node.qname ? "<div>" + escapeHtml(node.label) + "</div>" : "");
+            nodeTooltipEl.style.left = Math.min(Math.max(8, rect.width - 300), Math.max(8, point.x + 10)) + "px";
+            nodeTooltipEl.style.top = Math.min(Math.max(8, rect.height - 74), Math.max(8, point.y + 10)) + "px";
+            nodeTooltipEl.innerHTML = "<div><strong>" + escapeHtml(node.qname) + "</strong></div><div>" + escapeHtml(TYPE_LABEL[node.termType] || node.termType) + "</div>" + (node.label && node.label !== node.qname ? "<div>" + escapeHtml(node.label) + "</div>" : "") + (node.comment ? "<div>" + escapeHtml(node.comment) + "</div>" : "");
             nodeTooltipEl.classList.add("visible");
           }
 
@@ -2590,29 +2758,55 @@ function buildSigmaGraphScript(config) {
           }
 
           function setupDragging() {
+            if (!renderer || typeof renderer.getMouseCaptor !== "function") return;
             const mouseCaptor = renderer.getMouseCaptor();
-            renderer.on("downNode", ({ node, event }) => {
-              draggedNode = node;
-              draggingNode = true;
-              renderer.getCamera().disable();
-              event?.preventSigmaDefault?.();
-            });
-            mouseCaptor.on("mousemovebody", (event) => {
-              if (!draggingNode || !draggedNode) return;
-              const point = renderer.viewportToGraph({ x: event.x, y: event.y });
-              graph.mergeNodeAttributes(draggedNode, { x: point.x, y: point.y });
-              renderer.refresh();
-            });
-            const stopDragging = () => {
+            if (!mouseCaptor || typeof mouseCaptor.on !== "function") return;
+            const stopEvent = (eventLike) => {
+              if (!eventLike) return;
+              eventLike.preventSigmaDefault?.();
+              const original = eventLike.original || eventLike;
+              original.preventDefault?.();
+              original.stopPropagation?.();
+            };
+            const endDrag = () => {
               if (!draggingNode) return;
               draggingNode = false;
               draggedNode = null;
+              dragStartedAt = null;
+              if (dragMoved) {
+                suppressNextClick = true;
+                setStatus("Layout updated by node drag.");
+              }
+              dragMoved = false;
               renderer.getCamera().enable();
-              suppressNextClick = true;
-              setStatus("Layout updated by node drag.");
             };
-            mouseCaptor.on("mouseup", stopDragging);
-            mouseCaptor.on("mouseleave", stopDragging);
+            renderer.on("downNode", (payload) => {
+              if (!payload?.node || !visibleNodes.has(payload.node)) return;
+              draggedNode = payload.node;
+              draggingNode = true;
+              dragMoved = false;
+              dragStartedAt = toViewportPoint(payload.event);
+              renderer.getCamera().disable();
+              stopEvent(payload.event);
+            });
+            mouseCaptor.on("mousemovebody", (eventLike) => {
+              if (!draggingNode || !draggedNode || !graph.hasNode(draggedNode)) return;
+              const point = toViewportPoint(eventLike);
+              if (!point) return;
+              const graphPoint = renderer.viewportToGraph(point);
+              graph.mergeNodeAttributes(draggedNode, { x: graphPoint.x, y: graphPoint.y });
+              if (dragStartedAt) {
+                dragMoved = Math.hypot(point.x - dragStartedAt.x, point.y - dragStartedAt.y) > 2;
+              } else {
+                dragMoved = true;
+              }
+              stopEvent(eventLike);
+              renderer.refresh();
+            });
+            mouseCaptor.on("mouseup", endDrag);
+            mouseCaptor.on("mouseleave", endDrag);
+            window.addEventListener("mouseup", endDrag);
+            window.addEventListener("blur", endDrag);
           }
 
           function setupInteractions() {
@@ -2638,12 +2832,12 @@ function buildSigmaGraphScript(config) {
             });
             renderer.on("clickEdge", ({ edge }) => {
               if (suppressNextClick) { suppressNextClick = false; return; }
-              selectedEdge = edge; selectedNode = null; refreshSelectionContext(); updateEdgeHoverInfo(edge, null, true); updateDetail(null); renderer.refresh();
+              selectEdge(edge);
             });
             renderer.on("clickStage", () => { if (suppressNextClick) { suppressNextClick = false; return; } clearSelection(); });
-            renderer.on("enterNode", (payload) => updateNodeTooltip(payload.node, payload));
+            renderer.on("enterNode", (payload) => { edgeTooltipEl.classList.remove("visible"); edgeTooltipEl.innerHTML = ""; updateNodeTooltip(payload.node, payload); });
             renderer.on("leaveNode", clearNodeTooltip);
-            renderer.on("enterEdge", (payload) => updateEdgeHoverInfo(payload.edge, payload));
+            renderer.on("enterEdge", (payload) => { clearNodeTooltip(); updateEdgeHoverInfo(payload.edge, payload); });
             renderer.on("leaveEdge", () => selectedEdge ? updateEdgeHoverInfo(selectedEdge, null, true) : clearEdgeHoverInfo());
             setupDragging();
             new ResizeObserver(() => renderer.refresh()).observe(container);
@@ -2726,7 +2920,7 @@ function buildSigmaGraphScript(config) {
               graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: 1.9, baseSize: 1.9, relation: edge.relation, label: edge.label || edge.relation });
             });
             runGraphologyRelaxation();
-            renderer = new SigmaCtor(graph, container, { defaultEdgeType: "arrow", renderEdgeLabels: false, renderLabels: true, labelDensity: 1.1, labelGridCellSize: 70, labelRenderedSizeThreshold: 0, minCameraRatio: 0.04, maxCameraRatio: 18, hideEdgesOnMove: false, enableEdgeHoverEvents: true, enableEdgeClickEvents: true });
+            renderer = new SigmaCtor(graph, container, { defaultEdgeType: "arrow", renderEdgeLabels: false, renderLabels: true, labelDensity: 1.1, labelGridCellSize: 70, labelRenderedSizeThreshold: 0, minCameraRatio: 0.04, maxCameraRatio: 18, hideEdgesOnMove: false, enableNodeHoverEvents: true, enableNodeClickEvents: true, enableEdgeHoverEvents: true, enableEdgeClickEvents: true });
             setupReducers();
             recomputeVisibility();
           }
@@ -4376,6 +4570,29 @@ function sortTerms(left, right) {
 
 function sanitizeFileName(value) {
   return value.replaceAll(/[^A-Za-z0-9._-]+/g, "_");
+}
+
+function getOptionValue(args, option) {
+  const index = args.indexOf(option);
+  return index >= 0 ? args[index + 1] : null;
+}
+
+function resolveProjectPath(filePath) {
+  return path.isAbsolute(filePath) ? filePath : path.join(PROJECT_ROOT, filePath);
+}
+
+function getProjectOrPackageResource(projectPath, packagePath) {
+  return fs.existsSync(projectPath) ? projectPath : packagePath;
+}
+
+function resolveDependencyAsset(specifier) {
+  try {
+    return require.resolve(specifier);
+  } catch {
+    throw new Error(
+      `Unable to resolve the bundled graph dependency asset '${specifier}'. Run npm install before building.`
+    );
+  }
 }
 
 function encodeFontQuery(value) {

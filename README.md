@@ -1,8 +1,10 @@
 # Ontology Companion Generator
 
-`ocg/` is a forkable template repository for publishing a GitHub Pages companion site for one ontology or vocabulary per repository.
+`ocg/` is a config-first generator for publishing a GitHub Pages companion site for one ontology or vocabulary per repository.
 
-The default repository contents are intentionally a working test/example:
+The recommended usage is to install OCG as a development dependency in the repository that already owns your ontology. OCG points directly at existing vocabulary, shapes, examples, and specification files; they do not need to be cloned, moved, or copied into a separate repository.
+
+This repository is also a complete forkable template and working test/example:
 - ontology in `source/ontology/`
 - SHACL in `source/shapes/`
 - ShEx in `source/shex/`
@@ -10,42 +12,116 @@ The default repository contents are intentionally a working test/example:
 - optional ReSpec specification source in `source/spec/`
 - full site customization in `ocg.config.json`
 
-## Repo Model
+## Recommended Repo Model
 
-This template is designed for **one ontology per fork**.
+Use one ontology repository as the source of truth and run OCG inside that repository.
 
-When you fork it:
-1. Replace the files in `source/` with your ontology package.
-2. Update `ocg.config.json` with your metadata, file paths, theme, labels, feature toggles, and featured terms.
-3. Run `npm run build`.
-4. Push to `main` to publish with GitHub Pages.
+### Add OCG to an Existing Ontology Repository
+
+1. Install OCG:
+
+```bash
+npm install --save-dev ontology-companion-generator
+```
+
+2. Initialize it from the repository root. Pass the primary ontology path explicitly when it is not in a conventional location:
+
+```bash
+npx ocg init --ontology vocab/my-vocabulary.ttl
+```
+
+`ocg init` creates `ocg.config.json`, copies the config schema, creates the GitHub Pages workflow, adds OCG npm scripts, and attempts to detect the namespace and common SHACL, ShEx, and ReSpec files. Review the generated namespace and metadata before publishing.
+
+3. Customize `ocg.config.json`. Source paths are relative to the repository root and may use the existing layout:
+
+```json
+{
+  "sources": {
+    "ontology": "vocab/my-vocabulary.ttl",
+    "ontologyFormat": "turtle",
+    "shapes": "shapes/my-vocabulary.shacl.ttl",
+    "shex": "shex/my-vocabulary.shex",
+    "spec": "spec/index.html",
+    "examples": [
+      {
+        "key": "basic",
+        "label": "Basic Example",
+        "path": "examples/basic.ttl",
+        "description": "A minimal valid instance graph."
+      }
+    ]
+  }
+}
+```
+
+4. Install the lockfile and validate/build:
+
+```bash
+npm install
+npm run ocg:check
+npm run ocg:build
+```
+
+5. In repository settings, set GitHub Pages to **GitHub Actions**, then push the configured repository's `main` branch.
+
+The workflow checks out the ontology repository at the pushed commit, builds its configured files, and deploys the generated `site/` directory. The live Pages site is intentionally produced from `main`; feature branches should be used for development and build validation rather than competing deployments to the same Pages site.
+
+### Fork the OCG Template Instead
+
+Forking this repository remains useful when you want a ready-made one-ontology repository. Replace the bundled `source/` package, update `ocg.config.json`, run the build, and push `main`. This is an alternative to integrating OCG into an existing ontology repository, not a requirement.
+
+### Package and CLI Commands
+
+The published package exposes the `ocg` command. Use these commands from the ontology repository root:
+
+```bash
+npx ocg init --ontology vocab/my-vocabulary.ttl
+npm run ocg:check       # validate config and parse the ontology
+npm run ocg:build       # generate site/
+npm run ocg:dev         # build and serve http://127.0.0.1:4173/
+npm run ocg:clean       # remove site/
+```
+
+The CLI can also be called directly as `npx ocg build`, `npx ocg check`, `npx ocg dev`, or `npx ocg clean`. `ocg init --force` replaces the generated config but does not overwrite an existing schema or workflow.
+
+## Integration Files
+
+When using the package, only these files need to exist in the ontology repository:
+
+- `ocg.config.json`
+- `package.json` and a lockfile containing OCG
+- `.github/workflows/publish-pages.yml`
+- optionally `ocg.config.schema.json` for editor completion
+
+The ontology, SHACL, ShEx, examples, and ReSpec document remain in their existing repository locations and are referenced through `ocg.config.json`. OCG supplies its own generator code, schema fallback, branding, Sigma.js, Graphology, and source-guide assets from the installed package.
 
 ## Layout
 
 ```text
 .
-├── .github/workflows/publish-pages.yml
 ├── ocg.config.json
-├── ocg.config.schema.json
-├── scripts/build-site.mjs
-├── source/
-│   ├── ontology/
-│   ├── shapes/
-│   ├── shex/
-│   ├── examples/
-│   └── spec/
-├── tests/build.test.mjs
-└── site/                  # generated
+├── ocg.config.schema.json   # created by ocg init; optional after that
+├── package.json
+├── package-lock.json
+├── vocab/                   # example existing ontology location
+├── shapes/                  # example existing shapes location
+├── shex/                    # example existing ShEx location
+├── examples/                # example existing instance-data location
+├── spec/                    # example existing specification location
+├── site/                    # generated
+└── .github/workflows/publish-pages.yml
 ```
 
 ## Commands
 
 ```bash
-npm run build
-npm test
+npm run ocg:check
+npm run ocg:build
+npm run ocg:dev
+npm run ocg:clean
 ```
 
-`npm run build` generates:
+`ocg build` generates:
 - `site/index.html`
 - `site/ontology-reference.html`
 - `site/ontology-graph.html`
@@ -93,7 +169,7 @@ OCG does not currently accept TriG, N-Quads, Notation3, OWL Functional Syntax, M
 
 ### Usage Guide Page
 
-OCG can generate an in-app [Usage Guide](/Users/eliascrum/PhD_Things/ocg/site/usage-guide.html) so visitors can understand the companion site without opening the repository README. It covers the fork workflow, repository layout, and every generated component with option descriptions and complete JSON examples, including artifacts, the reference page, graph modes, term pages, ReSpec, theme, footer attribution, GitHub Pages, and useful commands. Enable or disable it with:
+OCG can generate an in-app [Usage Guide](/Users/eliascrum/PhD_Things/ocg/site/usage-guide.html) so visitors can understand the companion site without opening the repository README. It covers existing-repository integration, the optional fork workflow, repository layout, and every generated component with option descriptions and complete JSON examples, including artifacts, the reference page, graph modes, term pages, ReSpec, theme, footer attribution, GitHub Pages, and useful commands. Enable or disable it with:
 
 ```json
 "features": {
@@ -137,7 +213,7 @@ The build copies the source document to `site/spec/index.html`, injects the OCG 
 
 ### Graph Representations
 
-The Ontology Graph page can expose WebVOWL and one or both custom Sigma.js modes. The custom renderer uses Sigma.js and Graphology, with nodes, edges, filters, labels, selection details, and layout generated from `ontology_graph_data.json`. WebVOWL is loaded in an iframe from the configured service and uses the published ontology asset by default.
+The Ontology Graph page can expose WebVOWL and one or both custom Sigma.js modes. The custom renderer uses Sigma.js and Graphology, with nodes, edges, filters, labels, hover details, click selection/highlighting, edge selection details, and draggable node layout generated from `ontology_graph_data.json`. The build copies the pinned Sigma.js and Graphology browser bundles from `node_modules` into `site/assets/vendor/`, so the generated Pages site does not depend on a CDN for the custom graph. WebVOWL is loaded in an iframe from the configured service and uses the published ontology asset by default.
 
 ```json
 "graph": {
@@ -187,7 +263,7 @@ It exists to demonstrate:
 - config-driven landing page customization
 - GitHub Pages publishing
 
-If you want to inspect a minimal replacement workflow, start with:
+If you want to inspect the bundled test example, start with:
 - [ocg.config.json](/Users/eliascrum/PhD_Things/ocg/ocg.config.json)
 - [source/ontology/example-capability.ttl](/Users/eliascrum/PhD_Things/ocg/source/ontology/example-capability.ttl)
 - [source/README-source-guide.txt](/Users/eliascrum/PhD_Things/ocg/source/README-source-guide.txt)
@@ -196,4 +272,6 @@ If you want to inspect a minimal replacement workflow, start with:
 
 The included workflow builds the site and deploys `site/` through GitHub Actions.
 
-In your repository settings, configure Pages to use **GitHub Actions** as the source.
+In your repository settings, configure Pages to use **GitHub Actions** as the source. The workflow deploys only pushes to `main` (plus manual dispatch), so the live site is stable and is not overwritten by arbitrary feature-branch pushes. Use `npm run ocg:check` and `npm run ocg:build` on a feature branch to validate changes before merging.
+
+GitHub Pages does not dynamically render the branch currently selected in the GitHub file browser. A workflow that deploys every branch would send each branch to the same Pages site, with the latest deployment replacing the previous one. For branch-specific previews, use a separate preview host or upload build artifacts without deploying them to the live Pages environment.

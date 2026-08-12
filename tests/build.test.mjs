@@ -3,10 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const ROOT = "/Users/eliascrum/PhD_Things/ocg";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("build-site produces the expected publish artifacts for the bundled example", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  for (const dependency of ["rdf-parse", "graphology", "sigma"]) {
+    assert.ok(packageJson.dependencies?.[dependency], `${dependency} should be a declared dependency`);
+  }
+
   execFileSync("node", ["scripts/build-site.mjs"], {
     cwd: ROOT,
     stdio: "pipe"
@@ -20,6 +26,8 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site/ontology-graph.html",
     "site/spec/index.html",
     "site/usage-guide.html",
+    "site/assets/vendor/graphology.umd.min.js",
+    "site/assets/vendor/sigma.min.js",
     "site/assets/ontology_graph_data.json",
     "site/assets/ontology_hierarchy.ttl",
     "site/terms/Capability.html",
@@ -34,7 +42,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /Example Capability Vocabulary/);
   assert.match(indexHtml, /rel="icon" href="favicon\.ico"/);
   assert.match(indexHtml, /rel="icon" type="image\/png" sizes="512x512" href="favicon\.png"/);
-  assert.match(indexHtml, /Forkable Single-Ontology Template/);
+  assert.match(indexHtml, /Config-First Single-Ontology Companion/);
   assert.match(indexHtml, />OWL Ontology</);
   assert.match(indexHtml, />Specification</);
   assert.doesNotMatch(indexHtml, />Spec Page</);
@@ -86,14 +94,23 @@ test("build-site produces the expected publish artifacts for the bundled example
   const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
   assert.match(graphHtml, /Custom Graph/);
   assert.match(graphHtml, /WebVOWL/);
-  assert.match(graphHtml, /graphology\.umd\.min\.js/);
-  assert.match(graphHtml, /sigma\.min\.js/);
+  assert.match(graphHtml, /assets\/vendor\/graphology\.umd\.min\.js/);
+  assert.match(graphHtml, /assets\/vendor\/sigma\.min\.js/);
   assert.match(graphHtml, /id="webvowl-frame"/);
   assert.match(graphHtml, /service\.tib\.eu\/webvowl/);
   assert.match(graphHtml, /id="sigma-toggle-external"/);
   assert.match(graphHtml, /class="sigma-panel"/);
   assert.match(graphHtml, /Predicates as Nodes/);
   assert.match(graphHtml, /Predicates as Edges/);
+  assert.match(graphHtml, /enableNodeHoverEvents: true/);
+  assert.match(graphHtml, /enableNodeClickEvents: true/);
+  assert.match(graphHtml, /function toViewportPoint/);
+  assert.match(graphHtml, /function selectEdge/);
+  assert.match(graphHtml, /function updateDetailForEdge/);
+  assert.match(graphHtml, /window\.addEventListener\("blur", endDrag\)/);
+  assert.match(graphHtml, /renderer\.on\("enterNode"/);
+  assert.match(graphHtml, /renderer\.on\("enterEdge"/);
+  assert.match(graphHtml, /renderer\.on\("clickEdge"/);
   assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
 
   const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
@@ -110,6 +127,11 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(specHtml, /href="\.\.\/usage-guide\.html#specification">How To</);
 
   const guideHtml = fs.readFileSync(path.join(ROOT, "site/usage-guide.html"), "utf8");
+  assert.match(guideHtml, /id="existing-repository"/);
+  assert.match(guideHtml, /<h2>Existing Repository Integration<\/h2>/);
+  assert.match(guideHtml, /vocab\/my-vocabulary\.ttl/);
+  assert.match(guideHtml, /Do not copy OCG internals/);
+  assert.match(guideHtml, /feature branches cannot overwrite the live site/);
   assert.match(guideHtml, /id="getting-started"/);
   assert.match(guideHtml, /id="accepted-input-formats"/);
   assert.match(guideHtml, /<h2>Accepted Input Formats<\/h2>/);
@@ -157,7 +179,14 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(guideHtml, /Predicates as Edges/);
   assert.match(guideHtml, /Complete Configuration Example/);
   assert.match(guideHtml, /Basic Example/);
-  assert.match(guideHtml, /npm run build/);
+  assert.match(guideHtml, /id="package-cli"/);
+  assert.match(guideHtml, /npm install --save-dev ontology-companion-generator/);
+  assert.match(guideHtml, /npm run ocg:build/);
+
+  const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/publish-pages.yml"), "utf8");
+  assert.match(workflow, /branches:\s*\n\s+- main/);
+  assert.doesNotMatch(workflow, /test -f site\/ontology-reference\.html/);
+  assert.doesNotMatch(workflow, /test -f site\/ontology-graph\.html/);
 });
 
 test("build-site accepts the documented primary ontology formats", () => {
@@ -246,5 +275,42 @@ ecv:FormatClass a owl:Class ; rdfs:label "Format Class" .`
     fs.writeFileSync(configPath, originalConfigText);
     fs.rmSync(tempDir, { recursive: true, force: true });
     execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+  }
+});
+
+test("ocg CLI initializes and builds an external ontology repository", () => {
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-cli-test-"));
+  const sourcePath = path.join(ROOT, "source", "ontology", "example-capability.ttl");
+  fs.copyFileSync(sourcePath, path.join(tempDir, "ontology.ttl"));
+
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], {
+      cwd: tempDir,
+      stdio: "pipe"
+    });
+
+    const config = JSON.parse(fs.readFileSync(path.join(tempDir, "ocg.config.json"), "utf8"));
+    assert.equal(config.sources.ontology, "ontology.ttl");
+    assert.equal(config.project.namespace, "https://example.org/ecv#");
+    assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
+    assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
+    const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
+    assert.equal(projectPackage.devDependencies["ontology-companion-generator"], "^0.1.0");
+    assert.equal(projectPackage.scripts["ocg:build"], "ocg build");
+    assert.match(
+      fs.readFileSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml"), "utf8"),
+      /npm run ocg:build/
+    );
+
+    execFileSync(process.execPath, [cliPath, "check"], { cwd: tempDir, stdio: "pipe" });
+    execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+    const graphData = JSON.parse(
+      fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_graph_data.json"), "utf8")
+    );
+    assert.ok(graphData.nodes.length > 0);
+    assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "vendor", "sigma.min.js")), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 });

@@ -92,9 +92,9 @@
   "site": {
     "basePath": "/",
     "hero": {
-      "kicker": "Forkable Single-Ontology Template",
+      "kicker": "Config-First Single-Ontology Companion",
       "headline": "A config-first companion site for one ontology per repository.",
-      "body": "This default repository content is a working test/example. Replace the files in source/, update this config document, and the build regenerates the GitHub Pages site around your ontology."
+      "body": "Use this repository as a complete example, or add the generator files to an existing ontology repository and point the config at your current source layout. The build regenerates the GitHub Pages companion site around your ontology."
     },
     "resourcePanel": {
       "title": "Published Artifacts",
