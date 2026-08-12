@@ -1,0 +1,194 @@
+@prefix vord: <https://w3id.org/vord#> .
+@prefix vords: <https://w3id.org/vord/shapes#> .
+@prefix sd: <http://www.w3.org/ns/sparql-service-description#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+vords:ServiceWithRestrictionsShape a sh:NodeShape ;
+  sh:targetClass sd:Service ;
+  sh:property [
+    sh:path vord:hasRestriction ;
+    sh:minCount 1 ;
+    sh:class vord:Restriction ;
+  ] .
+
+vords:RestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:Restriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:maxCount 1 ;
+    sh:class vord:Metric ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] ;
+  sh:property [
+    sh:path vord:minValue ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] ;
+  sh:property [
+    sh:path vord:hardRestriction ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:boolean ;
+  ] ;
+  sh:property [
+    sh:path vord:hasScope ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class vord:Scope ;
+  ] ;
+  sh:property [
+    sh:path vord:enforcement ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class vord:EnforcementMode ;
+  ] ;
+  sh:property [
+    sh:path vord:unit ;
+    sh:maxCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] ;
+  sh:property [
+    sh:path vord:windowDuration ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:duration ;
+  ] ;
+  sh:property [
+    sh:path vord:retryAfterHint ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:duration ;
+  ] ;
+  sh:property [
+    sh:path vord:returnsStatusCode ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] ;
+  sh:property [
+    sh:path vord:httpSignalHeader ;
+    sh:maxCount 1 ;
+    sh:nodeKind sh:IRI ;
+  ] .
+
+vords:RateRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:RateRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( vord:requestsPerWindow vord:requestsPerDay ) ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] ;
+  sh:property [
+    sh:path vord:windowDuration ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:duration ;
+  ] ;
+  sh:property [
+    sh:path vord:burstValue ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .
+
+vords:ResultSizeRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:ResultSizeRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( vord:resultBindings ) ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .
+
+vords:CostModelRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:CostModelRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( vord:estimatedCostUnits ) ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] ;
+  sh:property [
+    sh:path vord:costModel ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:class vord:CostModel ;
+  ] .
+
+vords:ServerLoadRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:ServerLoadRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .
+
+vords:ConcurrentRequestsRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:ConcurrentRequestsRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .
+
+vords:ResponseTimeRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:ResponseTimeRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( vord:evaluationTime ) ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .
+
+vords:QuotaRestrictionShape a sh:NodeShape ;
+  sh:targetClass vord:QuotaRestriction ;
+  sh:property [
+    sh:path vord:metric ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:in ( vord:requestsPerDay ) ;
+  ] ;
+  sh:property [
+    sh:path vord:maxValue ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+    sh:datatype xsd:integer ;
+  ] .

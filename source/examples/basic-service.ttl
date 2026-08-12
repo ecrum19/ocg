@@ -1,0 +1,42 @@
+@prefix ex: <https://example.org/sparql/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sd: <http://www.w3.org/ns/sparql-service-description#> .
+@prefix vord: <https://w3id.org/vord#> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix http: <http://www.w3.org/2011/http-headers#> .
+
+ex:service a sd:Service ;
+  sd:endpoint <https://example.org/sparql> ;
+  sd:supportedLanguage sd:SPARQLQuery ;
+  sd:feature sd:BasicFederatedQuery ;
+  vord:hasRestriction ex:rateRestriction, ex:resultRestriction, ex:responseTimeRestriction .
+
+ex:rateRestriction a vord:Restriction, vord:RateRestriction ;
+  vord:metric vord:requestsPerWindow ;
+  vord:maxValue "60"^^xsd:integer ;
+  vord:burstValue "15"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:windowDuration "PT1M"^^xsd:duration ;
+  vord:hasScope vord:PerClientIP ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "true"^^xsd:boolean ;
+  vord:returnsStatusCode "429"^^xsd:integer ;
+  vord:retryAfterHint "PT30S"^^xsd:duration ;
+  vord:httpSignalHeader http:retry-after .
+
+ex:resultRestriction a vord:Restriction, vord:ResultSizeRestriction ;
+  vord:metric vord:resultBindings ;
+  vord:maxValue "50000"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:hasScope vord:PerRequest ;
+  vord:enforcement vord:TruncateResult ;
+  vord:hardRestriction "true"^^xsd:boolean .
+
+ex:responseTimeRestriction a vord:Restriction, vord:ResponseTimeRestriction ;
+  vord:metric vord:evaluationTime ;
+  vord:maxValue "600"^^xsd:integer ;
+  vord:unit unit:SEC ;
+  vord:hasScope vord:PerRequest ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "true"^^xsd:boolean ;
+  vord:returnsStatusCode "503"^^xsd:integer .

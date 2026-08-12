@@ -1,0 +1,253 @@
+@prefix vord: <https://w3id.org/vord#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix sd: <http://www.w3.org/ns/sparql-service-description#> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix http: <http://www.w3.org/2011/http#> .
+@prefix qudt: <http://qudt.org/schema/qudt/> .
+
+<https://w3id.org/vord#> a owl:Ontology ;
+  dcterms:title "VoRD: Vocabulary of Restrictive Datasets"@en ;
+  dcterms:description "Vocabulary for describing operational restrictions of SPARQL services, aligned with SPARQL Service Description and validated with SHACL/ShEx."@en ;
+  dcterms:created "2026-04-23"^^xsd:date ;
+  dcterms:conformsTo <https://www.w3.org/TR/sparql12-service-description/> ;
+  dcterms:conformsTo <https://www.w3.org/TR/shacl/> ;
+  dcterms:conformsTo <https://www.w3.org/ns/shex> ;
+  rdfs:seeAlso <https://www.w3.org/TR/owl-time/> ;
+  rdfs:seeAlso <https://www.w3.org/TR/HTTP-in-RDF10/> .
+
+vord:Restriction a owl:Class ;
+  rdfs:label "Restriction"@en ;
+  rdfs:comment "A machine-readable operational restriction or policy threshold for a SPARQL endpoint."@en ;
+  rdfs:subClassOf sd:Feature .
+
+vord:RateRestriction a owl:Class ;
+  rdfs:label "Rate Restriction"@en ;
+  rdfs:comment "Restriction on request frequency over time."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:ResultSizeRestriction a owl:Class ;
+  rdfs:label "Result Size Restriction"@en ;
+  rdfs:comment "Restriction on result payload size, bindings, or triples."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:CostModelRestriction a owl:Class ;
+  rdfs:label "Cost Model Restriction"@en ;
+  rdfs:comment "Restriction based on internal query optimizer or execution cost estimation."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:ServerLoadRestriction a owl:Class ;
+  rdfs:label "Server Load Restriction"@en ;
+  rdfs:comment "Restriction activated by host or cluster load conditions."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:ConcurrentRequestsRestriction a owl:Class ;
+  rdfs:label "Connection Number Restriction"@en ;
+  rdfs:comment "Restriction on number of simultaneous open connections or active query executions."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:ResponseTimeRestriction a owl:Class ;
+  rdfs:label "Timeout Restriction"@en ;
+  rdfs:comment "Maximum allowed execution or waiting time for a query."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:QuotaRestriction a owl:Class ;
+  rdfs:label "Quota Restriction"@en ;
+  rdfs:comment "Rolling or fixed query submission quota over a longer period (day, week, month)."@en ;
+  rdfs:subClassOf vord:Restriction .
+
+vord:Metric a owl:Class ;
+  rdfs:label "Metric"@en ;
+  rdfs:comment "Class of measurable dimensions that a Restriction constrains. Standard metric terms in this vocabulary are additionally modeled as SKOS concepts, but the class itself is kept separate from skos:Concept."@en .
+
+vord:Scope a owl:Class ;
+  rdfs:label "Scope"@en ;
+  rdfs:comment "Class of enforcement scopes at which a restriction is evaluated (e.g., per user, global). Standard scope terms in this vocabulary are additionally modeled as SKOS concepts, but the class itself is kept separate from skos:Concept."@en .
+
+vord:EnforcementMode a owl:Class ;
+  rdfs:label "Enforcement Mode"@en ;
+  rdfs:comment "Class of operational behaviors that apply when a restriction is reached. Standard enforcement mode terms in this vocabulary are additionally modeled as SKOS concepts, but the class itself is kept separate from skos:Concept."@en .
+
+vord:MetricScheme a skos:ConceptScheme ;
+  skos:prefLabel "VoRD metric scheme"@en ;
+  rdfs:comment "Concept scheme for the controlled metric terms defined by VoRD."@en .
+
+vord:ScopeScheme a skos:ConceptScheme ;
+  skos:prefLabel "VoRD scope scheme"@en ;
+  rdfs:comment "Concept scheme for the controlled scope terms defined by VoRD."@en .
+
+vord:EnforcementModeScheme a skos:ConceptScheme ;
+  skos:prefLabel "VoRD enforcement mode scheme"@en ;
+  rdfs:comment "Concept scheme for the controlled enforcement mode terms defined by VoRD."@en .
+
+vord:CostModel a owl:Class ;
+  rdfs:label "Cost Model"@en ;
+  rdfs:comment "Identifier for an implementation-specific cost model used by an endpoint."@en .
+
+vord:hasRestriction a owl:ObjectProperty ;
+  rdfs:label "has restriction"@en ;
+  rdfs:comment "Relates a SPARQL service to a restriction statement."@en ;
+  rdfs:domain sd:Service ;
+  rdfs:range vord:Restriction ;
+  rdfs:subPropertyOf sd:feature .
+
+vord:metric a owl:ObjectProperty ;
+  rdfs:label "metric"@en ;
+  rdfs:comment "Metric constrained by this restriction."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range vord:Metric .
+
+vord:hasScope a owl:ObjectProperty ;
+  rdfs:label "has scope"@en ;
+  rdfs:comment "Scope in which the restriction is enforced."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range vord:Scope .
+
+vord:enforcement a owl:ObjectProperty ;
+  rdfs:label "enforcement"@en ;
+  rdfs:comment "Action taken when the restriction is reached."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range vord:EnforcementMode .
+
+vord:costModel a owl:ObjectProperty ;
+  rdfs:label "cost model"@en ;
+  rdfs:comment "Cost model used to interpret an internal cost-model restriction."@en ;
+  rdfs:domain vord:CostModelRestriction ;
+  rdfs:range vord:CostModel .
+
+vord:httpSignalHeader a owl:ObjectProperty ;
+  rdfs:label "signals header"@en ;
+  rdfs:comment "HTTP header name used by the endpoint to signal this restriction status."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range http:HeaderName ;
+  rdfs:seeAlso http:hdrName .
+
+vord:maxValue a owl:DatatypeProperty ;
+  rdfs:label "maximum value"@en ;
+  rdfs:comment "Primary threshold value for this restriction."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:integer .
+
+vord:minValue a owl:DatatypeProperty ;
+  rdfs:label "minimum value"@en ;
+  rdfs:comment "Optional minimum threshold for this restriction."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:integer .
+
+vord:burstValue a owl:DatatypeProperty ;
+  rdfs:label "burst value"@en ;
+  rdfs:comment "Additional burst threshold for short spikes."@en ;
+  rdfs:domain vord:RateRestriction ;
+  rdfs:range xsd:integer .
+
+vord:unit a owl:ObjectProperty ;
+  rdfs:label "unit"@en ;
+  rdfs:comment "Unit of measure for maxValue."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range qudt:Unit .
+
+vord:windowDuration a owl:DatatypeProperty ;
+  rdfs:label "window duration"@en ;
+  rdfs:comment "Duration window for evaluating this restriction (xsd:duration)."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:duration ;
+  rdfs:seeAlso time:hasXSDDuration .
+
+vord:retryAfterHint a owl:DatatypeProperty ;
+  rdfs:label "retry after hint"@en ;
+  rdfs:comment "Suggested waiting duration before retry (xsd:duration)."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:duration ;
+  rdfs:seeAlso time:hasXSDDuration .
+
+vord:returnsStatusCode a owl:DatatypeProperty ;
+  rdfs:label "returns status code"@en ;
+  rdfs:comment "HTTP status code commonly used when this restriction is exceeded (e.g., 429)."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:integer ;
+  rdfs:seeAlso http:statusCodeValue .
+
+vord:hardRestriction a owl:DatatypeProperty ;
+  rdfs:label "hard restriction"@en ;
+  rdfs:comment "True if the threshold is strictly enforced; false if advisory or load-dependent."@en ;
+  rdfs:domain vord:Restriction ;
+  rdfs:range xsd:boolean .
+
+vord:PerClientIP a vord:Scope, skos:Concept ;
+  skos:prefLabel "Per Client IP"@en ;
+  skos:inScheme vord:ScopeScheme ;
+  rdfs:comment "The restriction is enforced independently for each client IP address."@en .
+
+vord:PerAPIKey a vord:Scope, skos:Concept ;
+  skos:prefLabel "Per API Key"@en ;
+  skos:inScheme vord:ScopeScheme ;
+  rdfs:comment "The restriction is enforced independently for each API key credential."@en .
+
+vord:PerUser a vord:Scope, skos:Concept ;
+  skos:prefLabel "Per User"@en ;
+  skos:inScheme vord:ScopeScheme ;
+  rdfs:comment "The restriction is enforced independently for each authenticated user identity."@en .
+
+vord:PerRequest a vord:Scope, skos:Concept ;
+  skos:prefLabel "Per Request"@en ;
+  skos:inScheme vord:ScopeScheme ;
+  rdfs:comment "The restriction is evaluated within a single incoming request or query execution."@en .
+
+vord:GlobalScope a vord:Scope, skos:Concept ;
+  skos:prefLabel "Global"@en ;
+  skos:inScheme vord:ScopeScheme ;
+  rdfs:comment "The restriction is shared across all traffic handled by the endpoint instance or cluster."@en .
+
+vord:RejectRequest a vord:EnforcementMode, skos:Concept ;
+  skos:prefLabel "Reject Request"@en ;
+  skos:inScheme vord:EnforcementModeScheme ;
+  rdfs:comment "The endpoint rejects requests that violate the restriction."@en .
+
+vord:TruncateResult a vord:EnforcementMode, skos:Concept ;
+  skos:prefLabel "Truncate Result"@en ;
+  skos:inScheme vord:EnforcementModeScheme ;
+  rdfs:comment "The endpoint returns a partial result when the restriction is reached."@en .
+
+vord:QueueRequest a vord:EnforcementMode, skos:Concept ;
+  skos:prefLabel "Queue Request"@en ;
+  skos:inScheme vord:EnforcementModeScheme ;
+  rdfs:comment "The endpoint queues requests instead of executing immediately when capacity is constrained."@en .
+
+vord:ThrottleResponse a vord:EnforcementMode, skos:Concept ;
+  skos:prefLabel "Throttle Response"@en ;
+  skos:inScheme vord:EnforcementModeScheme ;
+  rdfs:comment "The endpoint slows processing or response delivery under limiting conditions."@en .
+
+vord:DegradeQuality a vord:EnforcementMode, skos:Concept ;
+  skos:prefLabel "Degrade Quality"@en ;
+  skos:inScheme vord:EnforcementModeScheme ;
+  rdfs:comment "The endpoint continues serving requests with reduced quality of service."@en .
+
+vord:requestsPerWindow a vord:Metric, skos:Concept ;
+  skos:prefLabel "Requests per Window"@en ;
+  skos:inScheme vord:MetricScheme ;
+  rdfs:comment "Count of requests observed within a configured sliding or fixed window."@en .
+
+vord:requestsPerDay a vord:Metric, skos:Concept ;
+  skos:prefLabel "Requests per Day"@en ;
+  skos:inScheme vord:MetricScheme ;
+  rdfs:comment "Count of requests accumulated over a one-day quota period."@en .
+
+vord:resultBindings a vord:Metric, skos:Concept ;
+  skos:prefLabel "Result Bindings"@en ;
+  skos:inScheme vord:MetricScheme ;
+  rdfs:comment "Number of solution bindings (solution mappings) returned by a SPARQL query."@en .
+
+vord:evaluationTime a vord:Metric, skos:Concept ;
+  skos:prefLabel "Evaluation Time"@en ;
+  skos:inScheme vord:MetricScheme ;
+  rdfs:comment "Integer amount of time a request is evaluated in seconds."@en .
+
+vord:estimatedCostUnits a vord:Metric, skos:Concept ;
+  skos:prefLabel "Estimated Cost Units"@en ;
+  skos:inScheme vord:MetricScheme ;
+  rdfs:comment "Optimizer- or planner-estimated internal cost score for query execution."@en .

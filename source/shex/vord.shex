@@ -1,0 +1,27 @@
+PREFIX vord: <https://w3id.org/vord#>
+PREFIX sd: <http://www.w3.org/ns/sparql-service-description#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+start = @<ServiceWithRestrictions>
+
+<ServiceWithRestrictions> EXTRA a {
+  a [sd:Service] ;
+  vord:hasRestriction @<Restriction> +
+}
+
+<Restriction> EXTRA a {
+  a [vord:Restriction] ;
+  vord:metric IRI ? ;
+  vord:maxValue xsd:integer ? ;
+  vord:minValue xsd:integer ? ;
+  vord:hardRestriction xsd:boolean ;
+  vord:hasScope IRI ;
+  vord:enforcement IRI ;
+  vord:unit IRI ? ;
+  vord:windowDuration xsd:duration ? ;
+  vord:retryAfterHint xsd:duration ? ;
+  vord:returnsStatusCode xsd:integer ? ;
+  vord:httpSignalHeader IRI * ;
+  vord:costModel IRI ? ;
+  vord:burstValue xsd:integer ?
+}

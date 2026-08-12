@@ -1,0 +1,82 @@
+@prefix ex: <https://example.org/wikidata/service-description/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix sd: <http://www.w3.org/ns/sparql-service-description#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix vord: <https://w3id.org/vord#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix unit: <http://qudt.org/vocab/unit/> .
+@prefix http: <http://www.w3.org/2011/http-headers#> .
+
+# Example VoRD description for Wikidata's public SPARQL endpoint.
+# Values are derived from Wikimedia API rate-restriction guidance (May 2026).
+# Sources:
+# - https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits
+# - https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/en
+
+ex:wdqsService a sd:Service ;
+  sd:endpoint <https://query.wikidata.org/sparql> ;
+  dcterms:source <https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits> ;
+  dcterms:source <https://www.wikidata.org/wiki/Wikidata:SPARQL_query_service/en> ;
+  vord:hasRestriction ex:unidentifiedRateRestriction,
+                ex:userAgentOnlyRateRestriction,
+                ex:establishedUserRateRestriction,
+                ex:perClientConcurrencyGuidance .
+
+ex:UnidentifiedClientScope a vord:Scope, skos:Concept ;
+  skos:prefLabel "Unidentified Client"@en ;
+  dcterms:description "Requests identified only by IP address."@en .
+
+ex:UserAgentOnlyScope a vord:Scope, skos:Concept ;
+  skos:prefLabel "User-Agent Only"@en ;
+  dcterms:description "Unauthenticated clients with a compliant User-Agent."@en .
+
+ex:EstablishedAuthenticatedUserScope a vord:Scope, skos:Concept ;
+  skos:prefLabel "Established Authenticated User"@en ;
+  dcterms:description "Authenticated users classified as established editors."@en .
+
+ex:ConcurrentRequestsMetric a vord:Metric, skos:Concept ;
+  skos:prefLabel "Concurrent Requests"@en ;
+  dcterms:description "Number of in-flight requests issued concurrently by a client."@en .
+
+ex:unidentifiedRateRestriction a vord:Restriction, vord:RateRestriction ;
+  vord:metric vord:requestsPerWindow ;
+  vord:maxValue "10"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:windowDuration "PT1M"^^xsd:duration ;
+  vord:hasScope ex:UnidentifiedClientScope ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "true"^^xsd:boolean ;
+  vord:returnsStatusCode "429"^^xsd:integer ;
+  vord:httpSignalHeader http:retry-after .
+
+ex:userAgentOnlyRateRestriction a vord:Restriction, vord:RateRestriction ;
+  vord:metric vord:requestsPerWindow ;
+  vord:maxValue "200"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:windowDuration "PT1M"^^xsd:duration ;
+  vord:hasScope ex:UserAgentOnlyScope ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "true"^^xsd:boolean ;
+  vord:returnsStatusCode "429"^^xsd:integer ;
+  vord:httpSignalHeader http:retry-after .
+
+ex:establishedUserRateRestriction a vord:Restriction, vord:RateRestriction ;
+  vord:metric vord:requestsPerWindow ;
+  vord:maxValue "2000"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:windowDuration "PT1M"^^xsd:duration ;
+  vord:hasScope ex:EstablishedAuthenticatedUserScope ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "true"^^xsd:boolean ;
+  vord:returnsStatusCode "429"^^xsd:integer ;
+  vord:httpSignalHeader http:retry-after .
+
+ex:perClientConcurrencyGuidance a vord:Restriction, vord:ConcurrentRequestsRestriction ;
+  vord:metric ex:ConcurrentRequestsMetric ;
+  vord:maxValue "3"^^xsd:integer ;
+  vord:unit unit:COUNT ;
+  vord:hasScope vord:PerClientIP ;
+  vord:enforcement vord:RejectRequest ;
+  vord:hardRestriction "false"^^xsd:boolean ;
+  vord:returnsStatusCode "503"^^xsd:integer ;
+  vord:httpSignalHeader http:retry-after .

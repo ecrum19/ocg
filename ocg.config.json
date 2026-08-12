@@ -1,33 +1,39 @@
 {
   "$schema": "./ocg.config.schema.json",
   "project": {
-    "title": "Example Capability Vocabulary",
-    "shortName": "ECV",
-    "slug": "example-capability-vocabulary",
-    "description": "A built-in demonstration ontology that shows how to configure OCG for one vocabulary-oriented GitHub Pages site per fork.",
-    "namespace": "https://example.org/ecv#",
-    "canonicalUri": "https://example.org/ecv",
-    "version": "0.1.0",
-    "maintainer": "OCG Template Example"
+    "title": "VoRD: Vocabulary of Restrictive Datasets",
+    "shortName": "VoRD",
+    "slug": "vord",
+    "description": "An RDF vocabulary for publishing operational restrictions of SPARQL services in a machine-readable form.",
+    "namespace": "https://w3id.org/vord#",
+    "canonicalUri": "https://w3id.org/vord",
+    "version": "0.2.0",
+    "maintainer": "VoRD Contributors"
   },
   "sources": {
-    "ontology": "source/ontology/example-capability.ttl",
+    "ontology": "source/ontology/vord.ttl",
     "ontologyFormat": "auto",
-    "shapes": "source/shapes/example-capability.shacl.ttl",
-    "shex": "source/shex/example-capability.shex",
+    "shapes": "source/shapes/vord.shacl.ttl",
+    "shex": "source/shex/vord.shex",
     "spec": "source/spec/index.html",
     "examples": [
       {
-        "key": "basic",
-        "label": "Basic Capability Example",
-        "path": "source/examples/basic-capability.ttl",
-        "description": "Smallest useful graph that exercises the core classes and properties."
+        "key": "basic-service",
+        "label": "Basic Service Description",
+        "path": "source/examples/basic-service.ttl",
+        "description": "A minimal SPARQL service description with rate, result-size, and response-time restrictions."
       },
       {
-        "key": "advanced",
-        "label": "Advanced Capability Example",
-        "path": "source/examples/advanced-capability.ttl",
-        "description": "More expressive example showing multiple constraints, labels, and concept references."
+        "key": "exhaustive-service",
+        "label": "Exhaustive Service Description",
+        "path": "source/examples/exhaustive-service.ttl",
+        "description": "A comprehensive service description exercising the core VoRD restriction types and properties."
+      },
+      {
+        "key": "wikidata-rate-restrictions",
+        "label": "Wikidata Rate Restrictions",
+        "path": "source/examples/wikidata-rate-restrictions.ttl",
+        "description": "An informative example describing public Wikidata Query Service rate and processing limits."
       }
     ]
   },
@@ -90,50 +96,50 @@
     }
   },
   "site": {
-    "basePath": "/",
+    "basePath": "/vord/",
     "hero": {
-      "kicker": "Forkable Single-Ontology Template",
-      "headline": "A config-first companion site for one ontology per repository.",
-      "body": "This default repository content is a working test/example. Replace the files in source/, update this config document, and the build regenerates the GitHub Pages site around your ontology."
+      "kicker": "VoRD v0.2.0",
+      "headline": "Machine-readable restrictions for SPARQL services.",
+      "body": "VoRD extends SPARQL Service Description with explicit restriction resources for rate limits, result sizes, timeouts, quotas, concurrency, load shedding, and related HTTP signals."
     },
     "resourcePanel": {
-      "title": "Published Artifacts",
-      "body": "Every linked artifact below is derived from the configured source package and exposed through a static site that can be deployed directly with GitHub Actions."
+      "title": "VoRD Resources",
+      "body": "Explore the vocabulary reference, validation schemas, implementation-oriented specification, examples, and generated ontology graph."
     },
     "overviewCards": [
       {
-        "title": "Replace the Example Source",
-        "body": "Swap the built-in ontology, shapes, examples, and specification with your own files, keeping the same source/ directory structure or updating the config paths.",
-        "linkText": "Read Setup Instructions",
-        "linkHref": "assets/README-source-guide.txt"
+        "title": "Describe Restrictions",
+        "body": "Attach one or more restriction resources to an sd:Service with vord:hasRestriction and publish the operational thresholds clients need to understand.",
+        "linkText": "Read the Specification",
+        "linkHref": "spec/index.html"
       },
       {
-        "title": "Customize the Website",
-        "body": "Colors, hero text, featured terms, raw viewer tabs, and custom narrative sections all come from ocg.config.json.",
-        "linkText": "Config Schema",
-        "linkHref": "assets/ocg.config.schema.json"
+        "title": "Validate Implementations",
+        "body": "Use the bundled SHACL and ShEx profiles to check that service descriptions expose the required VoRD links, values, scopes, and enforcement modes.",
+        "linkText": "View SHACL and ShEx",
+        "linkHref": "assets/vord.shacl.ttl"
       },
       {
-        "title": "Publish with GitHub Pages",
-        "body": "The included workflow rebuilds the site and deploys the generated output directory on every push to main.",
-        "linkText": "Review Workflow",
-        "linkHref": "assets/publish-pages.yml"
+        "title": "Inspect the Graph",
+        "body": "Browse the generated relationships among restriction classes, controlled concepts, properties, and their external SPARQL, HTTP, time, and QUDT terms.",
+        "linkText": "Open Graph View",
+        "linkHref": "ontology-graph.html"
       }
     ],
     "customSections": [
       {
-        "title": "How This Example Helps",
-        "body": "The default files intentionally exercise each major surface of the template so new users can inspect a working ontology, SHACL file, ShEx schema, examples, spec page, graph, reference page, and per-term HTML output before replacing anything.",
+        "title": "About VoRD",
+        "body": "VoRD is designed for SPARQL endpoint maintainers and clients that need a predictable way to publish and consume operational restriction metadata.",
         "items": [
-          "The ontology declares classes, object properties, datatype properties, annotation properties, and SKOS concepts.",
-          "The examples use the declared terms so the term pages show realistic cross-links.",
-          "The config demonstrates featured terms, viewer tab selection, custom cards, and footer text."
+          "Quantitative restrictions can express metrics, thresholds, units, windows, bursts, and retry hints.",
+          "Controlled SKOS concepts describe scopes and enforcement behaviors such as per-client, global, reject, throttle, and partial-result handling.",
+          "The specification defines publishing and consumption guidance for service descriptions, validation, extensions, and discovery."
         ]
       }
     ],
     "footer": {
-      "primary": "Ontology Companion Generator template example.",
-      "secondary": "Edit ocg.config.json and the source/ files to adapt this repo to your own vocabulary."
+      "primary": "VoRD is an RDF vocabulary for describing operational restrictions of SPARQL services.",
+      "secondary": "The companion site is generated from the VoRD ontology, SHACL, ShEx, examples, and specification sources."
     },
     "generator": {
       "repositoryUrl": "https://github.com/ecrum19/ocg",
@@ -142,17 +148,20 @@
   },
   "curation": {
     "featuredTerms": [
-      "ecv:Capability",
-      "ecv:OnlineCapability",
-      "ecv:hasRequirement",
-      "ecv:DeveloperAudience"
+      "vord:Restriction",
+      "vord:RateRestriction",
+      "vord:hasRestriction",
+      "vord:requestsPerWindow",
+      "vord:PerClientIP",
+      "vord:RejectRequest"
     ],
     "viewerTabs": [
       "ontology",
       "shapes",
       "shex",
-      "example:basic",
-      "example:advanced",
+      "example:basic-service",
+      "example:exhaustive-service",
+      "example:wikidata-rate-restrictions",
       "config"
     ]
   }

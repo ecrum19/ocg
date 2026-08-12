@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 
 const ROOT = "/Users/eliascrum/PhD_Things/ocg";
 
-test("build-site produces the expected publish artifacts for the bundled example", () => {
+test("build-site produces the expected publish artifacts for the VoRD companion", () => {
   execFileSync("node", ["scripts/build-site.mjs"], {
     cwd: ROOT,
     stdio: "pipe"
@@ -22,7 +22,7 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site/usage-guide.html",
     "site/assets/ontology_graph_data.json",
     "site/assets/ontology_hierarchy.ttl",
-    "site/terms/Capability.html",
+    "site/terms/Restriction.html",
     "site/terms/index.html"
   ];
 
@@ -31,10 +31,10 @@ test("build-site produces the expected publish artifacts for the bundled example
   }
 
   const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
-  assert.match(indexHtml, /Example Capability Vocabulary/);
+  assert.match(indexHtml, /VoRD: Vocabulary of Restrictive Datasets/);
   assert.match(indexHtml, /rel="icon" href="favicon\.ico"/);
   assert.match(indexHtml, /rel="icon" type="image\/png" sizes="512x512" href="favicon\.png"/);
-  assert.match(indexHtml, /Forkable Single-Ontology Template/);
+  assert.match(indexHtml, /VoRD v0\.2\.0/);
   assert.match(indexHtml, />OWL Ontology</);
   assert.match(indexHtml, />Specification</);
   assert.doesNotMatch(indexHtml, />Spec Page</);
@@ -70,8 +70,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   const graphData = JSON.parse(
     fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8")
   );
-  assert.equal(graphData.project.shortName, "ECV");
-  assert.ok(graphData.nodes.some((node) => node.qname === "ecv:Capability"));
+  assert.equal(graphData.project.shortName, "VoRD");
+  assert.ok(graphData.nodes.some((node) => node.qname === "vord:Restriction"));
   assert.ok(graphData.nodes.every((node) => Number.isFinite(node.degree)));
   assert.ok(graphData.edges.every((edge) => edge.id && edge.predicateQname));
   assert.equal(graphData.modes["predicate-nodes"].nodes.length, graphData.nodes.length);
@@ -81,7 +81,7 @@ test("build-site produces the expected publish artifacts for the bundled example
       (node) => !["objectProperty", "datatypeProperty", "annotationProperty"].includes(node.termType)
     )
   );
-  assert.ok(graphData.modes["predicate-edges"].edges.some((edge) => edge.predicateQname === "ecv:hasRequirement"));
+  assert.ok(graphData.modes["predicate-edges"].edges.some((edge) => edge.predicateQname === "vord:hasRestriction"));
 
   const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
   assert.match(graphHtml, /Custom Graph/);
@@ -99,7 +99,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
   assert.match(specHtml, /Tools\/respec\/respec-w3c/);
   assert.match(specHtml, /var respecConfig/);
-  assert.match(specHtml, /features\.specPage/);
+  assert.match(specHtml, /https:\/\/w3id\.org\/vord#/);
   assert.match(specHtml, /class="ocg-spec-header"/);
   assert.match(specHtml, /rel="icon" href="\.\.\/favicon\.ico"/);
   assert.match(specHtml, /rel="icon" type="image\/png" sizes="512x512" href="\.\.\/favicon\.png"/);
@@ -209,6 +209,11 @@ ecv:FormatClass a owl:Class ; rdfs:label "Format Class" .`
       fs.writeFileSync(sourcePath, input.content);
       const testConfig = {
         ...originalConfig,
+        project: {
+          ...originalConfig.project,
+          namespace: "https://example.org/ecv#",
+          canonicalUri: "https://example.org/ecv"
+        },
         sources: {
           ...originalConfig.sources,
           ontology: sourcePath,
