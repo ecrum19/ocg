@@ -185,6 +185,7 @@ test("build-site produces the expected publish artifacts for the bundled example
 
   const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/publish-pages.yml"), "utf8");
   assert.match(workflow, /branches:\s*\n\s+- main/);
+  assert.match(workflow, /node-version: 24/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-reference\.html/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-graph\.html/);
 });

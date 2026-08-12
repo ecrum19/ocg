@@ -74,6 +74,8 @@ Forking this repository remains useful when you want a ready-made one-ontology r
 
 The published package exposes the `ocg` command. Use these commands from the ontology repository root:
 
+OCG currently requires Node.js `22.19.0` or newer. This matches the `undici` runtime used by the RDF parser dependency. The generated GitHub Actions workflow uses Node.js 24.
+
 ```bash
 npx ocg init --ontology vocab/my-vocabulary.ttl
 npm run ocg:check       # validate config and parse the ontology

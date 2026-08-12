@@ -17,7 +17,7 @@
     "ocg.config.schema.json"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   },
   "scripts": {
     "build": "node scripts/build-site.mjs",
