@@ -215,7 +215,7 @@ The build copies the source document to `site/spec/index.html`, injects the OCG 
 
 ### Graph Representations
 
-The Ontology Graph page can expose WebVOWL and one or both custom Sigma.js modes. The custom renderer uses Sigma.js and Graphology, with nodes, edges, filters, labels, hover details, click selection/highlighting, edge selection details, and draggable node layout generated from `ontology_graph_data.json`. The build copies the pinned Sigma.js and Graphology browser bundles from `node_modules` into `site/assets/vendor/`, so the generated Pages site does not depend on a CDN for the custom graph. WebVOWL is loaded in an iframe from the configured service and uses the published ontology asset by default.
+The Ontology Graph page can expose WebVOWL and one or both custom Sigma.js modes. The custom renderer uses Sigma.js and Graphology, with nodes, edges, filters, labels, hover details, click selection/highlighting, edge selection details, repeated-click deselection, and draggable node layout generated from `ontology_graph_data.json`. Edges use a forgiving geometry-based hit area in addition to Sigma's native hit testing, so users do not need to click the exact one-pixel line. The build copies the pinned Sigma.js and Graphology browser bundles from `node_modules` into `site/assets/vendor/`, so the generated Pages site does not depend on a CDN for the custom graph. WebVOWL is loaded in an iframe from the configured service and uses the published ontology asset by default.
 
 ```json
 "graph": {

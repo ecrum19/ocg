@@ -1442,7 +1442,7 @@ function buildGuidePage(context) {
       id: "graph",
       badge: "Interactive Page",
       title: "Ontology Graph",
-      description: "Configures the Sigma.js graph, its two predicate modes, WebVOWL, graph colors, and interactive behavior generated from the ontology.",
+      description: "Configures the Sigma.js graph, its two predicate modes, WebVOWL, graph colors, and ontology-generated interaction behavior including hover, forgiving edge hit areas, selection, deselection, and dragging.",
       options: [
         ["features.graphPage", "Set to false to omit ontology-graph.html and its navigation link."],
         ["graph.defaultView", "Initial representation: custom or webvowl. The selected representation must be enabled."],
@@ -2313,6 +2313,8 @@ function buildSigmaGraphScript(config) {
           )};
           const DEFAULT_CUSTOM_MODE = ${JSON.stringify(config.graph.custom.defaultMode)};
           const EDGE_DIM_SIZE = 0.8;
+          const EDGE_BASE_SIZE = 2.6;
+          const EDGE_HIT_TOLERANCE = 14;
 
           const container = document.getElementById("sigma-graph-container");
           const legendEl = document.getElementById("sigma-legend");
@@ -2344,6 +2346,8 @@ function buildSigmaGraphScript(config) {
           let draggingNode = false;
           let dragStartedAt = null;
           let dragMoved = false;
+          let hoveredNode = null;
+          let hoveredEdge = null;
           let suppressNextClick = false;
 
           function escapeHtml(value) {
@@ -2382,6 +2386,72 @@ function buildSigmaGraphScript(config) {
               return { x: original.clientX - rect.left, y: original.clientY - rect.top };
             }
             return null;
+          }
+
+          function pointToSegmentDistance(point, start, end) {
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            if (dx === 0 && dy === 0) {
+              return Math.hypot(point.x - start.x, point.y - start.y);
+            }
+            const ratio = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy)));
+            return Math.hypot(point.x - (start.x + ratio * dx), point.y - (start.y + ratio * dy));
+          }
+
+          function findNearbyEdge(point, tolerance = EDGE_HIT_TOLERANCE) {
+            if (!graph || !renderer || !point) {
+              return null;
+            }
+            let nearest = null;
+            let nearestDistance = tolerance;
+            graph.forEachEdge((edge, attributes, sourceId, targetId) => {
+              if (!visibleEdges.has(edge)) {
+                return;
+              }
+              const source = renderer.graphToViewport(graph.getNodeAttributes(sourceId));
+              const target = renderer.graphToViewport(graph.getNodeAttributes(targetId));
+              const distance = pointToSegmentDistance(point, source, target);
+              if (distance <= nearestDistance) {
+                nearest = edge;
+                nearestDistance = distance;
+              }
+            });
+            return nearest;
+          }
+
+          function updateFallbackHover(payload) {
+            const point = toViewportPoint(payload);
+            if (!point || draggingNode || !renderer) {
+              return;
+            }
+            const node = typeof renderer.getNodeAtPosition === "function"
+              ? renderer.getNodeAtPosition(point)
+              : null;
+            const nextNode = node && visibleNodes.has(node) ? node : null;
+            const nextEdge = nextNode ? null : findNearbyEdge(point);
+            if (nextNode) {
+              hoveredNode = nextNode;
+              hoveredEdge = null;
+              edgeTooltipEl.classList.remove("visible");
+              edgeTooltipEl.innerHTML = "";
+              updateNodeTooltip(nextNode, { event: payload });
+              return;
+            }
+            if (nextEdge) {
+              hoveredNode = null;
+              hoveredEdge = nextEdge;
+              clearNodeTooltip();
+              updateEdgeHoverInfo(nextEdge, { event: payload });
+              return;
+            }
+            hoveredNode = null;
+            hoveredEdge = null;
+            clearNodeTooltip();
+            if (selectedEdge) {
+              updateEdgeHoverInfo(selectedEdge, null, true);
+            } else {
+              clearEdgeHoverInfo();
+            }
           }
 
           function setCustomMode(mode, initializing = false) {
@@ -2588,6 +2658,10 @@ function buildSigmaGraphScript(config) {
             if (!edgeId || !visibleEdges.has(edgeId)) {
               return;
             }
+            if (selectedEdge === edgeId) {
+              clearSelection();
+              return;
+            }
             selectedNode = null;
             selectedNeighborhood = new Set();
             selectedEdge = edgeId;
@@ -2622,7 +2696,7 @@ function buildSigmaGraphScript(config) {
               "<div><strong>Predicate:</strong> <code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>" +
               "<div><strong>Source:</strong> " + termLink(edge.source) + "</div>" +
               "<div><strong>Target:</strong> " + termLink(edge.target) + "</div>";
-            const point = toViewportPoint(payload?.event);
+            const point = toViewportPoint(payload?.event || payload);
             if (!point) {
               edgeTooltipEl.classList.remove("visible");
               edgeTooltipEl.innerHTML = "";
@@ -2637,7 +2711,7 @@ function buildSigmaGraphScript(config) {
 
           function updateNodeTooltip(nodeId, payload) {
             const node = nodeById.get(nodeId);
-            const point = toViewportPoint(payload?.event);
+            const point = toViewportPoint(payload?.event || payload);
             if (!node || !point) {
               clearNodeTooltip();
               return;
@@ -2829,18 +2903,50 @@ function buildSigmaGraphScript(config) {
           function setupRendererInteractions() {
             renderer.on("clickNode", ({ node }) => {
               if (suppressNextClick) { suppressNextClick = false; return; }
+              if (selectedNode === node) {
+                clearSelection();
+                return;
+              }
               selectedNode = node; selectedEdge = null; refreshSelectionContext(); updateDetail(node); clearEdgeHoverInfo(); renderer.refresh(); setStatus("Selected " + qnameNode(node) + ".");
             });
             renderer.on("clickEdge", ({ edge }) => {
               if (suppressNextClick) { suppressNextClick = false; return; }
               selectEdge(edge);
             });
-            renderer.on("clickStage", () => { if (suppressNextClick) { suppressNextClick = false; return; } clearSelection(); });
+            renderer.on("clickStage", (payload) => {
+              if (suppressNextClick) { suppressNextClick = false; return; }
+              const point = toViewportPoint(payload?.event || payload);
+              const node = point && typeof renderer.getNodeAtPosition === "function"
+                ? renderer.getNodeAtPosition(point)
+                : null;
+              if (node && visibleNodes.has(node)) {
+                if (selectedNode === node) {
+                  clearSelection();
+                  return;
+                }
+                selectedNode = node;
+                selectedEdge = null;
+                refreshSelectionContext();
+                updateDetail(node);
+                clearEdgeHoverInfo();
+                renderer.refresh();
+                setStatus("Selected " + qnameNode(node) + ".");
+                return;
+              }
+              const edge = findNearbyEdge(point);
+              if (edge) {
+                selectEdge(edge);
+                return;
+              }
+              clearSelection();
+            });
             renderer.on("enterNode", (payload) => { edgeTooltipEl.classList.remove("visible"); edgeTooltipEl.innerHTML = ""; updateNodeTooltip(payload.node, payload); });
             renderer.on("leaveNode", clearNodeTooltip);
             renderer.on("enterEdge", (payload) => { clearNodeTooltip(); updateEdgeHoverInfo(payload.edge, payload); });
             renderer.on("leaveEdge", () => selectedEdge ? updateEdgeHoverInfo(selectedEdge, null, true) : clearEdgeHoverInfo());
             setupDragging();
+            const mouseCaptor = renderer.getMouseCaptor();
+            mouseCaptor?.on?.("mousemovebody", updateFallbackHover);
             new ResizeObserver(() => renderer.refresh()).observe(container);
           }
 
@@ -2918,7 +3024,7 @@ function buildSigmaGraphScript(config) {
             graphData.edges.forEach((edge, index) => {
               const color = TYPE_COLOR[edge.relation] || "#6f8394";
               const id = edge.id || "rel-" + String(index + 1).padStart(3, "0");
-              graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: 1.9, baseSize: 1.9, relation: edge.relation, label: edge.label || edge.relation });
+              graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: EDGE_BASE_SIZE, baseSize: EDGE_BASE_SIZE, relation: edge.relation, label: edge.label || edge.relation });
             });
             runGraphologyRelaxation();
             renderer = new SigmaCtor(graph, container, { defaultEdgeType: "arrow", renderEdgeLabels: false, renderLabels: true, labelDensity: 1.1, labelGridCellSize: 70, labelRenderedSizeThreshold: 0, minCameraRatio: 0.04, maxCameraRatio: 18, hideEdgesOnMove: false, enableNodeHoverEvents: true, enableNodeClickEvents: true, enableEdgeHoverEvents: true, enableEdgeClickEvents: true });

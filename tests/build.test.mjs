@@ -107,6 +107,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /function toViewportPoint/);
   assert.match(graphHtml, /function selectEdge/);
   assert.match(graphHtml, /function updateDetailForEdge/);
+  assert.match(graphHtml, /EDGE_HIT_TOLERANCE = 14/);
+  assert.match(graphHtml, /function findNearbyEdge/);
+  assert.match(graphHtml, /function updateFallbackHover/);
+  assert.match(graphHtml, /if \(selectedEdge === edgeId\)/);
+  assert.match(graphHtml, /if \(selectedNode === node\)/);
+  assert.match(graphHtml, /renderer\.getMouseCaptor\(\)/);
   assert.match(graphHtml, /window\.addEventListener\("blur", endDrag\)/);
   assert.match(graphHtml, /renderer\.on\("enterNode"/);
   assert.match(graphHtml, /renderer\.on\("enterEdge"/);
