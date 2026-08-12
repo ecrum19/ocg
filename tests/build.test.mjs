@@ -14,6 +14,8 @@ test("build-site produces the expected publish artifacts for the bundled example
 
   const requiredFiles = [
     "site/index.html",
+    "site/favicon.ico",
+    "site/favicon.png",
     "site/ontology-reference.html",
     "site/ontology-graph.html",
     "site/spec/index.html",
@@ -30,6 +32,8 @@ test("build-site produces the expected publish artifacts for the bundled example
 
   const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
   assert.match(indexHtml, /Example Capability Vocabulary/);
+  assert.match(indexHtml, /rel="icon" href="favicon\.ico"/);
+  assert.match(indexHtml, /rel="icon" type="image\/png" sizes="512x512" href="favicon\.png"/);
   assert.match(indexHtml, /Forkable Single-Ontology Template/);
   assert.match(indexHtml, />OWL Ontology</);
   assert.match(indexHtml, />Specification</);
@@ -97,6 +101,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(specHtml, /var respecConfig/);
   assert.match(specHtml, /features\.specPage/);
   assert.match(specHtml, /class="ocg-spec-header"/);
+  assert.match(specHtml, /rel="icon" href="\.\.\/favicon\.ico"/);
+  assert.match(specHtml, /rel="icon" type="image\/png" sizes="512x512" href="\.\.\/favicon\.png"/);
   assert.match(specHtml, /href="\.\.\/index\.html"/);
   assert.match(specHtml, /is-active" href="\.\.\/spec\/index\.html"/);
   assert.match(specHtml, /class="ocg-spec-footer"/);

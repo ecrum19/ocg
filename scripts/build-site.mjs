@@ -13,6 +13,8 @@ const CONFIG_SCHEMA_PATH = path.join(ROOT, "ocg.config.schema.json");
 const PACKAGE_PATH = path.join(ROOT, "package.json");
 const WORKFLOW_PATH = path.join(ROOT, ".github", "workflows", "publish-pages.yml");
 const SOURCE_GUIDE_PATH = path.join(ROOT, "source", "README-source-guide.txt");
+const FAVICON_PNG_PATH = path.join(ROOT, "source", "branding", "favicon.png");
+const FAVICON_ICO_PATH = path.join(ROOT, "source", "branding", "favicon.ico");
 const SITE_DIR = path.join(ROOT, "site");
 const ASSETS_DIR = path.join(SITE_DIR, "assets");
 const TERMS_DIR = path.join(SITE_DIR, "terms");
@@ -178,6 +180,7 @@ async function main() {
   const hierarchyTtl = buildHierarchyTtl(ontologyInfo);
 
   copyAssets(assets);
+  copyBrandingAssets();
   writeText(path.join(ASSETS_DIR, "ontology_graph_data.json"), JSON.stringify(ontologyInfo, null, 2));
   writeText(
     path.join(ASSETS_DIR, "ontology_relationships_overview.json"),
@@ -290,7 +293,15 @@ function validateConfig(config) {
     }
     requiredPaths.push(example.path);
   }
-  requiredPaths.push(CONFIG_PATH, CONFIG_SCHEMA_PATH, PACKAGE_PATH, WORKFLOW_PATH, SOURCE_GUIDE_PATH);
+  requiredPaths.push(
+    CONFIG_PATH,
+    CONFIG_SCHEMA_PATH,
+    PACKAGE_PATH,
+    WORKFLOW_PATH,
+    SOURCE_GUIDE_PATH,
+    FAVICON_PNG_PATH,
+    FAVICON_ICO_PATH
+  );
 
   for (const filePath of requiredPaths) {
     const absolute = path.isAbsolute(filePath) ? filePath : path.join(ROOT, filePath);
@@ -441,6 +452,11 @@ function copyAssets(assets) {
   }
 }
 
+function copyBrandingAssets() {
+  fs.copyFileSync(FAVICON_PNG_PATH, path.join(SITE_DIR, "favicon.png"));
+  fs.copyFileSync(FAVICON_ICO_PATH, path.join(SITE_DIR, "favicon.ico"));
+}
+
 function writeSpecPage(config) {
   const sourcePath = path.isAbsolute(config.sources.spec)
     ? config.sources.spec
@@ -468,7 +484,7 @@ function writeSpecPage(config) {
   `;
   const styledSource = source.replace(
     /<\/head>/i,
-    `${specPageCss(config)}\n  </head>`
+    `<link rel="icon" href="../favicon.ico" sizes="any" />\n  <link rel="icon" type="image/png" sizes="512x512" href="../favicon.png" />\n  ${specPageCss(config)}\n  </head>`
   );
   const generated = styledSource.replace(/<body([^>]*)>/i, (match, attributes) => {
     const classAttribute = attributes.match(/\bclass\s*=\s*(["'])(.*?)\1/i);
@@ -2917,6 +2933,8 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <title>${escapeHtml(title)}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="${escapeHtml(description)}" />
+  <link rel="icon" href="${pathPrefix}favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="512x512" href="${pathPrefix}favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />
