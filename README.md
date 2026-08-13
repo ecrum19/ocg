@@ -1,6 +1,6 @@
 # Ontology Companion Generator
 
-`ocg/` is a config-first generator for publishing a GitHub Pages companion site for one ontology or vocabulary per repository.
+`ocg/` is a config-first generator for publishing a GitHub Pages companion site for an ontology or vocabulary.
 
 The recommended usage is to install OCG as a development dependency in the repository that already owns your ontology. OCG points directly at existing vocabulary, shapes, examples, and specification files; they do not need to be cloned, moved, or copied into a separate repository.
 
@@ -14,7 +14,7 @@ This repository is also a complete forkable template and working test/example:
 
 ## Recommended Repo Model
 
-Use one ontology repository as the source of truth and run OCG inside that repository.
+Use the ontology repository as the source of truth and run OCG inside that repository.
 
 ### Add OCG to an Existing Ontology Repository
 
@@ -68,7 +68,7 @@ The workflow checks out the ontology repository at the pushed commit, builds its
 
 ### Fork the OCG Template Instead
 
-Forking this repository remains useful when you want a ready-made one-ontology repository. Replace the bundled `source/` package, update `ocg.config.json`, run the build, and push `main`. This is an alternative to integrating OCG into an existing ontology repository, not a requirement.
+Forking this repository remains useful when you want a ready-made ontology repository. Replace the bundled `source/` package, update `ocg.config.json`, run the build, and push `main`. This is an alternative to integrating OCG into an existing ontology repository, not a requirement.
 
 ### Package and CLI Commands
 
@@ -194,7 +194,7 @@ Every generated OCG page includes a footer identifying the OCG version from `pac
 }
 ```
 
-The footer renders the generator version, an OCG repository link, and a documentation link when their URLs are configured.
+The footer centers the generator version, an OCG repository link with the OCG favicon, and a documentation link when their URLs are configured. Optional custom footer copy can still be supplied with `site.footer.primary` and `site.footer.secondary`.
 
 ### ReSpec Specification Page
 

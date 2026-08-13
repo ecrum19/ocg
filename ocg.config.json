@@ -4,7 +4,7 @@
     "title": "Example Capability Vocabulary",
     "shortName": "ECV",
     "slug": "example-capability-vocabulary",
-    "description": "A built-in demonstration ontology that shows how to configure OCG for one vocabulary-oriented GitHub Pages site per fork.",
+    "description": "A built-in demonstration ontology that shows how to configure OCG for a vocabulary-oriented GitHub Pages site.",
     "namespace": "https://example.org/ecv#",
     "canonicalUri": "https://example.org/ecv",
     "version": "0.1.0",
@@ -92,8 +92,8 @@
   "site": {
     "basePath": "/",
     "hero": {
-      "kicker": "Config-First Single-Ontology Companion",
-      "headline": "A config-first companion site for one ontology per repository.",
+      "kicker": "Config-First Ontology Companion",
+      "headline": "A config-first companion site for your ontology.",
       "body": "Use this repository as a complete example, or add the generator files to an existing ontology repository and point the config at your current source layout. The build regenerates the GitHub Pages companion site around your ontology."
     },
     "resourcePanel": {
@@ -132,8 +132,8 @@
       }
     ],
     "footer": {
-      "primary": "Ontology Companion Generator template example.",
-      "secondary": "Edit ocg.config.json and the source/ files to adapt this repo to your own vocabulary."
+      "primary": "",
+      "secondary": ""
     },
     "generator": {
       "repositoryUrl": "https://github.com/ecrum19/ocg",

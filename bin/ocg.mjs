@@ -92,7 +92,7 @@ const DEFAULT_CONFIG = {
     basePath: "/",
     hero: {
       kicker: "Ontology Companion",
-      headline: "A companion site for one ontology.",
+      headline: "A companion site for your ontology.",
       body: "Edit this configuration to customize the generated reference, graph, terms, artifacts, and documentation pages."
     },
     resourcePanel: {

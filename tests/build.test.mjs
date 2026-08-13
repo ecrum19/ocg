@@ -22,6 +22,7 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site/index.html",
     "site/favicon.ico",
     "site/favicon.png",
+    "site/ocg-favicon.png",
     "site/ontology-reference.html",
     "site/ontology-graph.html",
     "site/spec/index.html",
@@ -42,17 +43,26 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /Example Capability Vocabulary/);
   assert.match(indexHtml, /rel="icon" href="favicon\.ico"/);
   assert.match(indexHtml, /rel="icon" type="image\/png" sizes="512x512" href="favicon\.png"/);
-  assert.match(indexHtml, /Config-First Single-Ontology Companion/);
+  assert.match(indexHtml, /Config-First Ontology Companion/);
+  assert.match(indexHtml, /A config-first companion site for your ontology\./);
+  assert.doesNotMatch(indexHtml, /Single-Ontology|one ontology per repository|one vocabulary-oriented GitHub Pages site per fork/);
   assert.match(indexHtml, />OWL Ontology</);
   assert.match(indexHtml, />Specification</);
   assert.doesNotMatch(indexHtml, />Spec Page</);
   assert.match(indexHtml, /href="terms\/index\.html">Terms</);
   assert.match(indexHtml, /href="spec\/index\.html">Specification</);
   assert.match(indexHtml, /hero-action-group--artifacts" style="--artifact-count: 3/);
+  assert.match(indexHtml, /class="card-grid featured-terms-grid"/);
+  assert.match(indexHtml, /class="card featured-term-card"/);
   assert.match(indexHtml, /class="site-footer-generator"/);
+  assert.match(indexHtml, /class="site-footer-separator" aria-hidden="true">\|<\/span>/);
   assert.match(indexHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(indexHtml, /class="ocg-footer-repository"/);
+  assert.match(indexHtml, /src="ocg-favicon\.png"/);
   assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg"/);
   assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg#readme"/);
+  assert.doesNotMatch(indexHtml, /Ontology Companion Generator template example\./);
+  assert.doesNotMatch(indexHtml, /Edit ocg\.config\.json and the source\//);
   assert.match(indexHtml, /href="usage-guide\.html#home">How To</);
   assert.match(indexHtml, /href="usage-guide\.html#artifacts">How To</);
   assert.match(indexHtml, />View File</);
@@ -109,14 +119,24 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /function updateDetailForEdge/);
   assert.match(graphHtml, /EDGE_HIT_TOLERANCE = 14/);
   assert.match(graphHtml, /function findNearbyEdge/);
+  assert.match(graphHtml, /function getNodeAtPoint/);
+  assert.match(graphHtml, /getNodeDisplayData/);
+  assert.match(graphHtml, /measureText\(label\)/);
   assert.match(graphHtml, /function updateFallbackHover/);
   assert.match(graphHtml, /if \(selectedEdge === edgeId\)/);
   assert.match(graphHtml, /if \(selectedNode === node\)/);
   assert.match(graphHtml, /renderer\.getMouseCaptor\(\)/);
   assert.match(graphHtml, /window\.addEventListener\("blur", endDrag\)/);
+  assert.match(graphHtml, /renderer\.on\("downNode"/);
+  assert.match(graphHtml, /renderer\.on\("clickNode"/);
+  assert.match(graphHtml, /renderer\.on\("clickEdge"/);
+  assert.match(graphHtml, /renderer\.on\("clickStage"/);
   assert.match(graphHtml, /renderer\.on\("enterNode"/);
   assert.match(graphHtml, /renderer\.on\("enterEdge"/);
-  assert.match(graphHtml, /renderer\.on\("clickEdge"/);
+  assert.match(graphHtml, /setupRendererInteractions\(\);/);
+  assert.match(graphHtml, /mouseCaptor\.on\("mousedown"/);
+  assert.match(graphHtml, /mouseCaptor\?\.on\?\.\("click", handleFallbackClick\)/);
+  assert.match(graphHtml, /mouseCaptor\?\.on\?\.\("mousemovebody", updateFallbackHover\)/);
   assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
 
   const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
@@ -129,7 +149,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(specHtml, /href="\.\.\/index\.html"/);
   assert.match(specHtml, /is-active" href="\.\.\/spec\/index\.html"/);
   assert.match(specHtml, /class="ocg-spec-footer"/);
+  assert.match(specHtml, /class="site-footer-separator" aria-hidden="true">\|<\/span>/);
   assert.match(specHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(specHtml, /class="ocg-footer-repository"/);
+  assert.match(specHtml, /src="\.\.\/ocg-favicon\.png"/);
+  assert.doesNotMatch(specHtml, /Ontology Companion Generator template example\./);
+  assert.doesNotMatch(specHtml, /Edit ocg\.config\.json and the source\//);
   assert.match(specHtml, /href="\.\.\/usage-guide\.html#specification">How To</);
 
   const guideHtml = fs.readFileSync(path.join(ROOT, "site/usage-guide.html"), "utf8");

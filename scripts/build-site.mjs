@@ -491,6 +491,7 @@ function copyBrandingAssets() {
     getProjectOrPackageResource(FAVICON_PNG_PROJECT_PATH, FAVICON_PNG_TEMPLATE_PATH),
     path.join(SITE_DIR, "favicon.png")
   );
+  fs.copyFileSync(FAVICON_PNG_TEMPLATE_PATH, path.join(SITE_DIR, "ocg-favicon.png"));
   fs.copyFileSync(
     getProjectOrPackageResource(FAVICON_ICO_PROJECT_PATH, FAVICON_ICO_TEMPLATE_PATH),
     path.join(SITE_DIR, "favicon.ico")
@@ -550,7 +551,9 @@ function writeSpecPage(config) {
 function buildSpecFooter(config) {
   return `
     <footer class="ocg-spec-footer">
-      ${generatorAttribution(config)}
+      <div class="site-footer-generator">
+        ${generatorAttribution(config, "../")}
+      </div>
     </footer>
   `;
 }
@@ -678,12 +681,29 @@ function specPageCss(config) {
       .ocg-spec-footer .site-footer-generator {
         display: flex;
         flex-wrap: wrap;
+        justify-content: center;
         align-items: center;
-        gap: 10px;
+        gap: 14px;
+        text-align: center;
+      }
+      .ocg-spec-footer .site-footer-separator {
+        color: ${colors.border};
+        font-weight: 500;
       }
       .ocg-spec-footer a {
         color: ${colors.accent};
         font-weight: 600;
+      }
+      .ocg-spec-footer .ocg-footer-repository {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ocg-spec-footer .ocg-footer-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        object-fit: contain;
       }
       @media (max-width: 860px) {
         body.ocg-spec-page {
@@ -1776,7 +1796,7 @@ function buildIndexPage(context) {
     ? featuredTerms
         .map(
           (term) => `
-            <article class="card">
+            <article class="card featured-term-card">
               <div class="term-badge">${escapeHtml(TERM_TYPE_INFO[term.termType].badge)}</div>
               <h3><a href="terms/${encodeURIComponent(term.localName)}.html">${escapeHtml(term.qname)}</a></h3>
               <p>${escapeHtml(term.comment || term.label)}</p>
@@ -1891,7 +1911,7 @@ function buildIndexPage(context) {
         <h2>Featured Terms</h2>
         <p class="section-note">Pin important ontology terms in the config so the landing page foregrounds what matters most.</p>
       </div>
-      <div class="card-grid">${featuredTermCards}</div>
+      <div class="card-grid featured-terms-grid">${featuredTermCards}</div>
     </section>
 
     ${
@@ -2349,6 +2369,8 @@ function buildSigmaGraphScript(config) {
           let hoveredNode = null;
           let hoveredEdge = null;
           let suppressNextClick = false;
+          let nativeClickHandled = false;
+          let labelMeasureContext = null;
 
           function escapeHtml(value) {
             return String(value ?? "")
@@ -2419,15 +2441,55 @@ function buildSigmaGraphScript(config) {
             return nearest;
           }
 
+          function getNodeAtPoint(point) {
+            if (!point || !renderer) return null;
+            const physicalNode = typeof renderer.getNodeAtPosition === "function"
+              ? renderer.getNodeAtPosition(point)
+              : null;
+            if (physicalNode && visibleNodes.has(physicalNode)) return physicalNode;
+            if (typeof renderer.getNodeDisplayData !== "function") return null;
+            if (!labelMeasureContext) {
+              labelMeasureContext = document.createElement("canvas").getContext("2d");
+            }
+            if (!labelMeasureContext) return null;
+            const settings = renderer.getSettings?.() || {};
+            if (settings.renderLabels === false) return null;
+            labelMeasureContext.font = (settings.labelWeight || "normal") + " " + (settings.labelSize || 14) + "px " + (settings.labelFont || "Arial");
+            const labelSize = Number(settings.labelSize) || 14;
+            let nearestNode = null;
+            let nearestDistance = Infinity;
+            graph.forEachNode((nodeId) => {
+              if (!visibleNodes.has(nodeId)) return;
+              const displayData = renderer.getNodeDisplayData(nodeId);
+              const nodeAttributes = graph.getNodeAttributes(nodeId);
+              const label = displayData?.label || nodeAttributes.label;
+              if (!label || displayData?.hidden) return;
+              const nodePoint = renderer.graphToViewport(nodeAttributes);
+              const nodeRadius = Math.abs(
+                renderer.graphToViewport({ x: nodeAttributes.x + (displayData?.size || nodeAttributes.size || 7), y: nodeAttributes.y }).x - nodePoint.x
+              );
+              const textWidth = labelMeasureContext.measureText(label).width;
+              const left = nodePoint.x + nodeRadius + 3 - 5;
+              const right = left + textWidth + 10;
+              const baseline = nodePoint.y + labelSize / 3;
+              const top = baseline - labelSize * 0.85 - 5;
+              const bottom = baseline + labelSize * 0.35 + 5;
+              if (point.x < left || point.x > right || point.y < top || point.y > bottom) return;
+              const distance = Math.hypot(point.x - nodePoint.x, point.y - nodePoint.y);
+              if (distance < nearestDistance) {
+                nearestNode = nodeId;
+                nearestDistance = distance;
+              }
+            });
+            return nearestNode;
+          }
+
           function updateFallbackHover(payload) {
             const point = toViewportPoint(payload);
             if (!point || draggingNode || !renderer) {
               return;
             }
-            const node = typeof renderer.getNodeAtPosition === "function"
-              ? renderer.getNodeAtPosition(point)
-              : null;
-            const nextNode = node && visibleNodes.has(node) ? node : null;
+            const nextNode = getNodeAtPoint(point);
             const nextEdge = nextNode ? null : findNearbyEdge(point);
             if (nextNode) {
               hoveredNode = nextNode;
@@ -2855,14 +2917,24 @@ function buildSigmaGraphScript(config) {
               dragMoved = false;
               renderer.getCamera().enable();
             };
-            renderer.on("downNode", (payload) => {
-              if (!payload?.node || !visibleNodes.has(payload.node)) return;
-              draggedNode = payload.node;
+            const startDragging = (node, point, eventLike) => {
+              if (!node || !visibleNodes.has(node) || draggingNode) return;
+              draggedNode = node;
               draggingNode = true;
               dragMoved = false;
-              dragStartedAt = toViewportPoint(payload.event);
+              dragStartedAt = point;
               renderer.getCamera().disable();
-              stopEvent(payload.event);
+              stopEvent(eventLike);
+            };
+            renderer.on("downNode", (payload) => {
+              if (!payload?.node || !visibleNodes.has(payload.node)) return;
+              startDragging(payload.node, toViewportPoint(payload.event), payload.event);
+            });
+            mouseCaptor.on("mousedown", (payload) => {
+              if (draggingNode) return;
+              const point = toViewportPoint(payload);
+              const node = getNodeAtPoint(point);
+              startDragging(node, point, payload);
             });
             mouseCaptor.on("mousemovebody", (eventLike) => {
               if (!draggingNode || !draggedNode || !graph.hasNode(draggedNode)) return;
@@ -2894,6 +2966,7 @@ function buildSigmaGraphScript(config) {
             document.getElementById("sigma-reset-view").addEventListener("click", () => { clearSelection(); refresh(); fitCamera(); setStatus("View reset to fit visible graph."); });
             document.getElementById("sigma-term-search").addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); focusTerm(); } });
             document.getElementById("sigma-term-search").addEventListener("input", () => renderer.refresh());
+            setupRendererInteractions();
           }
 
           function setupDynamicControlInteractions() {
@@ -2901,24 +2974,64 @@ function buildSigmaGraphScript(config) {
           }
 
           function setupRendererInteractions() {
-            renderer.on("clickNode", ({ node }) => {
+            renderer.on("clickNode", (payload) => {
+              nativeClickHandled = true;
+              queueMicrotask(() => { nativeClickHandled = false; });
               if (suppressNextClick) { suppressNextClick = false; return; }
-              if (selectedNode === node) {
+              if (!payload?.node || !visibleNodes.has(payload.node)) return;
+              if (selectedNode === payload.node) {
                 clearSelection();
                 return;
               }
-              selectedNode = node; selectedEdge = null; refreshSelectionContext(); updateDetail(node); clearEdgeHoverInfo(); renderer.refresh(); setStatus("Selected " + qnameNode(node) + ".");
+              selectedNode = payload.node;
+              selectedEdge = null;
+              refreshSelectionContext();
+              updateDetail(payload.node);
+              clearEdgeHoverInfo();
+              renderer.refresh();
+              setStatus("Selected " + qnameNode(payload.node) + ".");
             });
-            renderer.on("clickEdge", ({ edge }) => {
+            renderer.on("clickEdge", (payload) => {
+              nativeClickHandled = true;
+              queueMicrotask(() => { nativeClickHandled = false; });
               if (suppressNextClick) { suppressNextClick = false; return; }
-              selectEdge(edge);
+              if (!payload?.edge || !visibleEdges.has(payload.edge)) return;
+              selectEdge(payload.edge);
             });
-            renderer.on("clickStage", (payload) => {
+            renderer.on("clickStage", () => {
               if (suppressNextClick) { suppressNextClick = false; return; }
-              const point = toViewportPoint(payload?.event || payload);
-              const node = point && typeof renderer.getNodeAtPosition === "function"
-                ? renderer.getNodeAtPosition(point)
-                : null;
+              clearSelection();
+            });
+            renderer.on("enterNode", (payload) => {
+              if (!payload?.node || !visibleNodes.has(payload.node)) return;
+              clearEdgeHoverInfo();
+              updateNodeTooltip(payload.node, payload);
+            });
+            renderer.on("leaveNode", () => {
+              clearNodeTooltip();
+            });
+            renderer.on("enterEdge", (payload) => {
+              if (!payload?.edge || !visibleEdges.has(payload.edge)) return;
+              clearNodeTooltip();
+              updateEdgeHoverInfo(payload.edge, payload);
+            });
+            renderer.on("leaveEdge", () => {
+              if (selectedEdge) {
+                updateEdgeHoverInfo(selectedEdge, null, true);
+              } else {
+                clearEdgeHoverInfo();
+              }
+            });
+            setupDragging();
+            const mouseCaptor = renderer.getMouseCaptor();
+            const handleFallbackClick = (payload) => {
+              if (nativeClickHandled || suppressNextClick) {
+                if (suppressNextClick) suppressNextClick = false;
+                return;
+              }
+              const point = toViewportPoint(payload);
+              if (!point) return;
+              const node = getNodeAtPoint(point);
               if (node && visibleNodes.has(node)) {
                 if (selectedNode === node) {
                   clearSelection();
@@ -2939,13 +3052,8 @@ function buildSigmaGraphScript(config) {
                 return;
               }
               clearSelection();
-            });
-            renderer.on("enterNode", (payload) => { edgeTooltipEl.classList.remove("visible"); edgeTooltipEl.innerHTML = ""; updateNodeTooltip(payload.node, payload); });
-            renderer.on("leaveNode", clearNodeTooltip);
-            renderer.on("enterEdge", (payload) => { clearNodeTooltip(); updateEdgeHoverInfo(payload.edge, payload); });
-            renderer.on("leaveEdge", () => selectedEdge ? updateEdgeHoverInfo(selectedEdge, null, true) : clearEdgeHoverInfo());
-            setupDragging();
-            const mouseCaptor = renderer.getMouseCaptor();
+            };
+            mouseCaptor?.on?.("click", handleFallbackClick);
             mouseCaptor?.on?.("mousemovebody", updateFallbackHover);
             new ResizeObserver(() => renderer.refresh()).observe(container);
           }
@@ -3227,6 +3335,10 @@ function buildTermPage(context, node) {
 
 function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "" }) {
   const nav = buildNav(config, currentNav, pathPrefix);
+  const customFooter = [config.site.footer.primary, config.site.footer.secondary]
+    .filter(Boolean)
+    .map((copy) => `<div>${escapeHtml(copy)}</div>`)
+    .join("");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -3254,24 +3366,29 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
       <nav class="site-nav">${nav}</nav>
     </header>
     <main>${content}</main>
-    <footer class="site-footer">
-      <div>${escapeHtml(config.site.footer.primary || config.project.title)}</div>
-      ${generatorAttribution(config)}
-      <div>${escapeHtml(config.site.footer.secondary || config.project.description)}</div>
+    ${customFooter ? `<footer class="site-footer">${customFooter}</footer>` : ""}
+    <footer class="site-footer-generator">
+      ${generatorAttribution(config, pathPrefix)}
     </footer>
   </div>
 </body>
 </html>`;
 }
 
-function generatorAttribution(config) {
+function generatorAttribution(config, pathPrefix = "") {
   const generatorRepository = config.site.generator.repositoryUrl
-    ? `<a href="${escapeHtml(config.site.generator.repositoryUrl)}" target="_blank" rel="noreferrer">OCG repository</a>`
+    ? `<a class="ocg-footer-repository" href="${escapeHtml(config.site.generator.repositoryUrl)}" target="_blank" rel="noreferrer"><img class="ocg-footer-icon" src="${pathPrefix}ocg-favicon.png" alt="" width="18" height="18" aria-hidden="true" /><span>OCG repository</span></a>`
     : "";
   const generatorDocumentation = config.site.generator.documentationUrl
     ? `<a href="${escapeHtml(config.site.generator.documentationUrl)}" target="_blank" rel="noreferrer">Documentation</a>`
     : "";
-  return `<div class="site-footer-generator"><span>Generated with <strong>OCG</strong> v${escapeHtml(OCG_VERSION)}</span>${generatorRepository}${generatorDocumentation}</div>`;
+  return [
+    `<span>Generated with <strong>OCG</strong> v${escapeHtml(OCG_VERSION)}</span>`,
+    generatorRepository,
+    generatorDocumentation
+  ]
+    .filter(Boolean)
+    .join(`<span class="site-footer-separator" aria-hidden="true">|</span>`);
 }
 
 function buildNav(config, currentNav, pathPrefix) {
@@ -4155,6 +4272,25 @@ function sharedCss(config) {
       font-size: 0.8rem;
       font-weight: 700;
     }
+    .featured-terms-grid {
+      align-items: stretch;
+    }
+    .featured-term-card {
+      align-content: start;
+      grid-template-rows: auto auto 1fr;
+    }
+    .featured-term-card .term-badge {
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      margin-bottom: 0;
+      box-sizing: border-box;
+      line-height: 1.2;
+    }
+    .featured-term-card h3,
+    .featured-term-card p {
+      margin: 0;
+    }
     .table-wrap {
       overflow-x: auto;
       margin-top: 12px;
@@ -4588,11 +4724,32 @@ function sharedCss(config) {
     .site-footer-generator {
       display: flex;
       flex-wrap: wrap;
+      justify-content: center;
       align-items: center;
-      gap: 10px;
+      gap: 14px;
+      width: 100%;
+      padding: 16px 6px 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      text-align: center;
     }
     .site-footer-generator a {
       font-weight: 600;
+    }
+    .site-footer-separator {
+      color: var(--border);
+      font-weight: 500;
+    }
+    .ocg-footer-repository {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ocg-footer-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      object-fit: contain;
     }
     @media (max-width: 860px) {
       .site-header,
