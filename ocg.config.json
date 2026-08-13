@@ -7,7 +7,7 @@
     "description": "A built-in demonstration ontology that shows how to configure OCG for a vocabulary-oriented GitHub Pages site.",
     "namespace": "https://example.org/ecv#",
     "canonicalUri": "https://example.org/ecv",
-    "version": "0.1.0",
+    "version": "1.1.0",
     "maintainer": "OCG Template Example"
   },
   "sources": {

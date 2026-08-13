@@ -22,7 +22,7 @@ const DEFAULT_CONFIG = {
     description: "A companion site for the {{TITLE}} ontology.",
     namespace: "{{NAMESPACE}}",
     canonicalUri: "{{CANONICAL_URI}}",
-    version: "0.1.0",
+    version: "1.1.0",
     maintainer: ""
   },
   sources: {
@@ -232,7 +232,7 @@ function updatePackageManifest(slug) {
     ? JSON.parse(fs.readFileSync(packagePath, "utf8"))
     : {
         name: slug,
-        version: "0.1.0",
+        version: "1.1.0",
         private: true,
         type: "module",
         scripts: {},

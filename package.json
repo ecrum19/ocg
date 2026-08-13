@@ -1,6 +1,6 @@
 {
   "name": "ontology-companion-generator",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Generate customizable GitHub Pages companion sites for semantic ontologies.",
   "license": "MIT",
   "type": "module",

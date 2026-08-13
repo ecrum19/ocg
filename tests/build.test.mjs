@@ -56,7 +56,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /class="card featured-term-card"/);
   assert.match(indexHtml, /class="site-footer-generator"/);
   assert.match(indexHtml, /class="site-footer-separator" aria-hidden="true">\|<\/span>/);
-  assert.match(indexHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(indexHtml, /Generated with <strong>OCG<\/strong> v1\.1\.0/);
   assert.match(indexHtml, /class="ocg-footer-repository"/);
   assert.match(indexHtml, /src="ocg-favicon\.png"/);
   assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg"/);
@@ -150,7 +150,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(specHtml, /is-active" href="\.\.\/spec\/index\.html"/);
   assert.match(specHtml, /class="ocg-spec-footer"/);
   assert.match(specHtml, /class="site-footer-separator" aria-hidden="true">\|<\/span>/);
-  assert.match(specHtml, /Generated with <strong>OCG<\/strong> v0\.1\.0/);
+  assert.match(specHtml, /Generated with <strong>OCG<\/strong> v1\.1\.0/);
   assert.match(specHtml, /class="ocg-footer-repository"/);
   assert.match(specHtml, /src="\.\.\/ocg-favicon\.png"/);
   assert.doesNotMatch(specHtml, /Ontology Companion Generator template example\./);
@@ -328,7 +328,7 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
     const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
-    assert.equal(projectPackage.devDependencies["ontology-companion-generator"], "^0.1.0");
+    assert.equal(projectPackage.devDependencies["ontology-companion-generator"], "^1.1.0");
     assert.equal(projectPackage.scripts["ocg:build"], "ocg build");
     assert.match(
       fs.readFileSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml"), "utf8"),
