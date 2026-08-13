@@ -196,6 +196,43 @@ Every generated OCG page includes a footer identifying the OCG version from `pac
 
 The footer centers the generator version, an OCG repository link with the OCG favicon, and a documentation link when their URLs are configured. Optional custom footer copy can still be supplied with `site.footer.primary` and `site.footer.secondary`.
 
+### Publishing OCG to npm
+
+The package metadata in `package.json` identifies the GitHub repository, npm registry, documentation, and issue tracker. The repository includes `.github/workflows/publish-npm.yml`, which publishes a new package version whenever a matching tag such as `v1.1.1` is pushed.
+
+#### One-Time Setup
+
+1. Create or sign in to an npm account and publish the initial package version manually if `ontology-companion-generator` does not yet exist on npm:
+
+```bash
+npm login
+npm test
+npm pack --dry-run
+npm publish
+```
+
+2. On the npm package page, open **Settings > Trusted Publisher** and add a GitHub Actions publisher with:
+
+- GitHub owner: `ecrum19`
+- Repository: `ocg`
+- Workflow filename: `publish-npm.yml`
+- Allowed action: `npm publish`
+
+3. Commit and push `.github/workflows/publish-npm.yml` and the package metadata to GitHub. GitHub Actions must be enabled for the repository. No `NPM_TOKEN` secret is required; the workflow uses the `id-token: write` permission for npm trusted publishing.
+
+#### Publishing a New Version
+
+Run the release command from an up-to-date `main` branch:
+
+```bash
+npm version patch       # 1.1.0 -> 1.1.1
+git push origin main --follow-tags
+```
+
+Use `npm version minor` for `1.2.0`, `npm version major` for `2.0.0`, or provide an exact version such as `npm version 1.1.1`. `npm version` updates `package.json` and `package-lock.json`, creates a commit, and creates the corresponding `v*.*.*` tag. Pushing the tag starts the npm workflow. The workflow refuses to publish if the tag and package version do not match.
+
+The workflow installs dependencies, runs the test suite, and publishes with npm trusted publishing. GitHub Actions OIDC publishing also enables npm provenance attestations. See the [npm trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/) for account and security details.
+
 ### ReSpec Specification Page
 
 The specification page is an optional first-class page rather than a downloadable artifact. Place a ReSpec HTML document in the configured `sources.spec` path and enable it with `features.specPage`:

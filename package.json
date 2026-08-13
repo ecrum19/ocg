@@ -2,7 +2,27 @@
   "name": "ontology-companion-generator",
   "version": "1.1.0",
   "description": "Generate customizable GitHub Pages companion sites for semantic ontologies.",
+  "keywords": [
+    "ontology",
+    "vocabulary",
+    "rdf",
+    "semantic-web",
+    "github-pages",
+    "shacl",
+    "shex"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ecrum19/ocg.git"
+  },
+  "homepage": "https://github.com/ecrum19/ocg#readme",
+  "bugs": {
+    "url": "https://github.com/ecrum19/ocg/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "type": "module",
   "bin": {
     "ocg": "bin/ocg.mjs"

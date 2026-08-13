@@ -1,0 +1,43 @@
+name: Publish OCG Package to npm
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Update npm
+        run: npm install --global npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tag matches package version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          test "v${PACKAGE_VERSION}" = "${TAG_NAME}"
+
+      - name: Test package
+        run: npm test
+
+      - name: Publish to npm
+        run: npm publish

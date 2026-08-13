@@ -9,6 +9,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 test("build-site produces the expected publish artifacts for the bundled example", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  assert.equal(packageJson.version, "1.1.0");
+  assert.equal(packageJson.repository.url, "git+https://github.com/ecrum19/ocg.git");
+  assert.equal(packageJson.publishConfig.registry, "https://registry.npmjs.org/");
   for (const dependency of ["rdf-parse", "graphology", "sigma"]) {
     assert.ok(packageJson.dependencies?.[dependency], `${dependency} should be a declared dependency`);
   }
@@ -219,6 +222,16 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(workflow, /node-version: 24/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-reference\.html/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-graph\.html/);
+
+  const npmWorkflow = fs.readFileSync(path.join(ROOT, ".github/workflows/publish-npm.yml"), "utf8");
+  assert.match(npmWorkflow, /tags:\s*\n\s+- "v\*\.\*\.\*"/);
+  assert.match(npmWorkflow, /id-token:\s*write/);
+  assert.match(npmWorkflow, /registry-url: https:\/\/registry\.npmjs\.org/);
+  assert.match(npmWorkflow, /npm install --global npm@latest/);
+  assert.match(npmWorkflow, /npm test/);
+  assert.match(npmWorkflow, /npm publish/);
+  assert.match(npmWorkflow, /test "v\$\{PACKAGE_VERSION\}" = "\$\{TAG_NAME\}"/);
+  assert.doesNotMatch(npmWorkflow, /NPM_TOKEN/);
 });
 
 test("build-site accepts the documented primary ontology formats", () => {
