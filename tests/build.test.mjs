@@ -174,6 +174,10 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /getNodeDisplayData/);
   assert.match(graphHtml, /measureText\(label\)/);
   assert.match(graphHtml, /function updateFallbackHover/);
+  assert.match(graphHtml, /function claimClick/);
+  assert.match(graphHtml, /function selectNode/);
+  assert.match(graphHtml, /hoverRenderer: \(\) => \{\}/);
+  assert.doesNotMatch(graphHtml, /nativeClickHandled/);
   assert.match(graphHtml, /aria-label="Ontology Network mode"/);
   assert.match(graphHtml, /container\.addEventListener\("pointermove", updateFallbackHover/);
   assert.match(graphHtml, /container\.addEventListener\("pointerleave"/);
