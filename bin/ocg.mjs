@@ -66,6 +66,7 @@ const DEFAULT_CONFIG = {
     defaultView: "custom",
     custom: {
       enabled: true,
+      label: "Ontology Network",
       defaultMode: "predicate-nodes",
       modes: { predicateNodes: true, predicateEdges: true }
     },

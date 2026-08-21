@@ -155,7 +155,7 @@ The Graph page can expose:
 - A local Sigma.js graph with `predicate-nodes` and `predicate-edges` modes
 - An optional WebVOWL view
 
-The custom graph supports hover details, click selection and highlighting, repeated-click deselection, edge hit areas, and draggable nodes. Both representations and their defaults are controlled in `ocg.config.json`. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
+The generated **Ontology Network** uses Sigma.js and supports hover details, click selection and highlighting, repeated-click deselection, edge hit areas, draggable nodes, label-aware spacing, and responsive fallback pointer handling. Its label, modes, and defaults are controlled in `ocg.config.json`. Both graph representations include an **Expand view** control; expanded views include a visible **Exit full screen** control and can also be closed with `Esc`. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
 
 ## Automation
 

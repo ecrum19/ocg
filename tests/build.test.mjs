@@ -59,6 +59,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /hero-action-group--artifacts" style="--artifact-count: 3/);
   assert.match(indexHtml, /class="card-grid featured-terms-grid"/);
   assert.match(indexHtml, /class="card featured-term-card"/);
+  assert.match(indexHtml, /\.featured-term-card h3 a[\s\S]*overflow-wrap: anywhere/);
   assert.match(indexHtml, /class="site-footer-generator"/);
   assert.match(indexHtml, /class="site-footer-separator" aria-hidden="true">\|<\/span>/);
   assert.match(indexHtml, new RegExp(`Generated with <strong>OCG<\\/strong> v${escapeRegExp(PACKAGE_VERSION)}`));
@@ -122,9 +123,26 @@ test("build-site produces the expected publish artifacts for the bundled example
     )
   );
   assert.ok(graphData.modes["predicate-edges"].edges.some((edge) => edge.predicateQname === "ecv:hasRequirement"));
+  const graphLabelWidth = (node) => Math.min(270, 78 + String(node.qname || node.label || "").length * 7.1);
+  for (const node of graphData.nodes) {
+    assert.ok(Number.isFinite(node.x) && Number.isFinite(node.y), `${node.qname} should have an initial position`);
+  }
+  for (let leftIndex = 0; leftIndex < graphData.nodes.length; leftIndex += 1) {
+    const left = graphData.nodes[leftIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < graphData.nodes.length; rightIndex += 1) {
+      const right = graphData.nodes[rightIndex];
+      const horizontalDistance = Math.abs(left.x - right.x);
+      const verticalDistance = Math.abs(left.y - right.y);
+      const requiredHorizontalDistance = (graphLabelWidth(left) + graphLabelWidth(right)) / 2 + 34;
+      assert.ok(
+        !(horizontalDistance < requiredHorizontalDistance && verticalDistance < 74),
+        `${left.qname} and ${right.qname} should not overlap in the initial label layout`
+      );
+    }
+  }
 
   const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
-  assert.match(graphHtml, /Custom Graph/);
+  assert.match(graphHtml, /Ontology Network/);
   assert.match(graphHtml, /WebVOWL/);
   assert.match(graphHtml, /assets\/vendor\/graphology\.umd\.min\.js/);
   assert.match(graphHtml, /assets\/vendor\/sigma\.min\.js/);
@@ -132,6 +150,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /service\.tib\.eu\/webvowl/);
   assert.match(graphHtml, /id="sigma-toggle-external"/);
   assert.match(graphHtml, /class="sigma-panel"/);
+  assert.match(graphHtml, /data-graph-expand="custom-graph-panel"/);
+  assert.match(graphHtml, /data-graph-expand="webvowl-graph-panel"/);
+  assert.match(graphHtml, /Press Esc to exit full screen\./);
+  assert.match(graphHtml, /function toggleGraphPanel/);
+  assert.match(graphHtml, /requestFullscreen/);
+  assert.match(graphHtml, /graph-panel--expanded/);
   assert.match(graphHtml, /Predicates as Nodes/);
   assert.match(graphHtml, /Predicates as Edges/);
   assert.match(graphHtml, /enableNodeHoverEvents: true/);
@@ -145,6 +169,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /getNodeDisplayData/);
   assert.match(graphHtml, /measureText\(label\)/);
   assert.match(graphHtml, /function updateFallbackHover/);
+  assert.match(graphHtml, /aria-label="Ontology Network mode"/);
+  assert.match(graphHtml, /container\.addEventListener\("pointermove", updateFallbackHover/);
+  assert.match(graphHtml, /container\.addEventListener\("pointerleave"/);
+  assert.match(graphHtml, /container\.addEventListener\("click", handleFallbackClick\)/);
+  assert.match(graphHtml, /labelWidth/);
+  assert.match(graphHtml, /labelGridCellSize: 110/);
   assert.match(graphHtml, /if \(selectedEdge === edgeId\)/);
   assert.match(graphHtml, /if \(selectedNode === node\)/);
   assert.match(graphHtml, /renderer\.getMouseCaptor\(\)/);
@@ -228,6 +258,7 @@ test("build-site produces the expected publish artifacts for the bundled example
     "hierarchy.labelMode",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
+    "graph.custom.label",
     "graph.webvowl.height",
     "graph.colors.broader",
     "theme.colors.accentStrong",

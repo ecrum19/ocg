@@ -132,6 +132,7 @@
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean" },
+            "label": { "type": "string", "minLength": 1 },
             "defaultMode": {
               "type": "string",
               "enum": ["predicate-nodes", "predicate-edges"]

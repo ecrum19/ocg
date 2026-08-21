@@ -95,6 +95,7 @@ const DEFAULT_GRAPH = {
   defaultView: "custom",
   custom: {
     enabled: true,
+    label: "Ontology Network",
     defaultMode: "predicate-nodes",
     modes: {
       predicateNodes: true,
@@ -1170,54 +1171,105 @@ function buildPredicateEdgeMode(nodes, edges) {
   };
 }
 
-function buildLayout(nodes, edges) {
-  const width = 1000;
-  const height = 760;
-  const bands = {
-    class: 140,
-    objectProperty: 280,
-    datatypeProperty: 420,
-    annotationProperty: 560,
-    concept: 220,
-    declaredTerm: 660,
-    external: 720
-  };
-  const grouped = new Map();
+function estimateGraphLabelWidth(node) {
+  const label = String(node.qname || node.label || node.localName || "");
+  return clamp(78 + label.length * 7.1, 78, 270);
+}
 
-  for (const type of TERM_TYPE_ORDER) {
-    grouped.set(type, []);
+function buildLayout(nodes, edges) {
+  const width = 1400;
+  const padding = 100;
+  const columnGap = 72;
+  const rowHeight = 102;
+  const bandGap = 58;
+  const degree = new Map(nodes.map((node) => [node.id, 0]));
+  for (const edge of edges) {
+    degree.set(edge.source, (degree.get(edge.source) || 0) + 1);
+    degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
   }
 
+  const grouped = new Map(TERM_TYPE_ORDER.map((type) => [type, []]));
   for (const node of nodes) {
-    const group = grouped.get(node.termType) || grouped.get("declaredTerm");
-    group.push(node);
+    (grouped.get(node.termType) || grouped.get("declaredTerm")).push(node);
   }
 
   const positions = new Map();
+  const preferredY = new Map();
+  const labelWidths = new Map(nodes.map((node) => [node.id, estimateGraphLabelWidth(node)]));
+  let cursorY = padding;
   for (const type of TERM_TYPE_ORDER) {
     const group = grouped.get(type);
     if (!group.length) {
       continue;
     }
-    const count = group.length;
-    const radius = type === "external" ? 460 : 320;
-    const centerX = width / 2;
-    const centerY = bands[type] || height / 2;
-    for (let index = 0; index < count; index += 1) {
-      const angle = ((Math.PI * 2) / count) * index - Math.PI / 2;
-      const spread = Math.min(radius, 120 + count * 12);
-      positions.set(group[index].id, {
-        x: clamp(centerX + Math.cos(angle) * spread, 70, width - 70),
-        y: clamp(centerY + Math.sin(angle) * Math.min(54, 12 + count * 3), 70, height - 70)
-      });
+    group.sort((left, right) => {
+      return (degree.get(right.id) || 0) - (degree.get(left.id) || 0) || collator.compare(left.qname, right.qname);
+    });
+    const maxLabelWidth = Math.max(...group.map((node) => labelWidths.get(node.id)));
+    const columns = Math.max(
+      1,
+      Math.floor((width - padding * 2 + columnGap) / (maxLabelWidth + columnGap))
+    );
+    const rows = Math.ceil(group.length / columns);
+    const bandHeight = Math.max(rowHeight, rows * rowHeight);
+    const actualColumns = Math.min(columns, group.length);
+    const contentWidth = actualColumns * maxLabelWidth + (actualColumns - 1) * columnGap;
+    const startX = (width - contentWidth) / 2 + maxLabelWidth / 2;
+    for (let index = 0; index < group.length; index += 1) {
+      const row = Math.floor(index / actualColumns);
+      const column = index % actualColumns;
+      const x = startX + column * (maxLabelWidth + columnGap);
+      const y = cursorY + row * rowHeight + rowHeight / 2;
+      positions.set(group[index].id, { x, y });
+      preferredY.set(group[index].id, y);
     }
+    cursorY += bandHeight + bandGap;
   }
 
-  if (!edges.length) {
-    return positions;
-  }
-
-  for (let iteration = 0; iteration < 100; iteration += 1) {
+  const height = Math.max(900, cursorY);
+  const iterations = nodes.length > 180 ? 55 : nodes.length > 90 ? 80 : 140;
+  let temperature = 28;
+  for (let iteration = 0; iteration < iterations; iteration += 1) {
+    const displacement = new Map(nodes.map((node) => [node.id, { x: 0, y: 0 }]));
+    for (let leftIndex = 0; leftIndex < nodes.length; leftIndex += 1) {
+      const left = nodes[leftIndex];
+      const leftPosition = positions.get(left.id);
+      for (let rightIndex = leftIndex + 1; rightIndex < nodes.length; rightIndex += 1) {
+        const right = nodes[rightIndex];
+        const rightPosition = positions.get(right.id);
+        let dx = leftPosition.x - rightPosition.x;
+        let dy = leftPosition.y - rightPosition.y;
+        let distance = Math.hypot(dx, dy);
+        if (distance < 0.01) {
+          dx = 0.01;
+          dy = 0.01;
+          distance = 0.014;
+        }
+        const minimumHorizontalDistance = (labelWidths.get(left.id) + labelWidths.get(right.id)) / 2 + 34;
+        const minimumVerticalDistance = 74;
+        const overlapX = minimumHorizontalDistance - Math.abs(dx);
+        const overlapY = minimumVerticalDistance - Math.abs(dy);
+        let moveX;
+        let moveY;
+        if (overlapX > 0 && overlapY > 0) {
+          if (overlapX < overlapY) {
+            moveX = Math.sign(dx || 1) * overlapX * 0.18;
+            moveY = 0;
+          } else {
+            moveX = 0;
+            moveY = Math.sign(dy || 1) * overlapY * 0.18;
+          }
+        } else {
+          const force = Math.min(8, 1800 / (distance * distance));
+          moveX = (dx / distance) * force;
+          moveY = (dy / distance) * force;
+        }
+        displacement.get(left.id).x += moveX;
+        displacement.get(left.id).y += moveY;
+        displacement.get(right.id).x -= moveX;
+        displacement.get(right.id).y -= moveY;
+      }
+    }
     for (const edge of edges) {
       const source = positions.get(edge.source);
       const target = positions.get(edge.target);
@@ -1227,15 +1279,60 @@ function buildLayout(nodes, edges) {
       const dx = target.x - source.x;
       const dy = target.y - source.y;
       const distance = Math.max(1, Math.hypot(dx, dy));
-      const adjustment = 0.014;
-      const desired = 170;
+      const desired = Math.max(170, (labelWidths.get(edge.source) + labelWidths.get(edge.target)) / 2 + 92);
       const delta = distance - desired;
-      const moveX = (dx / distance) * delta * adjustment;
-      const moveY = (dy / distance) * delta * adjustment;
-      source.x = clamp(source.x + moveX, 60, width - 60);
-      source.y = clamp(source.y + moveY, 60, height - 60);
-      target.x = clamp(target.x - moveX, 60, width - 60);
-      target.y = clamp(target.y - moveY, 60, height - 60);
+      const adjustment = delta * 0.012;
+      displacement.get(edge.source).x += (dx / distance) * adjustment;
+      displacement.get(edge.source).y += (dy / distance) * adjustment;
+      displacement.get(edge.target).x -= (dx / distance) * adjustment;
+      displacement.get(edge.target).y -= (dy / distance) * adjustment;
+    }
+    for (const node of nodes) {
+      const position = positions.get(node.id);
+      const force = displacement.get(node.id);
+      force.y += (preferredY.get(node.id) - position.y) * 0.005;
+      const magnitude = Math.hypot(force.x, force.y);
+      if (magnitude < 0.0001) {
+        continue;
+      }
+      const limited = Math.min(magnitude, temperature);
+      position.x = clamp(position.x + (force.x / magnitude) * limited, padding, width - padding);
+      position.y = clamp(position.y + (force.y / magnitude) * limited, padding, height - padding);
+    }
+    temperature *= 0.965;
+  }
+
+  for (let pass = 0; pass < 28; pass += 1) {
+    let moved = false;
+    for (let leftIndex = 0; leftIndex < nodes.length; leftIndex += 1) {
+      const left = nodes[leftIndex];
+      const leftPosition = positions.get(left.id);
+      for (let rightIndex = leftIndex + 1; rightIndex < nodes.length; rightIndex += 1) {
+        const right = nodes[rightIndex];
+        const rightPosition = positions.get(right.id);
+        const dx = leftPosition.x - rightPosition.x;
+        const dy = leftPosition.y - rightPosition.y;
+        const overlapX = (labelWidths.get(left.id) + labelWidths.get(right.id)) / 2 + 34 - Math.abs(dx);
+        const overlapY = 74 - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) {
+          continue;
+        }
+        moved = true;
+        if (overlapX < overlapY) {
+          const shift = overlapX / 2 + 1;
+          const direction = Math.sign(dx || 1);
+          leftPosition.x = clamp(leftPosition.x + direction * shift, padding, width - padding);
+          rightPosition.x = clamp(rightPosition.x - direction * shift, padding, width - padding);
+        } else {
+          const shift = overlapY / 2 + 1;
+          const direction = Math.sign(dy || 1);
+          leftPosition.y = clamp(leftPosition.y + direction * shift, padding, height - padding);
+          rightPosition.y = clamp(rightPosition.y - direction * shift, padding, height - padding);
+        }
+      }
+    }
+    if (!moved) {
+      break;
     }
   }
 
@@ -1617,6 +1714,7 @@ function buildGuidePage(context) {
       defaultView: "custom",
       custom: {
         enabled: true,
+        label: "Ontology Network",
         defaultMode: "predicate-nodes",
         modes: { predicateNodes: true, predicateEdges: true }
       },
@@ -1857,11 +1955,12 @@ function buildGuidePage(context) {
       id: "graph",
       badge: "Interactive Page",
       title: "Ontology Graph",
-      description: "Configures the Sigma.js graph, its two predicate modes, WebVOWL, graph colors, and ontology-generated interaction behavior including hover, forgiving edge hit areas, selection, deselection, and dragging.",
+      description: "Configures the Ontology Network generated with Sigma.js, its two predicate modes, WebVOWL, graph colors, and ontology-generated interaction behavior including hover, forgiving edge hit areas, selection, deselection, dragging, and label-aware layout.",
       options: [
         ["features.graphPage", "Set to false to omit ontology-graph.html and its navigation link."],
-        ["graph.defaultView", "Initial representation: custom or webvowl. The selected representation must be enabled."],
+        ["graph.defaultView", "Initial representation: custom (displayed as Ontology Network by default) or webvowl. The selected representation must be enabled."],
         ["graph.custom.enabled", "Enables the generated Sigma.js graph."],
+        ["graph.custom.label", "Label used for the generated Sigma.js representation in graph tabs and accessibility text."],
         ["graph.custom.defaultMode", "Initial custom mode: predicate-nodes or predicate-edges."],
         ["graph.custom.modes.predicateNodes", "Enables predicates as visible nodes, matching the VORD-style representation."],
         ["graph.custom.modes.predicateEdges", "Enables predicates as labeled edges between domain and range nodes."],
@@ -2083,7 +2182,7 @@ function buildGuidePage(context) {
           <article id="home-summary" class="guide-card"><div class="term-badge">Landing Page</div><h3><a href="#home">Home</a></h3><p>The home page presents your project identity, navigation, source artifacts, ontology snapshot, configurable overview cards, featured terms, examples, and the raw artifact viewer.</p><p><strong>Customize:</strong> <code>site.hero</code>, <code>site.resourcePanel</code>, <code>site.overviewCards</code>, <code>site.customSections</code>, and <code>curation.featuredTerms</code>.</p></article>
           <article id="artifacts-summary" class="guide-card"><div class="term-badge">Source Package</div><h3><a href="#artifacts">Artifacts and Viewer</a></h3><p>OWL Ontology, SHACL, ShEx, specification, examples, and additional configured source files are copied into <code>site/assets/</code>. Config, schema, workflow, and guide files are available as generated links but are not raw-viewer tabs.</p><p><strong>Customize:</strong> <code>sources</code>, <code>features.rawViewer</code>, and <code>curation.viewerTabs</code>.</p></article>
           <article id="reference-summary" class="guide-card"><div class="term-badge">Generated Page</div><h3><a href="#reference">Vocabulary Reference</a></h3><p>The reference page extracts declared terms from the configured ontology and groups them by class, property, concept, and declared-term type.</p><p><strong>Enable or disable:</strong> <code>features.referencePage</code>.</p></article>
-          <article id="graph-summary" class="guide-card"><div class="term-badge">Interactive Page</div><h3><a href="#graph">Ontology Graph</a></h3><p>The custom Sigma.js graph supports <strong>Predicates as Nodes</strong> or <strong>Predicates as Edges</strong>, plus filters, search, selection, layout, and external-term visibility. WebVOWL can be enabled alongside it.</p><p><strong>Customize:</strong> <code>graph.custom</code>, <code>graph.webvowl</code>, and <code>graph.colors</code>.</p></article>
+          <article id="graph-summary" class="guide-card"><div class="term-badge">Interactive Page</div><h3><a href="#graph">Ontology Graph</a></h3><p>The Ontology Network supports <strong>Predicates as Nodes</strong> or <strong>Predicates as Edges</strong>, plus filters, search, selection, layout, external-term visibility, and an expanded full-screen workspace. WebVOWL can be enabled alongside it and expanded the same way.</p><p><strong>Customize:</strong> <code>graph.custom</code>, <code>graph.webvowl</code>, and <code>graph.colors</code>.</p></article>
           <article id="terms-summary" class="guide-card"><div class="term-badge">Generated Pages</div><h3><a href="#terms">Term Pages</a></h3><p>Every declared ontology term can receive an individual page with its IRI, labels, types, source links, and incoming/outgoing relationships.</p><p><strong>Enable or disable:</strong> <code>features.termPages</code>.</p></article>
           <article id="specification-summary" class="guide-card"><div class="term-badge">Optional Page</div><h3><a href="#specification">ReSpec Specification</a></h3><p>Place a ReSpec HTML document at <code>sources.spec</code>. OCG publishes it at <code>spec/index.html</code>, injects the companion navigation, and links it from the site.</p><p><strong>Enable or disable:</strong> <code>features.specPage</code>.</p></article>
           <article id="project-summary" class="guide-card"><div class="term-badge">Site Foundation</div><h3><a href="#project">Project Identity</a></h3><p>Project metadata supplies the shared title, namespace, version, and maintainer information used throughout the site.</p></article>
@@ -2566,7 +2665,7 @@ function buildGraphPage(context) {
   const enabledCustomModes = customModeDefinitions.filter((mode) => mode.enabled);
   const customModeTabs = customEnabled && enabledCustomModes.length > 1
     ? `
-        <div class="graph-mode-tabs" role="tablist" aria-label="Custom graph mode">
+        <div class="graph-mode-tabs" role="tablist" aria-label="Ontology Network mode">
           ${enabledCustomModes
             .map(
               (mode) => `<button class="graph-mode-tab" type="button" role="tab" data-custom-graph-mode="${mode.key}">${mode.label}</button>`
@@ -2578,14 +2677,26 @@ function buildGraphPage(context) {
   const graphViewTabs = customEnabled && webvowlEnabled
     ? `
         <div class="graph-view-tabs" role="tablist" aria-label="Graph representation">
-          <button class="graph-view-tab" type="button" role="tab" data-graph-view="custom" aria-controls="custom-graph-panel">Custom Graph</button>
+          <button class="graph-view-tab" type="button" role="tab" data-graph-view="custom" aria-controls="custom-graph-panel">${escapeHtml(config.graph.custom.label)}</button>
           <button class="graph-view-tab" type="button" role="tab" data-graph-view="webvowl" aria-controls="webvowl-graph-panel">WebVOWL</button>
         </div>
       `
     : "";
   const customPanel = customEnabled
     ? `
-        <div id="custom-graph-panel" class="graph-view-panel sigma-graph-panel" role="tabpanel" aria-label="Custom Sigma graph">
+        <div id="custom-graph-panel" class="graph-view-panel sigma-graph-panel" role="tabpanel" aria-label="${escapeHtml(config.graph.custom.label)} Sigma graph">
+          <div class="graph-panel-toolbar">
+            <div class="graph-panel-toolbar-copy">
+              <strong>${escapeHtml(config.graph.custom.label)}</strong>
+              <span>Expand this view for a larger workspace.</span>
+            </div>
+            <div class="graph-panel-toolbar-actions">
+              <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
+              <button class="graph-expand-btn" type="button" data-graph-expand="custom-graph-panel" aria-controls="custom-graph-panel" aria-expanded="false">
+                <span data-graph-expand-label>Expand view</span>
+              </button>
+            </div>
+          </div>
           ${customModeTabs}
           <div class="sigma-layout">
             <aside class="sigma-panel">
@@ -2656,6 +2767,18 @@ function buildGraphPage(context) {
   const webvowlPanel = webvowlEnabled
     ? `
         <div id="webvowl-graph-panel" class="graph-view-panel" role="tabpanel" aria-label="WebVOWL graph" hidden>
+          <div class="graph-panel-toolbar">
+            <div class="graph-panel-toolbar-copy">
+              <strong>WebVOWL</strong>
+              <span>Expand this view for a larger workspace.</span>
+            </div>
+            <div class="graph-panel-toolbar-actions">
+              <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
+              <button class="graph-expand-btn" type="button" data-graph-expand="webvowl-graph-panel" aria-controls="webvowl-graph-panel" aria-expanded="false">
+                <span data-graph-expand-label>Expand view</span>
+              </button>
+            </div>
+          </div>
           <p class="graph-view-note">WebVOWL loads the configured ontology URL through the selected WebVOWL service. The default URL points to this site’s published ontology asset.</p>
           <iframe id="webvowl-frame" class="webvowl-frame" title="WebVOWL ontology graph" loading="lazy" style="height: ${webvowlHeight}px"></iframe>
         </div>
@@ -2688,6 +2811,79 @@ function buildGraphPage(context) {
         const defaultGraphView = ${JSON.stringify(config.graph.defaultView)};
         const webvowlSettings = ${webvowlSettings};
         const webvowlFrame = document.getElementById("webvowl-frame");
+        const graphExpandPanels = Array.from(document.querySelectorAll(".graph-view-panel"));
+
+        function updateGraphExpandControl(panel, expanded) {
+          const button = panel.querySelector("[data-graph-expand]");
+          const label = panel.querySelector("[data-graph-expand-label]");
+          const help = panel.querySelector("[data-graph-expand-help]");
+          if (!button) return;
+          button.setAttribute("aria-expanded", String(expanded));
+          button.setAttribute("aria-label", expanded ? "Exit full screen" : "Expand graph view");
+          button.title = expanded ? "Exit full screen (Esc)" : "Expand graph view";
+          if (label) label.textContent = expanded ? "Exit full screen" : "Expand view";
+          if (help) help.hidden = !expanded;
+        }
+
+        function syncGraphExpandState() {
+          const nativePanel = graphExpandPanels.find((panel) => document.fullscreenElement === panel) || null;
+          const fallbackPanel = graphExpandPanels.find((panel) => panel.classList.contains("graph-panel--expanded")) || null;
+          const activePanel = nativePanel || fallbackPanel;
+          document.body.classList.toggle("graph-fullscreen-active", Boolean(activePanel));
+          graphExpandPanels.forEach((panel) => updateGraphExpandControl(panel, panel === activePanel));
+        }
+
+        async function exitGraphPanel(panel) {
+          panel.classList.remove("graph-panel--expanded");
+          if (document.fullscreenElement === panel && typeof document.exitFullscreen === "function") {
+            try {
+              await document.exitFullscreen();
+            } catch (error) {
+              console.warn("Unable to exit browser full screen mode.", error);
+            }
+          }
+          syncGraphExpandState();
+        }
+
+        async function enterGraphPanel(panel) {
+          try {
+            if (document.fullscreenElement && document.fullscreenElement !== panel && typeof document.exitFullscreen === "function") {
+              await document.exitFullscreen();
+            }
+            if (typeof panel.requestFullscreen !== "function") {
+              throw new Error("Fullscreen API unavailable");
+            }
+            await panel.requestFullscreen();
+          } catch (error) {
+            panel.classList.add("graph-panel--expanded");
+          }
+          syncGraphExpandState();
+        }
+
+        async function toggleGraphPanel(panel) {
+          const expanded = document.fullscreenElement === panel || panel.classList.contains("graph-panel--expanded");
+          if (expanded) {
+            await exitGraphPanel(panel);
+          } else {
+            await enterGraphPanel(panel);
+          }
+        }
+
+        graphExpandPanels.forEach((panel) => {
+          panel.querySelector("[data-graph-expand]")?.addEventListener("click", () => {
+            void toggleGraphPanel(panel);
+          });
+        });
+        document.addEventListener("fullscreenchange", syncGraphExpandState);
+        document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape" || document.fullscreenElement) return;
+          const fallbackPanel = graphExpandPanels.find((panel) => panel.classList.contains("graph-panel--expanded"));
+          if (fallbackPanel) {
+            event.preventDefault();
+            void exitGraphPanel(fallbackPanel);
+          }
+        });
+        syncGraphExpandState();
 
         function selectGraphView(view) {
           graphViewTabs.forEach((tab) => {
@@ -3447,6 +3643,8 @@ function buildSigmaGraphScript(config) {
                 if (suppressNextClick) suppressNextClick = false;
                 return;
               }
+              nativeClickHandled = true;
+              queueMicrotask(() => { nativeClickHandled = false; });
               const point = toViewportPoint(payload);
               if (!point) return;
               const node = getNodeAtPoint(point);
@@ -3473,14 +3671,33 @@ function buildSigmaGraphScript(config) {
             };
             mouseCaptor?.on?.("click", handleFallbackClick);
             mouseCaptor?.on?.("mousemovebody", updateFallbackHover);
+            container.addEventListener("click", handleFallbackClick);
+            container.addEventListener("pointermove", updateFallbackHover, { passive: true });
+            container.addEventListener("pointerleave", () => {
+              hoveredNode = null;
+              hoveredEdge = null;
+              clearNodeTooltip();
+              if (selectedEdge) {
+                updateEdgeHoverInfo(selectedEdge, null, true);
+              } else {
+                clearEdgeHoverInfo();
+              }
+            });
             new ResizeObserver(() => renderer.refresh()).observe(container);
           }
 
-          function runGraphologyRelaxation(iterations = 120) {
+          function getLayoutBounds() {
+            const maxY = Math.max(0, ...graphData.nodes.map((node) => Number(node.y) || 0));
+            return { width: 1400, height: Math.max(900, maxY + 180) };
+          }
+
+          function runGraphologyRelaxation() {
             const ids = graph.nodes();
             if (ids.length < 2) return;
-            const area = 1000 * 760;
+            const bounds = getLayoutBounds();
+            const area = bounds.width * bounds.height;
             const k = Math.sqrt(area / ids.length);
+            const iterations = ids.length > 180 ? 45 : ids.length > 90 ? 70 : 120;
             let temperature = 18;
             for (let iteration = 0; iteration < iterations; iteration += 1) {
               const displacement = Object.fromEntries(ids.map((id) => [id, { x: 0, y: 0 }]));
@@ -3498,11 +3715,27 @@ function buildSigmaGraphScript(config) {
                     dy = 0.01;
                     distance = 0.014;
                   }
-                  const force = (k * k) / distance * 0.025;
-                  displacement[aId].x += (dx / distance) * force;
-                  displacement[aId].y += (dy / distance) * force;
-                  displacement[bId].x -= (dx / distance) * force;
-                  displacement[bId].y -= (dy / distance) * force;
+                  const minimumHorizontalDistance = (a.labelWidth + b.labelWidth) / 2 + 34;
+                  const minimumVerticalDistance = 74;
+                  const overlapX = minimumHorizontalDistance - Math.abs(dx);
+                  const overlapY = minimumVerticalDistance - Math.abs(dy);
+                  if (overlapX > 0 && overlapY > 0) {
+                    if (overlapX < overlapY) {
+                      const moveX = Math.sign(dx || 1) * overlapX * 0.14;
+                      displacement[aId].x += moveX;
+                      displacement[bId].x -= moveX;
+                    } else {
+                      const moveY = Math.sign(dy || 1) * overlapY * 0.14;
+                      displacement[aId].y += moveY;
+                      displacement[bId].y -= moveY;
+                    }
+                  } else {
+                    const force = Math.min(7, (k * k) / (distance * distance) * 0.08);
+                    displacement[aId].x += (dx / distance) * force;
+                    displacement[aId].y += (dy / distance) * force;
+                    displacement[bId].x -= (dx / distance) * force;
+                    displacement[bId].y -= (dy / distance) * force;
+                  }
                 }
               }
               graph.forEachEdge((edge, attrs, sourceId, targetId) => {
@@ -3516,7 +3749,8 @@ function buildSigmaGraphScript(config) {
                   dy = 0.01;
                   distance = 0.014;
                 }
-                const force = (distance * distance) / k * 0.018;
+                const desired = Math.max(170, (source.labelWidth + target.labelWidth) / 2 + 92);
+                const force = (distance - desired) * 0.012;
                 displacement[sourceId].x -= (dx / distance) * force;
                 displacement[sourceId].y -= (dy / distance) * force;
                 displacement[targetId].x += (dx / distance) * force;
@@ -3529,11 +3763,45 @@ function buildSigmaGraphScript(config) {
                 if (magnitude < 0.0001) return;
                 const limited = Math.min(magnitude, temperature);
                 graph.mergeNodeAttributes(id, {
-                  x: Math.max(50, Math.min(950, attrs.x + (vector.x / magnitude) * limited)),
-                  y: Math.max(50, Math.min(710, attrs.y + (vector.y / magnitude) * limited))
+                  x: Math.max(80, Math.min(bounds.width - 80, attrs.x + (vector.x / magnitude) * limited)),
+                  y: Math.max(80, Math.min(bounds.height - 80, attrs.y + (vector.y / magnitude) * limited))
                 });
               });
               temperature *= 0.965;
+            }
+            resolveLabelCollisions(bounds);
+          }
+
+          function resolveLabelCollisions(bounds) {
+            const ids = graph.nodes();
+            for (let pass = 0; pass < 24; pass += 1) {
+              let moved = false;
+              for (let leftIndex = 0; leftIndex < ids.length; leftIndex += 1) {
+                const leftId = ids[leftIndex];
+                const left = graph.getNodeAttributes(leftId);
+                for (let rightIndex = leftIndex + 1; rightIndex < ids.length; rightIndex += 1) {
+                  const rightId = ids[rightIndex];
+                  const right = graph.getNodeAttributes(rightId);
+                  const dx = left.x - right.x;
+                  const dy = left.y - right.y;
+                  const overlapX = (left.labelWidth + right.labelWidth) / 2 + 34 - Math.abs(dx);
+                  const overlapY = 74 - Math.abs(dy);
+                  if (overlapX <= 0 || overlapY <= 0) continue;
+                  moved = true;
+                  if (overlapX < overlapY) {
+                    const shift = overlapX / 2 + 1;
+                    const direction = Math.sign(dx || 1);
+                    graph.mergeNodeAttributes(leftId, { x: Math.max(80, Math.min(bounds.width - 80, left.x + direction * shift)) });
+                    graph.mergeNodeAttributes(rightId, { x: Math.max(80, Math.min(bounds.width - 80, right.x - direction * shift)) });
+                  } else {
+                    const shift = overlapY / 2 + 1;
+                    const direction = Math.sign(dy || 1);
+                    graph.mergeNodeAttributes(leftId, { y: Math.max(80, Math.min(bounds.height - 80, left.y + direction * shift)) });
+                    graph.mergeNodeAttributes(rightId, { y: Math.max(80, Math.min(bounds.height - 80, right.y - direction * shift)) });
+                  }
+                }
+              }
+              if (!moved) break;
             }
           }
 
@@ -3545,7 +3813,8 @@ function buildSigmaGraphScript(config) {
             graphData.nodes.forEach((node) => {
               const color = TYPE_COLOR[node.termType] || TYPE_COLOR.declaredTerm;
               const size = node.isExternal ? 5.1 : Math.min(11, 6.5 + Math.sqrt((node.degree || 0) + 1));
-              graph.addNode(node.id, { x: node.x || 0, y: node.y || 0, size, baseSize: size, label: node.qname, qname: node.qname, qnameLower: node.qname.toLowerCase(), labelLower: (node.label || node.qname).toLowerCase(), color, baseColor: color, termType: node.termType, isExternal: node.isExternal });
+              const labelWidth = Math.min(270, 78 + String(node.qname || node.label || "").length * 7.1);
+              graph.addNode(node.id, { x: node.x || 0, y: node.y || 0, size, baseSize: size, label: node.qname, labelWidth, qname: node.qname, qnameLower: node.qname.toLowerCase(), labelLower: (node.label || node.qname).toLowerCase(), color, baseColor: color, termType: node.termType, isExternal: node.isExternal });
             });
             graphData.edges.forEach((edge, index) => {
               const color = TYPE_COLOR[edge.relation] || "#6f8394";
@@ -3553,7 +3822,7 @@ function buildSigmaGraphScript(config) {
               graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: EDGE_BASE_SIZE, baseSize: EDGE_BASE_SIZE, relation: edge.relation, label: edge.label || edge.relation });
             });
             runGraphologyRelaxation();
-            renderer = new SigmaCtor(graph, container, { defaultEdgeType: "arrow", renderEdgeLabels: false, renderLabels: true, labelDensity: 1.1, labelGridCellSize: 70, labelRenderedSizeThreshold: 0, minCameraRatio: 0.04, maxCameraRatio: 18, hideEdgesOnMove: false, enableNodeHoverEvents: true, enableNodeClickEvents: true, enableEdgeHoverEvents: true, enableEdgeClickEvents: true });
+            renderer = new SigmaCtor(graph, container, { defaultEdgeType: "arrow", renderEdgeLabels: false, renderLabels: true, labelDensity: 0.85, labelGridCellSize: 110, labelRenderedSizeThreshold: 5, minCameraRatio: 0.04, maxCameraRatio: 18, hideEdgesOnMove: false, enableNodeHoverEvents: true, enableNodeClickEvents: true, enableEdgeHoverEvents: true, enableEdgeClickEvents: true });
             setupReducers();
             recomputeVisibility();
           }
@@ -4847,6 +5116,8 @@ function sharedCss(config) {
     .featured-term-card {
       align-content: start;
       grid-template-rows: auto auto 1fr;
+      min-width: 0;
+      overflow: hidden;
     }
     .featured-term-card .term-badge {
       align-items: center;
@@ -4859,6 +5130,16 @@ function sharedCss(config) {
     .featured-term-card h3,
     .featured-term-card p {
       margin: 0;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .featured-term-card h3 {
+      line-height: 1.28;
+    }
+    .featured-term-card h3 a {
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .table-wrap {
       overflow-x: auto;
@@ -4974,6 +5255,133 @@ function sharedCss(config) {
     }
     .graph-view-panel[hidden] {
       display: none;
+    }
+    .graph-panel-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(248, 251, 253, 0.94);
+    }
+    .graph-panel-toolbar-copy {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+    }
+    .graph-panel-toolbar-copy strong {
+      color: #1f2f3f;
+      font-family: var(--heading-font);
+      font-size: 0.94rem;
+    }
+    .graph-panel-toolbar-copy span,
+    .graph-expand-help {
+      color: #5b6773;
+      font-size: 0.8rem;
+      line-height: 1.35;
+    }
+    .graph-panel-toolbar-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex: 0 0 auto;
+    }
+    .graph-expand-btn {
+      min-height: 36px;
+      padding: 8px 13px;
+      border: 1px solid #b8c8d2;
+      border-radius: 999px;
+      background: #ffffff;
+      color: #285467;
+      font: inherit;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .graph-expand-btn:hover,
+    .graph-expand-btn:focus-visible {
+      border-color: var(--accent);
+      background: #eff8fa;
+      color: var(--accent-strong);
+      outline: 2px solid rgba(14, 123, 129, 0.2);
+      outline-offset: 2px;
+    }
+    .graph-view-panel.graph-panel--expanded,
+    .graph-view-panel:fullscreen {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      width: 100vw;
+      height: 100vh;
+      max-width: none;
+      max-height: none;
+      margin: 0;
+      padding: 18px 24px 24px;
+      overflow: auto;
+      border: 0;
+      border-radius: 0;
+      background: var(--panel);
+    }
+    .graph-view-panel:-webkit-full-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 18px 24px 24px;
+      overflow: auto;
+      border: 0;
+      border-radius: 0;
+      background: var(--panel);
+    }
+    body.graph-fullscreen-active {
+      overflow: hidden;
+    }
+    .graph-view-panel.graph-panel--expanded .graph-panel-toolbar,
+    .graph-view-panel:fullscreen .graph-panel-toolbar,
+    .graph-view-panel:-webkit-full-screen .graph-panel-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(248, 251, 253, 0.97);
+      box-shadow: 0 8px 18px rgba(16, 37, 56, 0.08);
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-layout,
+    .graph-view-panel:fullscreen .sigma-layout,
+    .graph-view-panel:-webkit-full-screen .sigma-layout {
+      height: calc(100vh - 148px);
+      min-height: 0;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-panel,
+    .graph-view-panel:fullscreen .sigma-panel,
+    .graph-view-panel:-webkit-full-screen .sigma-panel {
+      height: 100%;
+      min-height: 0;
+      max-height: none;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-card,
+    .graph-view-panel:fullscreen .sigma-card,
+    .graph-view-panel:-webkit-full-screen .sigma-card {
+      height: 100%;
+      min-height: 0;
+    }
+    .graph-view-panel.graph-panel--expanded #sigma-graph-container,
+    .graph-view-panel:fullscreen #sigma-graph-container,
+    .graph-view-panel:-webkit-full-screen #sigma-graph-container {
+      height: calc(100% - 72px);
+      min-height: 0;
+    }
+    .graph-view-panel.graph-panel--expanded .webvowl-frame,
+    .graph-view-panel:fullscreen .webvowl-frame,
+    .graph-view-panel:-webkit-full-screen .webvowl-frame {
+      height: calc(100vh - 142px) !important;
+      min-height: 0;
     }
     .sigma-layout {
       display: grid;
@@ -5353,6 +5761,32 @@ function sharedCss(config) {
       .sigma-layout { grid-template-columns: 1fr; }
       .sigma-panel { max-height: none; }
       #sigma-graph-container { min-height: 520px; height: 70vh; }
+      .graph-view-panel.graph-panel--expanded .sigma-layout,
+      .graph-view-panel:fullscreen .sigma-layout,
+      .graph-view-panel:-webkit-full-screen .sigma-layout {
+        height: auto;
+      }
+      .graph-view-panel.graph-panel--expanded #sigma-graph-container,
+      .graph-view-panel:fullscreen #sigma-graph-container,
+      .graph-view-panel:-webkit-full-screen #sigma-graph-container {
+        height: calc(100vh - 230px);
+        min-height: 420px;
+      }
+    }
+    @media (max-width: 640px) {
+      .graph-panel-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .graph-panel-toolbar-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .graph-view-panel.graph-panel--expanded,
+      .graph-view-panel:fullscreen,
+      .graph-view-panel:-webkit-full-screen {
+        padding: 12px;
+      }
     }
   `;
 }
