@@ -152,7 +152,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /class="sigma-panel"/);
   assert.match(graphHtml, /data-graph-expand="custom-graph-panel"/);
   assert.match(graphHtml, /data-graph-expand="webvowl-graph-panel"/);
+  assert.match(graphHtml, /class="graph-expand-btn graph-expand-btn--icon"/);
+  assert.match(graphHtml, /data-graph-expand-icon="compress"/);
   assert.match(graphHtml, /Press Esc to exit full screen\./);
+  assert.doesNotMatch(graphHtml, /graph-panel-toolbar/);
+  assert.doesNotMatch(graphHtml, /data-graph-expand-label/);
+  assert.match(graphHtml, /grid-template-columns: minmax\(198px, 226px\) minmax\(0, 1fr\)/);
   assert.match(graphHtml, /function toggleGraphPanel/);
   assert.match(graphHtml, /requestFullscreen/);
   assert.match(graphHtml, /graph-panel--expanded/);

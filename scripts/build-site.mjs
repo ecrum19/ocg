@@ -2685,18 +2685,6 @@ function buildGraphPage(context) {
   const customPanel = customEnabled
     ? `
         <div id="custom-graph-panel" class="graph-view-panel sigma-graph-panel" role="tabpanel" aria-label="${escapeHtml(config.graph.custom.label)} Sigma graph">
-          <div class="graph-panel-toolbar">
-            <div class="graph-panel-toolbar-copy">
-              <strong>${escapeHtml(config.graph.custom.label)}</strong>
-              <span>Expand this view for a larger workspace.</span>
-            </div>
-            <div class="graph-panel-toolbar-actions">
-              <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
-              <button class="graph-expand-btn" type="button" data-graph-expand="custom-graph-panel" aria-controls="custom-graph-panel" aria-expanded="false">
-                <span data-graph-expand-label>Expand view</span>
-              </button>
-            </div>
-          </div>
           ${customModeTabs}
           <div class="sigma-layout">
             <aside class="sigma-panel">
@@ -2756,6 +2744,11 @@ function buildGraphPage(context) {
                 <div class="sigma-graph-hint">Hover nodes or edges for quick details. Click to select. Drag nodes to adjust layout.</div>
               </div>
               <div id="sigma-graph-container" aria-label="Sigma ontology graph">
+                <button class="graph-expand-btn graph-expand-btn--icon" type="button" data-graph-expand="custom-graph-panel" aria-controls="custom-graph-panel" aria-expanded="false" aria-label="Expand graph view" title="Expand graph view">
+                  <svg data-graph-expand-icon="expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"></path></svg>
+                  <svg data-graph-expand-icon="compress" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M9 4v5H4M15 20v-5h5M20 9h-5V4M4 15h5v5"></path></svg>
+                </button>
+                <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
                 <div id="sigma-edge-tooltip" class="sigma-tooltip sigma-edge-tooltip"></div>
                 <div id="sigma-node-tooltip" class="sigma-tooltip sigma-node-tooltip"></div>
               </div>
@@ -2767,20 +2760,15 @@ function buildGraphPage(context) {
   const webvowlPanel = webvowlEnabled
     ? `
         <div id="webvowl-graph-panel" class="graph-view-panel" role="tabpanel" aria-label="WebVOWL graph" hidden>
-          <div class="graph-panel-toolbar">
-            <div class="graph-panel-toolbar-copy">
-              <strong>WebVOWL</strong>
-              <span>Expand this view for a larger workspace.</span>
-            </div>
-            <div class="graph-panel-toolbar-actions">
-              <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
-              <button class="graph-expand-btn" type="button" data-graph-expand="webvowl-graph-panel" aria-controls="webvowl-graph-panel" aria-expanded="false">
-                <span data-graph-expand-label>Expand view</span>
-              </button>
-            </div>
-          </div>
           <p class="graph-view-note">WebVOWL loads the configured ontology URL through the selected WebVOWL service. The default URL points to this site’s published ontology asset.</p>
-          <iframe id="webvowl-frame" class="webvowl-frame" title="WebVOWL ontology graph" loading="lazy" style="height: ${webvowlHeight}px"></iframe>
+          <div class="webvowl-graph-surface">
+            <iframe id="webvowl-frame" class="webvowl-frame" title="WebVOWL ontology graph" loading="lazy" style="height: ${webvowlHeight}px"></iframe>
+            <button class="graph-expand-btn graph-expand-btn--icon" type="button" data-graph-expand="webvowl-graph-panel" aria-controls="webvowl-graph-panel" aria-expanded="false" aria-label="Expand graph view" title="Expand graph view">
+              <svg data-graph-expand-icon="expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 15v5h-5M15 4h5v5M9 20H4v-5"></path></svg>
+              <svg data-graph-expand-icon="compress" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M9 4v5H4M15 20v-5h5M20 9h-5V4M4 15h5v5"></path></svg>
+            </button>
+            <span class="graph-expand-help" data-graph-expand-help hidden>Press Esc to exit full screen.</span>
+          </div>
         </div>
       `
     : "";
@@ -2815,13 +2803,15 @@ function buildGraphPage(context) {
 
         function updateGraphExpandControl(panel, expanded) {
           const button = panel.querySelector("[data-graph-expand]");
-          const label = panel.querySelector("[data-graph-expand-label]");
           const help = panel.querySelector("[data-graph-expand-help]");
+          const expandIcon = panel.querySelector('[data-graph-expand-icon="expand"]');
+          const compressIcon = panel.querySelector('[data-graph-expand-icon="compress"]');
           if (!button) return;
           button.setAttribute("aria-expanded", String(expanded));
           button.setAttribute("aria-label", expanded ? "Exit full screen" : "Expand graph view");
           button.title = expanded ? "Exit full screen (Esc)" : "Expand graph view";
-          if (label) label.textContent = expanded ? "Exit full screen" : "Expand view";
+          if (expandIcon) expandIcon.hidden = expanded;
+          if (compressIcon) compressIcon.hidden = !expanded;
           if (help) help.hidden = !expanded;
         }
 
@@ -5256,52 +5246,61 @@ function sharedCss(config) {
     .graph-view-panel[hidden] {
       display: none;
     }
-    .graph-panel-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 14px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(248, 251, 253, 0.94);
-    }
-    .graph-panel-toolbar-copy {
-      display: grid;
-      gap: 3px;
-      min-width: 0;
-    }
-    .graph-panel-toolbar-copy strong {
-      color: #1f2f3f;
-      font-family: var(--heading-font);
-      font-size: 0.94rem;
-    }
-    .graph-panel-toolbar-copy span,
-    .graph-expand-help {
-      color: #5b6773;
-      font-size: 0.8rem;
-      line-height: 1.35;
-    }
-    .graph-panel-toolbar-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 10px;
-      flex: 0 0 auto;
-    }
     .graph-expand-btn {
       min-height: 36px;
       padding: 8px 13px;
       border: 1px solid #b8c8d2;
       border-radius: 999px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.95);
       color: #285467;
       font: inherit;
       font-size: 0.84rem;
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
+    }
+    .graph-expand-btn--icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 25;
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      min-height: 0;
+      padding: 7px;
+      border-radius: 10px;
+      box-shadow: 0 6px 14px rgba(16, 37, 56, 0.16);
+    }
+    .graph-expand-btn--icon svg {
+      display: block;
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+    .graph-expand-help {
+      position: absolute;
+      top: 54px;
+      right: 10px;
+      z-index: 24;
+      padding: 5px 8px;
+      border: 1px solid rgba(184, 200, 210, 0.78);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.94);
+      color: #5b6773;
+      font-size: 0.76rem;
+      line-height: 1.3;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 5px 12px rgba(16, 37, 56, 0.12);
+    }
+    .graph-expand-help[hidden] {
+      display: none;
     }
     .graph-expand-btn:hover,
     .graph-expand-btn:focus-visible {
@@ -5343,20 +5342,13 @@ function sharedCss(config) {
     body.graph-fullscreen-active {
       overflow: hidden;
     }
-    .graph-view-panel.graph-panel--expanded .graph-panel-toolbar,
-    .graph-view-panel:fullscreen .graph-panel-toolbar,
-    .graph-view-panel:-webkit-full-screen .graph-panel-toolbar {
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      background: rgba(248, 251, 253, 0.97);
-      box-shadow: 0 8px 18px rgba(16, 37, 56, 0.08);
-    }
     .graph-view-panel.graph-panel--expanded .sigma-layout,
     .graph-view-panel:fullscreen .sigma-layout,
     .graph-view-panel:-webkit-full-screen .sigma-layout {
       height: calc(100vh - 148px);
       min-height: 0;
+      grid-template-columns: minmax(198px, 226px) minmax(0, 1fr);
+      gap: 10px;
     }
     .graph-view-panel.graph-panel--expanded .sigma-panel,
     .graph-view-panel:fullscreen .sigma-panel,
@@ -5374,13 +5366,76 @@ function sharedCss(config) {
     .graph-view-panel.graph-panel--expanded #sigma-graph-container,
     .graph-view-panel:fullscreen #sigma-graph-container,
     .graph-view-panel:-webkit-full-screen #sigma-graph-container {
-      height: calc(100% - 72px);
+      height: calc(100% - 50px);
       min-height: 0;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-panel,
+    .graph-view-panel:fullscreen .sigma-panel,
+    .graph-view-panel:-webkit-full-screen .sigma-panel {
+      padding: 8px;
+      gap: 8px;
+      border-radius: 12px;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-block-toggle,
+    .graph-view-panel:fullscreen .sigma-block-toggle,
+    .graph-view-panel:-webkit-full-screen .sigma-block-toggle {
+      min-height: 36px;
+      padding: 8px 9px;
+      font-size: 0.86rem;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-block-body,
+    .graph-view-panel:fullscreen .sigma-block-body,
+    .graph-view-panel:-webkit-full-screen .sigma-block-body {
+      gap: 6px;
+      padding: 7px 9px 9px;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-muted,
+    .graph-view-panel:fullscreen .sigma-muted,
+    .graph-view-panel:-webkit-full-screen .sigma-muted,
+    .graph-view-panel.graph-panel--expanded .sigma-graph-hint,
+    .graph-view-panel:fullscreen .sigma-graph-hint,
+    .graph-view-panel:-webkit-full-screen .sigma-graph-hint {
+      display: none;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-control-group label,
+    .graph-view-panel:fullscreen .sigma-control-group label,
+    .graph-view-panel:-webkit-full-screen .sigma-control-group label,
+    .graph-view-panel.graph-panel--expanded .sigma-block-body > label,
+    .graph-view-panel:fullscreen .sigma-block-body > label,
+    .graph-view-panel:-webkit-full-screen .sigma-block-body > label {
+      font-size: 0.82rem;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-btn,
+    .graph-view-panel:fullscreen .sigma-btn,
+    .graph-view-panel:-webkit-full-screen .sigma-btn {
+      min-height: 32px;
+      padding: 6px 9px;
+      font-size: 0.78rem;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-card,
+    .graph-view-panel:fullscreen .sigma-card,
+    .graph-view-panel:-webkit-full-screen .sigma-card {
+      padding: 10px;
+    }
+    .graph-view-panel.graph-panel--expanded .sigma-legend,
+    .graph-view-panel:fullscreen .sigma-legend,
+    .graph-view-panel:-webkit-full-screen .sigma-legend {
+      padding: 7px 8px;
+      gap: 5px 9px;
+    }
+    .webvowl-graph-surface {
+      position: relative;
+      width: 100%;
+    }
+    .graph-view-panel.graph-panel--expanded .webvowl-graph-surface,
+    .graph-view-panel:fullscreen .webvowl-graph-surface,
+    .graph-view-panel:-webkit-full-screen .webvowl-graph-surface {
+      height: calc(100vh - 142px);
     }
     .graph-view-panel.graph-panel--expanded .webvowl-frame,
     .graph-view-panel:fullscreen .webvowl-frame,
     .graph-view-panel:-webkit-full-screen .webvowl-frame {
-      height: calc(100vh - 142px) !important;
+      height: 100% !important;
       min-height: 0;
     }
     .sigma-layout {
@@ -5764,6 +5819,11 @@ function sharedCss(config) {
       .graph-view-panel.graph-panel--expanded .sigma-layout,
       .graph-view-panel:fullscreen .sigma-layout,
       .graph-view-panel:-webkit-full-screen .sigma-layout {
+        grid-template-columns: 1fr;
+      }
+      .graph-view-panel.graph-panel--expanded .sigma-layout,
+      .graph-view-panel:fullscreen .sigma-layout,
+      .graph-view-panel:-webkit-full-screen .sigma-layout {
         height: auto;
       }
       .graph-view-panel.graph-panel--expanded #sigma-graph-container,
@@ -5774,14 +5834,6 @@ function sharedCss(config) {
       }
     }
     @media (max-width: 640px) {
-      .graph-panel-toolbar {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-      .graph-panel-toolbar-actions {
-        width: 100%;
-        justify-content: space-between;
-      }
       .graph-view-panel.graph-panel--expanded,
       .graph-view-panel:fullscreen,
       .graph-view-panel:-webkit-full-screen {
