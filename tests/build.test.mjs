@@ -197,6 +197,9 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /data-graph-expand-icon="compress"/);
   assert.match(graphHtml, /Press Esc to exit full screen\./);
   assert.match(graphHtml, /data-sigma-controls-toggle/);
+  assert.match(graphHtml, /id="sigma-selection-block"/);
+  assert.doesNotMatch(graphHtml, />Edge Details</);
+  assert.doesNotMatch(graphHtml, /id="sigma-edge-hover-info"/);
   assert.match(graphHtml, /function setGraphControlsCollapsed/);
   assert.match(graphHtml, /graph-controls-collapsed/);
   assert.doesNotMatch(graphHtml, /graph-panel-toolbar/);
@@ -210,6 +213,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /function toViewportPoint/);
   assert.match(graphHtml, /function selectEdge/);
   assert.match(graphHtml, /function updateDetailForEdge/);
+  assert.match(graphHtml, /function revealSelectionDetails/);
+  assert.match(graphHtml, /sidebarEl\.scrollTo/);
   assert.match(graphHtml, /EDGE_HIT_TOLERANCE = 14/);
   assert.match(graphHtml, /function findNearbyEdge/);
   assert.match(graphHtml, /function getNodeAtPoint/);
@@ -248,7 +253,10 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /setupRendererInteractions\(\);/);
   assert.match(graphHtml, /mouseCaptor\.on\("mousedown"/);
   assert.match(graphHtml, /mouseCaptor\.on\("mousemovebody"/);
-  assert.match(graphHtml, /\.sigma-block \{[\s\S]*?overflow: hidden;/);
+  assert.match(graphHtml, /\.sigma-panel \{[\s\S]*?grid-auto-rows: max-content;/);
+  assert.match(graphHtml, /\.sigma-block \{[\s\S]*?overflow: visible;/);
+  assert.match(graphHtml, /class=\\"sigma-detail-heading\\"/);
+  assert.match(graphHtml, /class=\\"sigma-detail-metadata\\"/);
   assert.match(graphHtml, /\.graph-expand-btn--icon svg\[hidden\]/);
   assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
 

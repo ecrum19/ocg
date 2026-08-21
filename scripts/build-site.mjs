@@ -2916,14 +2916,9 @@ function buildGraphPage(context) {
                 </div>
               </details>
 
-              <details class="sigma-block" open>
+              <details id="sigma-selection-block" class="sigma-block sigma-block--selection" open>
                 <summary class="sigma-block-toggle">Selection Details <span class="sigma-chevron">▾</span></summary>
                 <div class="sigma-block-body"><div id="sigma-term-detail" class="sigma-detail">Select a node to inspect relationships.</div></div>
-              </details>
-
-              <details class="sigma-block" open>
-                <summary class="sigma-block-toggle">Edge Details <span class="sigma-chevron">▾</span></summary>
-                <div class="sigma-block-body"><div id="sigma-edge-hover-info" class="sigma-hover-info">Hover an edge to inspect relationship information.</div></div>
               </details>
 
               <details class="sigma-block">
@@ -3179,13 +3174,14 @@ function buildSigmaGraphScript(config) {
           const EDGE_HIT_TOLERANCE = 14;
 
           const container = document.getElementById("sigma-canvas");
+          const sidebarEl = document.getElementById("sigma-sidebar");
           const legendEl = document.getElementById("sigma-legend");
           const edgeFiltersEl = document.getElementById("sigma-edge-filters");
           const nodeFiltersEl = document.getElementById("sigma-node-filters");
           const statsEl = document.getElementById("sigma-graph-stats");
           const detailEl = document.getElementById("sigma-term-detail");
+          const detailBlockEl = document.getElementById("sigma-selection-block");
           const overviewEl = document.getElementById("sigma-overview-summary");
-          const edgeHoverEl = document.getElementById("sigma-edge-hover-info");
           const edgeTooltipEl = document.getElementById("sigma-edge-tooltip");
           const nodeTooltipEl = document.getElementById("sigma-node-tooltip");
           const statusEl = document.getElementById("sigma-status");
@@ -3552,20 +3548,43 @@ function buildSigmaGraphScript(config) {
               "<div><strong>Relations:</strong> " + Object.entries(relationCounts).map(([relation, count]) => escapeHtml(relationLabel(relation)) + " (" + count + ")").join(", ") + "</div>";
           }
 
+          function revealSelectionDetails() {
+            detailBlockEl.open = true;
+            window.requestAnimationFrame(() => {
+              const inset = 8;
+              const blockTop = detailBlockEl.offsetTop;
+              const blockHeight = detailBlockEl.offsetHeight;
+              const visibleTop = sidebarEl.scrollTop;
+              const visibleBottom = visibleTop + sidebarEl.clientHeight;
+              if (blockTop >= visibleTop + inset && blockTop + blockHeight <= visibleBottom - inset) return;
+              const targetTop = blockHeight > sidebarEl.clientHeight - inset * 2
+                ? blockTop - inset
+                : blockTop + blockHeight - sidebarEl.clientHeight + inset;
+              sidebarEl.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+            });
+          }
+
           function updateDetail(nodeId) {
             if (!nodeId) {
               detailEl.innerHTML = "Select a node to inspect relationships.";
               return;
             }
             const node = nodeById.get(nodeId);
-            const outgoing = graphData.edges.filter((edge) => edge.source === nodeId).map((edge) => "<li>" + escapeHtml(relationLabel(edge.relation)) + " → " + termLink(edge.target) + "</li>").join("");
-            const incoming = graphData.edges.filter((edge) => edge.target === nodeId).map((edge) => "<li>" + termLink(edge.source) + " → " + escapeHtml(relationLabel(edge.relation)) + "</li>").join("");
-            detailEl.innerHTML = "<div><strong>" + escapeHtml(node.qname) + "</strong></div>" +
-              "<div>" + escapeHtml(TYPE_LABEL[node.termType] || node.termType) + "</div>" +
-              (node.label && node.label !== node.qname ? "<div>" + escapeHtml(node.label) + "</div>" : "") +
-              (node.comment ? "<div>" + escapeHtml(node.comment) + "</div>" : "") +
-              "<div><strong>Outgoing</strong></div><ul>" + (outgoing || "<li>None</li>") + "</ul>" +
-              "<div><strong>Incoming</strong></div><ul>" + (incoming || "<li>None</li>") + "</ul>";
+            const outgoingEdges = graphData.edges.filter((edge) => edge.source === nodeId);
+            const incomingEdges = graphData.edges.filter((edge) => edge.target === nodeId);
+            const outgoing = outgoingEdges.map((edge) =>
+              "<li><span class=\\\"sigma-relation-kind\\\">" + escapeHtml(relationLabel(edge.relation)) + " →</span>" + termLink(edge.target) + "</li>"
+            ).join("");
+            const incoming = incomingEdges.map((edge) =>
+              "<li><span class=\\\"sigma-relation-kind\\\">← " + escapeHtml(relationLabel(edge.relation)) + "</span>" + termLink(edge.source) + "</li>"
+            ).join("");
+            detailEl.innerHTML =
+              "<div class=\\\"sigma-detail-heading\\\"><strong>" + escapeHtml(node.qname) + "</strong><span class=\\\"sigma-detail-type\\\">" + escapeHtml(TYPE_LABEL[node.termType] || node.termType) + "</span></div>" +
+              (node.label && node.label !== node.qname ? "<div class=\\\"sigma-detail-label\\\">" + escapeHtml(node.label) + "</div>" : "") +
+              (node.comment ? "<p class=\\\"sigma-detail-description\\\">" + escapeHtml(node.comment) + "</p>" : "") +
+              "<section class=\\\"sigma-detail-group\\\"><div class=\\\"sigma-detail-group-title\\\"><span>Outgoing</span><span>" + outgoingEdges.length + "</span></div><ul>" + (outgoing || "<li class=\\\"sigma-detail-empty\\\">None</li>") + "</ul></section>" +
+              "<section class=\\\"sigma-detail-group\\\"><div class=\\\"sigma-detail-group-title\\\"><span>Incoming</span><span>" + incomingEdges.length + "</span></div><ul>" + (incoming || "<li class=\\\"sigma-detail-empty\\\">None</li>") + "</ul></section>";
+            revealSelectionDetails();
           }
 
           function updateDetailForEdge(edgeId) {
@@ -3574,11 +3593,10 @@ function buildSigmaGraphScript(config) {
               updateDetail(null);
               return;
             }
-            detailEl.innerHTML = "<div><strong>Selected relationship</strong></div>" +
-              "<div><strong>Relation:</strong> <code>" + escapeHtml(relationLabel(edge.relation)) + "</code></div>" +
-              "<div><strong>Predicate:</strong> <code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>" +
-              "<div><strong>Source:</strong> " + termLink(edge.source) + "</div>" +
-              "<div><strong>Target:</strong> " + termLink(edge.target) + "</div>";
+            detailEl.innerHTML =
+              "<div class=\\\"sigma-detail-heading\\\"><strong>" + escapeHtml(edge.predicateQname || relationLabel(edge.relation)) + "</strong><span class=\\\"sigma-detail-type\\\">Relationship</span></div>" +
+              "<dl class=\\\"sigma-detail-metadata\\\"><dt>Type</dt><dd>" + escapeHtml(relationLabel(edge.relation)) + "</dd><dt>From</dt><dd>" + termLink(edge.source) + "</dd><dt>To</dt><dd>" + termLink(edge.target) + "</dd></dl>";
+            revealSelectionDetails();
           }
 
           function selectNode(nodeId) {
@@ -3620,7 +3638,6 @@ function buildSigmaGraphScript(config) {
           }
 
           function clearEdgeHoverInfo() {
-            edgeHoverEl.innerHTML = "Hover an edge to inspect relationship information.";
             edgeTooltipEl.classList.remove("visible");
             edgeTooltipEl.innerHTML = "";
           }
@@ -3636,11 +3653,6 @@ function buildSigmaGraphScript(config) {
               clearEdgeHoverInfo();
               return;
             }
-            edgeHoverEl.innerHTML = (selected ? "<div><strong>Selected edge</strong></div>" : "") +
-              "<div><strong>Relation:</strong> <code>" + escapeHtml(relationLabel(edge.relation)) + "</code></div>" +
-              "<div><strong>Predicate:</strong> <code>" + escapeHtml(edge.predicateQname || edge.relation) + "</code></div>" +
-              "<div><strong>Source:</strong> " + termLink(edge.source) + "</div>" +
-              "<div><strong>Target:</strong> " + termLink(edge.target) + "</div>";
             const point = toViewportPoint(payload?.event || payload);
             if (!point) {
               edgeTooltipEl.classList.remove("visible");
@@ -5647,14 +5659,14 @@ function sharedCss(config) {
       bottom: 14px;
       left: 14px;
       display: grid;
-      width: min(310px, calc(100vw - 28px));
+      width: min(330px, calc(100vw - 28px));
       height: auto;
       min-height: 0;
       max-height: none;
-      padding: 10px;
-      gap: 9px;
-      border-radius: 12px;
-      box-shadow: 0 12px 28px rgba(16, 37, 56, 0.17);
+      padding: 9px;
+      gap: 7px;
+      border-radius: 11px;
+      box-shadow: 0 10px 24px rgba(16, 37, 56, 0.14);
       transition: transform 180ms ease, opacity 180ms ease;
     }
     .sigma-graph-panel.graph-panel--expanded.graph-controls-collapsed .sigma-panel,
@@ -5740,67 +5752,74 @@ function sharedCss(config) {
     }
     .sigma-layout {
       display: grid;
-      grid-template-columns: minmax(285px, 320px) minmax(0, 1fr);
+      grid-template-columns: minmax(292px, 320px) minmax(0, 1fr);
       gap: 16px;
       align-items: stretch;
     }
     .sigma-panel,
     .sigma-card {
       background: #ffffff;
-      border: 1px solid #d8e2e7;
-      border-radius: 14px;
-      box-shadow: 0 10px 26px rgba(16, 37, 56, 0.08);
-      padding: 14px;
+      border: 1px solid #dce4e8;
+      border-radius: 12px;
+      box-shadow: 0 7px 20px rgba(16, 37, 56, 0.065);
+      padding: 12px;
     }
     .sigma-panel {
       display: grid;
-      gap: 14px;
+      grid-auto-rows: max-content;
+      gap: 8px;
       align-content: start;
+      position: relative;
+      min-width: 0;
       min-height: calc(80vh - 100px);
       max-height: calc(150vh - 200px);
       overflow: auto;
       scrollbar-width: thin;
-      scrollbar-color: #9bb3c4 transparent;
+      scrollbar-color: #bdcbd2 transparent;
+      background: #f8fafb;
     }
-    .sigma-panel::-webkit-scrollbar { width: 8px; }
+    .sigma-panel::-webkit-scrollbar { width: 7px; }
     .sigma-panel::-webkit-scrollbar-track { background: transparent; }
     .sigma-panel::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, #9fb8c8, #7e9db2);
+      background: #bdcbd2;
       border-radius: 999px;
       border: 2px solid transparent;
       background-clip: padding-box;
     }
     .sigma-block {
-      border: 1px solid #dbe4e8;
-      border-radius: 10px;
+      min-width: 0;
+      border: 1px solid #dfe6e9;
+      border-radius: 8px;
       background: #ffffff;
-      overflow: hidden;
+      overflow: visible;
     }
     .sigma-block-toggle {
       width: 100%;
       border: 0;
       border-bottom: 1px solid transparent;
-      background: #f7fafb;
+      background: #ffffff;
       color: #1f2f3f;
       cursor: pointer;
-      padding: 11px 12px;
+      padding: 9px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-family: var(--heading-font);
-      font-size: 0.98rem;
+      font-size: 0.88rem;
       font-weight: 600;
       line-height: 1.2;
-      min-height: 42px;
+      min-height: 38px;
       text-align: left;
       list-style: none;
+      border-radius: 7px;
     }
     .sigma-block-toggle::-webkit-details-marker { display: none; }
     .sigma-block-toggle::marker { content: ""; }
-    .sigma-block-toggle:hover { background: #f0f6f7; }
+    .sigma-block-toggle:hover { background: #f4f7f8; }
     .sigma-block[open] .sigma-block-toggle {
-      border-bottom-color: #dbe4e8;
-      background: #f4f8f9;
+      border-bottom-color: #e4eaed;
+      background: #f7f9fa;
+      border-radius: 7px 7px 0 0;
     }
     .sigma-chevron {
       font-size: 0.9rem;
@@ -5810,9 +5829,10 @@ function sharedCss(config) {
     }
     .sigma-block[open] .sigma-chevron { transform: rotate(0deg); }
     .sigma-block-body {
-      padding: 10px 12px 12px;
+      min-width: 0;
+      padding: 9px 10px 10px;
       display: grid;
-      gap: 8px;
+      gap: 7px;
     }
     .sigma-muted,
     .sigma-status,
@@ -5822,13 +5842,13 @@ function sharedCss(config) {
       font-size: 0.86rem;
       line-height: 1.45;
     }
-    .sigma-control-group { display: grid; gap: 7px; }
+    .sigma-control-group { display: grid; gap: 6px; }
     .sigma-control-group label,
     .sigma-block-body > label {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       color: #2c3946;
     }
     .sigma-filter-title {
@@ -5842,18 +5862,22 @@ function sharedCss(config) {
     .sigma-search {
       width: 100%;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 0.95rem;
-      padding: 9px 10px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      padding: 8px 9px;
       font-family: inherit;
       color: var(--ink);
       background: #ffffff;
     }
-    .sigma-search-actions { display: grid; gap: 8px; }
+    .sigma-search-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
     .sigma-btn {
       border: 1px solid #cfdade;
-      border-radius: 9px;
-      padding: 9px 14px;
+      border-radius: 7px;
+      padding: 7px 9px;
       font-weight: 600;
       background: #ffffff;
       color: var(--accent);
@@ -5861,36 +5885,123 @@ function sharedCss(config) {
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      min-height: 36px;
+      min-height: 33px;
+      font-size: 0.8rem;
       font-family: inherit;
     }
     .sigma-btn:hover { background: #f2f8fb; }
     .sigma-btn--reset {
-      background: #0f7383;
+      grid-column: 1 / -1;
+      background: #176e79;
       color: #ffffff;
-      border-color: #0f7383;
-      font-weight: 700;
-      box-shadow: 0 4px 10px rgba(15, 115, 131, 0.18);
-      padding: 10px 16px;
-      min-height: 40px;
+      border-color: #176e79;
+      box-shadow: none;
+      padding: 8px 10px;
+      min-height: 34px;
     }
     .sigma-detail,
-    .sigma-overview,
-    .sigma-hover-info {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: #f7fbfd;
-      padding: 10px;
-      font-size: 0.88rem;
+    .sigma-overview {
+      min-width: 0;
+      font-size: 0.84rem;
       line-height: 1.4;
       color: #2d3c4c;
       display: grid;
-      gap: 6px;
+      gap: 8px;
     }
-    .sigma-detail ul { margin: 0; padding-left: 18px; }
+    .sigma-detail,
+    .sigma-detail * {
+      min-width: 0;
+    }
+    .sigma-detail-heading {
+      display: grid;
+      gap: 5px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5ebee;
+    }
+    .sigma-detail-heading strong {
+      color: #203642;
+      font-family: var(--mono-font);
+      font-size: 0.86rem;
+      overflow-wrap: anywhere;
+    }
+    .sigma-detail-type {
+      width: fit-content;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #edf3f5;
+      color: #526571;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+    .sigma-detail-label {
+      color: #324a57;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+    .sigma-detail-description {
+      margin: 0;
+      color: #5a6973;
+      font-size: 0.8rem;
+      overflow-wrap: anywhere;
+    }
+    .sigma-detail-group {
+      display: grid;
+      gap: 5px;
+    }
+    .sigma-detail-group-title {
+      display: flex;
+      justify-content: space-between;
+      color: #4d606b;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+    .sigma-detail-group ul {
+      display: grid;
+      gap: 4px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .sigma-detail-group li {
+      display: grid;
+      gap: 2px;
+      padding: 6px 7px;
+      border-radius: 6px;
+      background: #f5f8f9;
+      overflow-wrap: anywhere;
+    }
+    .sigma-relation-kind {
+      color: #667781;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .sigma-detail-empty {
+      color: #829099;
+      font-style: italic;
+    }
+    .sigma-detail-metadata {
+      display: grid;
+      grid-template-columns: max-content minmax(0, 1fr);
+      gap: 6px 9px;
+      margin: 0;
+    }
+    .sigma-detail-metadata dt {
+      color: #73818a;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .sigma-detail-metadata dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
     .sigma-detail code,
-    .sigma-overview code,
-    .sigma-hover-info code {
+    .sigma-overview code {
       font-family: var(--mono-font);
       background: rgba(31, 111, 120, 0.11);
       color: #16535d;
