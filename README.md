@@ -44,7 +44,7 @@ For a ready-made template instead, fork this repository, replace the example fil
 - An ontology repository containing the primary source and any optional shapes, examples, or specification files.
 - GitHub Pages configured to use GitHub Actions for deployment.
 
-OCG uses [`rdf-parse`](https://github.com/rubensworks/rdf-parse.js) for RDF parsing, [`graphology`](https://graphology.github.io/) for graph data, and [`sigma`](https://www.sigmajs.org/) for the local interactive graph. Sigma.js and Graphology are bundled into the generated site; WebVOWL and ReSpec are optional integrations.
+OCG uses [`rdf-parse`](https://github.com/rubensworks/rdf-parse.js) for RDF parsing, [`graphology`](https://graphology.github.io/) with its ForceAtlas2 and Noverlap layouts for graph generation, and [`sigma`](https://www.sigmajs.org/) for the local interactive graph. Sigma.js and Graphology are bundled into the generated site; layout computation happens during the build. WebVOWL and ReSpec are optional integrations.
 
 ## Repository Files
 
@@ -155,7 +155,7 @@ The Graph page can expose:
 - A local Sigma.js graph with `predicate-nodes` and `predicate-edges` modes
 - An optional WebVOWL view
 
-The generated **Ontology Network** uses Sigma.js and supports hover details, click selection and highlighting, repeated-click deselection, edge hit areas, draggable nodes, label-aware spacing, and responsive fallback pointer handling. Its label, modes, and defaults are controlled in `ocg.config.json`. Both graph representations include an **Expand view** control; expanded views include a visible **Exit full screen** control and can also be closed with `Esc`. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
+The generated **Ontology Network** uses a deterministic ForceAtlas2 layout, label-aware Noverlap post-processing, and separate packing for disconnected components. Sigma.js provides hover details, click selection and highlighting, repeated-click deselection, forgiving edge hit areas, and draggable nodes. Manageable graphs show every label; larger graphs prioritize important labels while always revealing selected neighborhoods. Configure these behaviors under `graph.custom.layout` and `graph.custom.labels` in `ocg.config.json`. Both graph representations include an expand control. In the Ontology Network, full screen gives the graph the entire viewport and starts with the controls drawer collapsed; use **Show controls** to open it without shrinking the graph, and use the exit icon or `Esc` to leave full screen. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
 
 ## Automation
 

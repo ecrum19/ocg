@@ -50,6 +50,8 @@
   },
   "dependencies": {
     "graphology": "0.25.4",
+    "graphology-layout-forceatlas2": "0.10.1",
+    "graphology-layout-noverlap": "0.4.2",
     "rdf-parse": "5.0.0",
     "sigma": "2.4.0"
   }

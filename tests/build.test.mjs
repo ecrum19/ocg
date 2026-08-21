@@ -14,7 +14,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
   assert.equal(PACKAGE_JSON.repository.url, "git+https://github.com/ecrum19/ocg.git");
   assert.equal(PACKAGE_JSON.publishConfig.registry, "https://registry.npmjs.org/");
-  for (const dependency of ["rdf-parse", "graphology", "sigma"]) {
+  for (const dependency of ["rdf-parse", "graphology", "graphology-layout-forceatlas2", "graphology-layout-noverlap", "sigma"]) {
     assert.ok(PACKAGE_JSON.dependencies?.[dependency], `${dependency} should be a declared dependency`);
   }
 
@@ -123,23 +123,63 @@ test("build-site produces the expected publish artifacts for the bundled example
     )
   );
   assert.ok(graphData.modes["predicate-edges"].edges.some((edge) => edge.predicateQname === "ecv:hasRequirement"));
-  const graphLabelWidth = (node) => Math.min(270, 78 + String(node.qname || node.label || "").length * 7.1);
+  const graphLabelWidth = (node) => {
+    let width = 18;
+    for (const character of String(node.qname || node.label || "")) {
+      width += /[MW@#%&]/.test(character)
+        ? 8.6
+        : /[ilI1|.:,'`]/.test(character)
+          ? 4.2
+          : /[A-Z0-9]/.test(character)
+            ? 7.4
+            : 6.6;
+    }
+    return Math.min(420, Math.max(72, width));
+  };
   for (const node of graphData.nodes) {
     assert.ok(Number.isFinite(node.x) && Number.isFinite(node.y), `${node.qname} should have an initial position`);
+  }
+  for (const [modeName, mode] of Object.entries(graphData.modes)) {
+    const isolatedNodes = mode.nodes.filter((node) => node.degree === 0);
+    if (isolatedNodes.length > 1) {
+      assert.equal(
+        new Set(isolatedNodes.map((node) => node.y)).size,
+        1,
+        `${modeName} should pack isolated terms into a compact horizontal band`
+      );
+    }
   }
   for (let leftIndex = 0; leftIndex < graphData.nodes.length; leftIndex += 1) {
     const left = graphData.nodes[leftIndex];
     for (let rightIndex = leftIndex + 1; rightIndex < graphData.nodes.length; rightIndex += 1) {
       const right = graphData.nodes[rightIndex];
-      const horizontalDistance = Math.abs(left.x - right.x);
       const verticalDistance = Math.abs(left.y - right.y);
-      const requiredHorizontalDistance = (graphLabelWidth(left) + graphLabelWidth(right)) / 2 + 34;
+      const leftLabel = { start: left.x + 10, end: left.x + 10 + graphLabelWidth(left) };
+      const rightLabel = { start: right.x + 10, end: right.x + 10 + graphLabelWidth(right) };
+      const labelsOverlapHorizontally = leftLabel.start < rightLabel.end && rightLabel.start < leftLabel.end;
       assert.ok(
-        !(horizontalDistance < requiredHorizontalDistance && verticalDistance < 74),
+        !(labelsOverlapHorizontally && verticalDistance < 32),
         `${left.qname} and ${right.qname} should not overlap in the initial label layout`
       );
     }
   }
+  const firstLayout = Object.fromEntries(
+    Object.entries(graphData.modes).map(([modeName, mode]) => [
+      modeName,
+      mode.nodes.map(({ id, x, y }) => ({ id, x, y }))
+    ])
+  );
+  execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+  const rebuiltGraphData = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8")
+  );
+  const rebuiltLayout = Object.fromEntries(
+    Object.entries(rebuiltGraphData.modes).map(([modeName, mode]) => [
+      modeName,
+      mode.nodes.map(({ id, x, y }) => ({ id, x, y }))
+    ])
+  );
+  assert.deepEqual(rebuiltLayout, firstLayout, "graph coordinates should be deterministic across builds");
 
   const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
   assert.match(graphHtml, /Ontology Network/);
@@ -149,55 +189,67 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /id="webvowl-frame"/);
   assert.match(graphHtml, /service\.tib\.eu\/webvowl/);
   assert.match(graphHtml, /id="sigma-toggle-external"/);
+  assert.match(graphHtml, /id="sigma-canvas" class="sigma-canvas"/);
   assert.match(graphHtml, /class="sigma-panel"/);
   assert.match(graphHtml, /data-graph-expand="custom-graph-panel"/);
   assert.match(graphHtml, /data-graph-expand="webvowl-graph-panel"/);
   assert.match(graphHtml, /class="graph-expand-btn graph-expand-btn--icon"/);
   assert.match(graphHtml, /data-graph-expand-icon="compress"/);
   assert.match(graphHtml, /Press Esc to exit full screen\./);
+  assert.match(graphHtml, /data-sigma-controls-toggle/);
+  assert.match(graphHtml, /function setGraphControlsCollapsed/);
+  assert.match(graphHtml, /graph-controls-collapsed/);
   assert.doesNotMatch(graphHtml, /graph-panel-toolbar/);
   assert.doesNotMatch(graphHtml, /data-graph-expand-label/);
-  assert.match(graphHtml, /grid-template-columns: minmax\(198px, 226px\) minmax\(0, 1fr\)/);
+  assert.match(graphHtml, /height: 100%;\s+min-height: 0;\s+border: 0;/);
   assert.match(graphHtml, /function toggleGraphPanel/);
   assert.match(graphHtml, /requestFullscreen/);
   assert.match(graphHtml, /graph-panel--expanded/);
   assert.match(graphHtml, /Predicates as Nodes/);
   assert.match(graphHtml, /Predicates as Edges/);
-  assert.match(graphHtml, /enableNodeHoverEvents: true/);
-  assert.match(graphHtml, /enableNodeClickEvents: true/);
   assert.match(graphHtml, /function toViewportPoint/);
   assert.match(graphHtml, /function selectEdge/);
   assert.match(graphHtml, /function updateDetailForEdge/);
   assert.match(graphHtml, /EDGE_HIT_TOLERANCE = 14/);
   assert.match(graphHtml, /function findNearbyEdge/);
   assert.match(graphHtml, /function getNodeAtPoint/);
+  assert.match(graphHtml, /function getNodeLabelPlacement/);
   assert.match(graphHtml, /getNodeDisplayData/);
   assert.match(graphHtml, /measureText\(label\)/);
   assert.match(graphHtml, /function updateFallbackHover/);
-  assert.match(graphHtml, /function claimClick/);
   assert.match(graphHtml, /function selectNode/);
   assert.match(graphHtml, /hoverRenderer: \(\) => \{\}/);
+  assert.match(graphHtml, /enableEdgeHoverEvents: false/);
+  assert.match(graphHtml, /enableEdgeClickEvents: false/);
+  assert.doesNotMatch(graphHtml, /function claimClick/);
   assert.doesNotMatch(graphHtml, /nativeClickHandled/);
   assert.match(graphHtml, /aria-label="Ontology Network mode"/);
   assert.match(graphHtml, /container\.addEventListener\("pointermove", updateFallbackHover/);
   assert.match(graphHtml, /container\.addEventListener\("pointerleave"/);
-  assert.match(graphHtml, /container\.addEventListener\("click", handleFallbackClick\)/);
-  assert.match(graphHtml, /labelWidth/);
-  assert.match(graphHtml, /labelGridCellSize: 110/);
+  assert.match(graphHtml, /container\.addEventListener\("click", handleGraphClick/);
+  assert.match(graphHtml, /interactionAbortController\?\.abort\(\)/);
+  assert.match(graphHtml, /baseForceLabel/);
+  assert.match(graphHtml, /function drawReadableNodeLabel/);
+  assert.doesNotMatch(graphHtml, /function runGraphologyRelaxation/);
+  assert.match(graphHtml, /labelGridCellSize: LABEL_SETTINGS\.gridCellSize/);
+  assert.match(graphHtml, /labelDensity: LABEL_SETTINGS\.density/);
+  assert.match(graphHtml, /stagePadding: 72/);
+  assert.match(graphHtml, /forceAllLabels/);
   assert.match(graphHtml, /if \(selectedEdge === edgeId\)/);
   assert.match(graphHtml, /if \(selectedNode === node\)/);
   assert.match(graphHtml, /renderer\.getMouseCaptor\(\)/);
-  assert.match(graphHtml, /window\.addEventListener\("blur", endDrag\)/);
+  assert.match(graphHtml, /window\.addEventListener\("blur", endDrag, \{ signal \}\)/);
   assert.match(graphHtml, /renderer\.on\("downNode"/);
-  assert.match(graphHtml, /renderer\.on\("clickNode"/);
-  assert.match(graphHtml, /renderer\.on\("clickEdge"/);
-  assert.match(graphHtml, /renderer\.on\("clickStage"/);
-  assert.match(graphHtml, /renderer\.on\("enterNode"/);
-  assert.match(graphHtml, /renderer\.on\("enterEdge"/);
+  assert.doesNotMatch(graphHtml, /renderer\.on\("clickNode"/);
+  assert.doesNotMatch(graphHtml, /renderer\.on\("clickEdge"/);
+  assert.doesNotMatch(graphHtml, /renderer\.on\("clickStage"/);
+  assert.doesNotMatch(graphHtml, /renderer\.on\("enterNode"/);
+  assert.doesNotMatch(graphHtml, /renderer\.on\("enterEdge"/);
   assert.match(graphHtml, /setupRendererInteractions\(\);/);
   assert.match(graphHtml, /mouseCaptor\.on\("mousedown"/);
-  assert.match(graphHtml, /mouseCaptor\?\.on\?\.\("click", handleFallbackClick\)/);
-  assert.match(graphHtml, /mouseCaptor\?\.on\?\.\("mousemovebody", updateFallbackHover\)/);
+  assert.match(graphHtml, /mouseCaptor\.on\("mousemovebody"/);
+  assert.match(graphHtml, /\.sigma-block \{[\s\S]*?overflow: hidden;/);
+  assert.match(graphHtml, /\.graph-expand-btn--icon svg\[hidden\]/);
   assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
 
   const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");

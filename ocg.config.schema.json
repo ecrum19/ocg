@@ -144,6 +144,29 @@
                 "predicateEdges": { "type": "boolean" }
               },
               "additionalProperties": false
+            },
+            "layout": {
+              "type": "object",
+              "properties": {
+                "iterations": { "type": "integer", "minimum": 50, "maximum": 2000 },
+                "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+                "scalingRatio": { "type": "number", "minimum": 0.25, "maximum": 8 },
+                "gravity": { "type": "number", "minimum": 0.01, "maximum": 20 },
+                "linLogMode": { "type": "boolean" },
+                "preventOverlap": { "type": "boolean" },
+                "labelSpacing": { "type": "number", "minimum": 0.5, "maximum": 3 }
+              },
+              "additionalProperties": false
+            },
+            "labels": {
+              "type": "object",
+              "properties": {
+                "density": { "type": "number", "minimum": 0.1, "maximum": 10 },
+                "gridCellSize": { "type": "integer", "minimum": 20, "maximum": 300 },
+                "renderedSizeThreshold": { "type": "number", "minimum": 0, "maximum": 20 },
+                "forceAllUnder": { "type": "integer", "minimum": 0, "maximum": 2000 }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

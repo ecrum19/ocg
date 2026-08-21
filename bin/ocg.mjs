@@ -68,7 +68,22 @@ const DEFAULT_CONFIG = {
       enabled: true,
       label: "Ontology Network",
       defaultMode: "predicate-nodes",
-      modes: { predicateNodes: true, predicateEdges: true }
+      modes: { predicateNodes: true, predicateEdges: true },
+      layout: {
+        iterations: 320,
+        seed: 42,
+        scalingRatio: 1.4,
+        gravity: 1,
+        linLogMode: false,
+        preventOverlap: true,
+        labelSpacing: 1.15
+      },
+      labels: {
+        density: 1.5,
+        gridCellSize: 90,
+        renderedSizeThreshold: 2,
+        forceAllUnder: 80
+      }
     },
     webvowl: {
       enabled: false,
