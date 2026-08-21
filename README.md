@@ -10,7 +10,6 @@
   <a href="https://github.com/ecrum19/ocg/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ocg?color=2f8040" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/Node.js-24.x-339933" alt="Node.js 24.x" />
   <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
-  <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-npm.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-npm.yml/badge.svg?branch=main" alt="npm publishing workflow status" /></a>
 </p>
 
 OCG is a config-first npm package that builds a GitHub Pages companion site for an ontology or vocabulary. It generates reference, terms, graph, artifacts, optional ReSpec, and Usage Guide pages from your source files and `ocg.config.json`.
