@@ -8,7 +8,7 @@
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/v/ontology-companion-generator?label=npm%20version&color=0e7b81" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/dm/ontology-companion-generator?label=npm%20downloads&color=cb3837" alt="npm monthly downloads" /></a>
   <a href="https://github.com/ecrum19/ocg/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ocg?color=2f8040" alt="MIT license" /></a>
-  <img src="https://img.shields.io/badge/Node.js-%3E%3D22.19.0-339933" alt="Node.js 22.19.0 or newer" />
+  <img src="https://img.shields.io/badge/Node.js-24.x-339933" alt="Node.js 24.x" />
   <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
   <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-npm.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-npm.yml/badge.svg?branch=main" alt="npm publishing workflow status" /></a>
 </p>
@@ -41,7 +41,7 @@ For a ready-made template instead, fork this repository, replace the example fil
 
 ## Requirements
 
-- Node.js `22.19.0` or newer and npm. The generated workflows use Node.js 24.
+- Node.js `24.x` and npm. The package and generated workflows use Node.js 24.
 - An ontology repository containing the primary source and any optional shapes, examples, or specification files.
 - GitHub Pages configured to use GitHub Actions for deployment.
 
@@ -60,11 +60,11 @@ package-lock.json
 your ontology, shapes, examples, and specification files
 ```
 
-Source files can stay in their existing locations. Point to them with paths relative to the repository root. The build output is written to `site/` and normally contains:
+Source files can stay in their existing locations. Point to them with paths relative to the repository root. OCG detects common files during `ocg init`, but it does not scan arbitrary directories. Add extra files under `sources.artifacts` when they should be copied and shown in the viewer. The build output is written to `site/` and normally contains:
 
 - Home, Reference, Graph, Terms, and Usage Guide pages
 - An optional ReSpec Specification page
-- Copied ontology, SHACL, ShEx, and example artifacts
+- Copied ontology, SHACL, ShEx, specification, example, and configured additional artifacts
 
 ## Configuration And Guides
 
@@ -82,6 +82,59 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 - [Branding and Footer](https://ecrum19.github.io/ocg/usage-guide.html#branding)
 
 Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
+
+### Optional Ontology Hierarchy
+
+Set `features.hierarchyOverview` to `true` to add a curated ontology-structure overview above the `Classes` section on the Reference page. OCG derives it from `subClassOf` and/or `broader` relationships; it does not display the entire ontology. Use the `hierarchy` block to choose term types, roots, depth, branch limits, leaf/external-term visibility, and a capped list of important domain/range links. The default package config leaves this feature off because the useful scope varies by ontology; the bundled example enables it.
+
+```json
+{
+  "features": { "referencePage": true, "hierarchyOverview": true },
+  "hierarchy": {
+    "termTypes": ["class", "concept"],
+    "relations": ["subClassOf", "broader"],
+    "rootTerms": ["ecv:Capability"],
+    "maxRoots": 4,
+    "maxDepth": 3,
+    "maxChildrenPerNode": 5,
+    "maxNodes": 30,
+    "includeLeafTerms": false,
+    "includeExternal": false,
+    "includePropertyRelations": true,
+    "propertyRelations": ["domain", "range"],
+    "maxPropertyRelations": 10,
+    "labelMode": "label-and-qname"
+  }
+}
+```
+
+The overview is rendered as an accessible, collapsible tree with links to generated term pages. `hierarchyAsset` is a separate option: it controls the generated `assets/ontology_hierarchy.ttl` asset and does not enable the Reference-page overview.
+
+### Featured Terms And Artifacts
+
+If `curation.featuredTerms` is omitted or empty, OCG automatically features up to six declared ontology terms. Set `curation.featuredTermLimit` to change the count, or set `curation.autoFeaturedTerms` to `false` to hide automatic terms.
+
+If `curation.viewerTabs` is omitted or empty, the home-page Artifact Viewer includes every configured source asset: ontology, shapes, ShEx, specification source, examples, and `sources.artifacts` entries. Config, schema, workflow, and source-guide files are not viewer tabs. To curate the order, provide source asset keys such as `ontology`, `example:basic`, or `artifact:context`.
+
+Extra files are configured explicitly:
+
+```json
+{
+  "sources": {
+    "artifacts": [
+      {
+        "key": "context",
+        "label": "Context JSON",
+        "path": "source/context.json",
+        "description": "Additional metadata for this vocabulary."
+      }
+    ]
+  },
+  "curation": {
+    "viewerTabs": []
+  }
+}
+```
 
 ### Accepted Input Formats
 
@@ -103,11 +156,13 @@ The Graph page can expose:
 - A local Sigma.js graph with `predicate-nodes` and `predicate-edges` modes
 - An optional WebVOWL view
 
-The custom graph supports hover details, click selection and highlighting, repeated-click deselection, edge hit areas, and draggable nodes. Both representations and their defaults are controlled in `ocg.config.json`. WebVOWL requires a public ontology URL that its service can fetch and may not work in a local `file://` preview.
+The custom graph supports hover details, click selection and highlighting, repeated-click deselection, edge hit areas, and draggable nodes. Both representations and their defaults are controlled in `ocg.config.json`. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
 
 ## Automation
 
 The Pages workflow, `.github/workflows/publish-pages.yml`, validates the ontology, builds `site/`, and deploys it when `main` changes or when manually dispatched. GitHub Pages cannot automatically display whichever branch a visitor is browsing, so use feature branches for validation and merge deployable changes to `main`.
+
+Repositories initialized with an older OCG release should update their workflow to the current template so the GitHub Actions themselves also run on Node 24.
 
 The npm workflow, `.github/workflows/publish-npm.yml`, publishes tags matching `v*.*.*`. It verifies the tag against `package.json`, runs tests, and uses npm trusted publishing with OIDC and provenance.
 

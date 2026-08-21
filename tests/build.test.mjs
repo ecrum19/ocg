@@ -71,9 +71,24 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /href="usage-guide\.html#home">How To</);
   assert.match(indexHtml, /href="usage-guide\.html#artifacts">How To</);
   assert.match(indexHtml, />View File</);
+  for (const label of ["Specification Source", "Basic Capability Example", "Advanced Capability Example"]) {
+    assert.match(indexHtml, new RegExp(`data-label="${escapeRegExp(label)}"`));
+  }
+  for (const label of ["Config Schema", "GitHub Pages Workflow", "Source Replacement Guide"]) {
+    assert.doesNotMatch(indexHtml, new RegExp(`data-label="${escapeRegExp(label)}"`));
+  }
   assert.doesNotMatch(indexHtml, />Open (TTL|File|Example)</);
   assert.doesNotMatch(indexHtml, /<dt>Namespace<\/dt>/);
   assert.match(indexHtml, /id="copy-namespace"/);
+
+  const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
+  assert.match(referenceHtml, /id="ontology-hierarchy"/);
+  assert.match(referenceHtml, /<h2>Ontology Structure<\/h2>/);
+  assert.match(referenceHtml, /class="hierarchy-tree"/);
+  assert.match(referenceHtml, /class="hierarchy-links"/);
+  assert.match(referenceHtml, /href="terms\/Capability\.html"><span>Capability<\/span>/);
+  assert.match(referenceHtml, /<h2>Classes<\/h2>/);
+  assert.doesNotMatch(referenceHtml, /Classs/);
 
   const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
   const navOrder = [
@@ -202,6 +217,13 @@ test("build-site produces the expected publish artifacts for the bundled example
     "project.maintainer",
     "sources.examples[].description",
     "features.hierarchyAsset",
+    "features.hierarchyOverview",
+    "hierarchy.rootTerms",
+    "hierarchy.maxDepth",
+    "hierarchy.maxChildrenPerNode",
+    "hierarchy.maxNodes",
+    "hierarchy.includePropertyRelations",
+    "hierarchy.labelMode",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
     "graph.webvowl.height",
@@ -222,6 +244,11 @@ test("build-site produces the expected publish artifacts for the bundled example
   const workflow = fs.readFileSync(path.join(ROOT, ".github/workflows/publish-pages.yml"), "utf8");
   assert.match(workflow, /branches:\s*\n\s+- main/);
   assert.match(workflow, /node-version: 24/);
+  assert.match(workflow, /actions\/checkout@v5/);
+  assert.match(workflow, /actions\/setup-node@v6/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v5/);
+  assert.match(workflow, /actions\/deploy-pages@v5/);
+  assert.doesNotMatch(workflow, /actions\/(?:checkout|setup-node|upload-pages-artifact|deploy-pages)@v[234]\b/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-reference\.html/);
   assert.doesNotMatch(workflow, /test -f site\/ontology-graph\.html/);
 
@@ -232,6 +259,9 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(npmWorkflow, /npm install --global npm@latest/);
   assert.match(npmWorkflow, /npm test/);
   assert.match(npmWorkflow, /npm publish/);
+  assert.match(npmWorkflow, /actions\/checkout@v5/);
+  assert.match(npmWorkflow, /actions\/setup-node@v6/);
+  assert.doesNotMatch(npmWorkflow, /actions\/(?:checkout|setup-node)@v[234]\b/);
   assert.match(npmWorkflow, /test "v\$\{PACKAGE_VERSION\}" = "\$\{TAG_NAME\}"/);
   assert.doesNotMatch(npmWorkflow, /NPM_TOKEN/);
 });
@@ -318,6 +348,28 @@ ecv:FormatClass a owl:Class ; rdfs:label "Format Class" .`
       () => execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" }),
       (error) => `${error.stdout || ""}${error.stderr || ""}`.includes("Unsupported ontology format")
     );
+
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(
+        {
+          ...originalConfig,
+          graph: {
+            ...originalConfig.graph,
+            webvowl: {
+              ...originalConfig.graph.webvowl,
+              ontologyUrl: originalConfig.project.namespace
+            }
+          }
+        },
+        null,
+        2
+      )
+    );
+    assert.throws(
+      () => execFileSync("node", ["scripts/build-site.mjs", "--check"], { cwd: ROOT, stdio: "pipe" }),
+      (error) => `${error.stdout || ""}${error.stderr || ""}`.includes("must be a public ontology document URL")
+    );
   } finally {
     fs.writeFileSync(configPath, originalConfigText);
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -339,6 +391,11 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
 
     const config = JSON.parse(fs.readFileSync(path.join(tempDir, "ocg.config.json"), "utf8"));
     assert.equal(config.sources.ontology, "ontology.ttl");
+    assert.equal(config.curation.autoFeaturedTerms, true);
+    assert.equal(config.curation.featuredTermLimit, 6);
+    assert.deepEqual(config.curation.viewerTabs, []);
+    assert.equal(config.features.hierarchyOverview, false);
+    assert.equal(config.hierarchy.maxNodes, 36);
     assert.equal(config.project.namespace, "https://example.org/ecv#");
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
@@ -352,6 +409,26 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
 
     execFileSync(process.execPath, [cliPath, "check"], { cwd: tempDir, stdio: "pipe" });
     execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+    const indexHtml = fs.readFileSync(path.join(tempDir, "site", "index.html"), "utf8");
+    assert.match(indexHtml, /class="card featured-term-card"/);
+    assert.match(indexHtml, /data-label="OWL Ontology"/);
+    assert.doesNotMatch(indexHtml, /data-label="Config Schema"/);
+
+    fs.writeFileSync(path.join(tempDir, "context.json"), "{\"example\":true}\n");
+    config.sources.artifacts = [
+      {
+        key: "context",
+        label: "Context JSON",
+        path: "context.json",
+        description: "Additional metadata."
+      }
+    ];
+    fs.writeFileSync(path.join(tempDir, "ocg.config.json"), JSON.stringify(config, null, 2));
+    execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+    const artifactIndexHtml = fs.readFileSync(path.join(tempDir, "site", "index.html"), "utf8");
+    assert.match(artifactIndexHtml, /data-file="assets\/context\.json"/);
+    assert.match(artifactIndexHtml, /data-label="Context JSON"/);
+    assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "context.json")), true);
     const graphData = JSON.parse(
       fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_graph_data.json"), "utf8")
     );

@@ -48,6 +48,21 @@
             },
             "additionalProperties": false
           }
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "label", "path"],
+            "properties": {
+              "key": { "type": "string" },
+              "label": { "type": "string" },
+              "path": { "type": "string" },
+              "description": { "type": "string" },
+              "destinationName": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false
@@ -61,8 +76,48 @@
         "rawViewer": { "type": "boolean" },
         "overviewCards": { "type": "boolean" },
         "hierarchyAsset": { "type": "boolean" },
+        "hierarchyOverview": { "type": "boolean" },
         "specPage": { "type": "boolean" },
         "usageGuidePage": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "hierarchy": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "termTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["class", "objectProperty", "datatypeProperty", "annotationProperty", "concept", "declaredTerm"]
+          }
+        },
+        "relations": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["subClassOf", "broader"] }
+        },
+        "rootTerms": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "maxRoots": { "type": "integer", "minimum": 1 },
+        "maxDepth": { "type": "integer", "minimum": 0 },
+        "maxChildrenPerNode": { "type": "integer", "minimum": 1 },
+        "maxNodes": { "type": "integer", "minimum": 1 },
+        "includeLeafTerms": { "type": "boolean" },
+        "includeExternal": { "type": "boolean" },
+        "includePropertyRelations": { "type": "boolean" },
+        "propertyRelations": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["domain", "range"] }
+        },
+        "maxPropertyRelations": { "type": "integer", "minimum": 0 },
+        "labelMode": {
+          "type": "string",
+          "enum": ["label", "qname", "label-and-qname"]
+        }
       },
       "additionalProperties": false
     },
@@ -229,6 +284,8 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "autoFeaturedTerms": { "type": "boolean" },
+        "featuredTermLimit": { "type": "integer", "minimum": 0 },
         "viewerTabs": {
           "type": "array",
           "items": { "type": "string" }

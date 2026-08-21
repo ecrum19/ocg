@@ -31,7 +31,8 @@ const DEFAULT_CONFIG = {
     shapes: "{{SHAPES}}",
     shex: "{{SHEX}}",
     spec: "{{SPEC}}",
-    examples: []
+    examples: [],
+    artifacts: []
   },
   features: {
     referencePage: true,
@@ -40,8 +41,26 @@ const DEFAULT_CONFIG = {
     rawViewer: true,
     overviewCards: true,
     hierarchyAsset: true,
+    hierarchyOverview: false,
     specPage: false,
     usageGuidePage: true
+  },
+  hierarchy: {
+    title: "Ontology Structure",
+    description: "A curated overview of the main class and concept relationships in this ontology.",
+    termTypes: ["class", "concept"],
+    relations: ["subClassOf", "broader"],
+    rootTerms: [],
+    maxRoots: 6,
+    maxDepth: 3,
+    maxChildrenPerNode: 6,
+    maxNodes: 36,
+    includeLeafTerms: true,
+    includeExternal: false,
+    includePropertyRelations: true,
+    propertyRelations: ["domain", "range"],
+    maxPropertyRelations: 12,
+    labelMode: "label-and-qname"
   },
   graph: {
     defaultView: "custom",
@@ -107,7 +126,12 @@ const DEFAULT_CONFIG = {
       documentationUrl: "https://github.com/ecrum19/ocg#readme"
     }
   },
-  curation: { featuredTerms: [], viewerTabs: ["ontology", "config"] }
+  curation: {
+    featuredTerms: [],
+    autoFeaturedTerms: true,
+    featuredTermLimit: 6,
+    viewerTabs: []
+  }
 };
 
 main().catch((error) => {

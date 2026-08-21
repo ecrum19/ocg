@@ -38,8 +38,26 @@
     "rawViewer": true,
     "overviewCards": true,
     "hierarchyAsset": true,
+    "hierarchyOverview": true,
     "specPage": true,
     "usageGuidePage": true
+  },
+  "hierarchy": {
+    "title": "Ontology Structure",
+    "description": "A curated overview of the main capability classes and their structural relationships.",
+    "termTypes": ["class", "concept"],
+    "relations": ["subClassOf", "broader"],
+    "rootTerms": [],
+    "maxRoots": 6,
+    "maxDepth": 3,
+    "maxChildrenPerNode": 6,
+    "maxNodes": 36,
+    "includeLeafTerms": true,
+    "includeExternal": false,
+    "includePropertyRelations": true,
+    "propertyRelations": ["domain", "range"],
+    "maxPropertyRelations": 12,
+    "labelMode": "label-and-qname"
   },
   "graph": {
     "defaultView": "custom",
@@ -147,13 +165,6 @@
       "ecv:hasRequirement",
       "ecv:DeveloperAudience"
     ],
-    "viewerTabs": [
-      "ontology",
-      "shapes",
-      "shex",
-      "example:basic",
-      "example:advanced",
-      "config"
-    ]
+    "viewerTabs": []
   }
 }

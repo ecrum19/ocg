@@ -68,8 +68,27 @@ const DEFAULT_FEATURES = {
   rawViewer: true,
   overviewCards: true,
   hierarchyAsset: true,
+  hierarchyOverview: false,
   specPage: false,
   usageGuidePage: true
+};
+
+const DEFAULT_HIERARCHY = {
+  title: "Ontology Structure",
+  description: "A curated overview of the main class and concept relationships in this ontology.",
+  termTypes: ["class", "concept"],
+  relations: ["subClassOf", "broader"],
+  rootTerms: [],
+  maxRoots: 6,
+  maxDepth: 3,
+  maxChildrenPerNode: 6,
+  maxNodes: 36,
+  includeLeafTerms: true,
+  includeExternal: false,
+  includePropertyRelations: true,
+  propertyRelations: ["domain", "range"],
+  maxPropertyRelations: 12,
+  labelMode: "label-and-qname"
 };
 
 const DEFAULT_GRAPH = {
@@ -110,6 +129,7 @@ const SUPPORTED_ONTOLOGY_FORMATS = {
   ntriples: { contentType: "application/n-triples", extensions: [".nt", ".ntriples"] }
 };
 const SUPPORTED_ONTOLOGY_FORMAT_NAMES = Object.keys(SUPPORTED_ONTOLOGY_FORMATS);
+const VIEWER_ASSET_KINDS = new Set(["ontology", "shapes", "shex", "spec", "example", "artifact"]);
 
 const DEFAULT_THEME = {
   fonts: {
@@ -268,6 +288,14 @@ function loadConfig(configPath) {
       footer: { ...DEFAULT_SITE.footer, ...(raw.site?.footer || {}) },
       generator: { ...DEFAULT_SITE.generator, ...(raw.site?.generator || {}) }
     },
+    hierarchy: {
+      ...DEFAULT_HIERARCHY,
+      ...(raw.hierarchy || {}),
+      termTypes: raw.hierarchy?.termTypes || DEFAULT_HIERARCHY.termTypes,
+      relations: raw.hierarchy?.relations || DEFAULT_HIERARCHY.relations,
+      rootTerms: raw.hierarchy?.rootTerms || DEFAULT_HIERARCHY.rootTerms,
+      propertyRelations: raw.hierarchy?.propertyRelations || DEFAULT_HIERARCHY.propertyRelations
+    },
     graph: {
       ...DEFAULT_GRAPH,
       ...(raw.graph || {}),
@@ -279,8 +307,17 @@ function loadConfig(configPath) {
       webvowl: { ...DEFAULT_GRAPH.webvowl, ...(raw.graph?.webvowl || {}) },
       colors: { ...DEFAULT_GRAPH.colors, ...(raw.graph?.colors || {}) }
     },
+    sources: {
+      ...(raw.sources || {}),
+      examples: raw.sources?.examples || [],
+      artifacts: raw.sources?.artifacts || []
+    },
     curation: {
       featuredTerms: raw.curation?.featuredTerms || [],
+      autoFeaturedTerms: raw.curation?.autoFeaturedTerms !== false,
+      featuredTermLimit: Number.isInteger(raw.curation?.featuredTermLimit)
+        ? raw.curation.featuredTermLimit
+        : 6,
       viewerTabs: raw.curation?.viewerTabs || []
     }
   };
@@ -314,6 +351,8 @@ function validateConfig(config) {
     throw new Error("features.specPage requires sources.spec");
   }
 
+  validateHierarchyConfig(config);
+
   const requiredPaths = [config.sources.ontology];
   for (const value of [config.sources.shapes, config.sources.shex, config.sources.spec]) {
     if (value) {
@@ -325,6 +364,15 @@ function validateConfig(config) {
       throw new Error("Each sources.examples entry requires key, label, and path");
     }
     requiredPaths.push(example.path);
+  }
+  for (const artifact of config.sources.artifacts || []) {
+    if (!artifact.key || !artifact.label || !artifact.path) {
+      throw new Error("Each sources.artifacts entry requires key, label, and path");
+    }
+    requiredPaths.push(artifact.path);
+  }
+  if (!Number.isInteger(config.curation.featuredTermLimit) || config.curation.featuredTermLimit < 0) {
+    throw new Error("curation.featuredTermLimit must be a non-negative integer");
   }
   requiredPaths.push(
     CONFIG_PATH,
@@ -380,11 +428,54 @@ function validateConfig(config) {
     }
     if (config.graph.webvowl.ontologyUrl) {
       try {
-        new URL(config.graph.webvowl.ontologyUrl);
+        const ontologyUrl = new URL(config.graph.webvowl.ontologyUrl);
+        if (ontologyUrl.hash || config.graph.webvowl.ontologyUrl.includes("#") || config.graph.webvowl.ontologyUrl === config.project.namespace) {
+          throw new Error("must not include a fragment");
+        }
       } catch {
-        throw new Error("graph.webvowl.ontologyUrl must be a valid URL when provided");
+        throw new Error("graph.webvowl.ontologyUrl must be a public ontology document URL without a fragment; do not use project.namespace");
       }
     }
+  }
+}
+
+function validateHierarchyConfig(config) {
+  const hierarchy = config.hierarchy;
+  const validTermTypes = new Set(TERM_TYPE_ORDER.filter((type) => type !== "external"));
+  const validRelations = new Set(["subClassOf", "broader"]);
+  const validPropertyRelations = new Set(["domain", "range"]);
+
+  if (!hierarchy || typeof hierarchy !== "object" || Array.isArray(hierarchy)) {
+    throw new Error("hierarchy must be an object");
+  }
+  for (const [key, values, allowed] of [
+    ["termTypes", hierarchy.termTypes, validTermTypes],
+    ["relations", hierarchy.relations, validRelations],
+    ["propertyRelations", hierarchy.propertyRelations, validPropertyRelations]
+  ]) {
+    if (!Array.isArray(values) || values.some((value) => typeof value !== "string" || !allowed.has(value))) {
+      throw new Error(`hierarchy.${key} contains an unsupported value`);
+    }
+  }
+  if (!Array.isArray(hierarchy.rootTerms) || hierarchy.rootTerms.some((value) => typeof value !== "string")) {
+    throw new Error("hierarchy.rootTerms must be an array of qnames or IRIs");
+  }
+  for (const [key, minimum] of [
+    ["maxRoots", 1],
+    ["maxDepth", 0],
+    ["maxChildrenPerNode", 1],
+    ["maxNodes", 1],
+    ["maxPropertyRelations", 0]
+  ]) {
+    if (!Number.isInteger(hierarchy[key]) || hierarchy[key] < minimum) {
+      throw new Error(`hierarchy.${key} must be an integer >= ${minimum}`);
+    }
+  }
+  if (typeof hierarchy.includeLeafTerms !== "boolean" || typeof hierarchy.includeExternal !== "boolean" || typeof hierarchy.includePropertyRelations !== "boolean") {
+    throw new Error("hierarchy.includeLeafTerms, includeExternal, and includePropertyRelations must be booleans");
+  }
+  if (!new Set(["label", "qname", "label-and-qname"]).has(hierarchy.labelMode)) {
+    throw new Error("hierarchy.labelMode must be 'label', 'qname', or 'label-and-qname'");
   }
 }
 
@@ -441,6 +532,28 @@ function buildAssetManifest(config) {
       filePath: example.path,
       description: example.description || "",
       kind: "example"
+    });
+  }
+
+  if (config.sources.spec) {
+    addAsset({
+      key: "spec",
+      label: "Specification Source",
+      filePath: config.sources.spec,
+      description: "Source document for the optional ReSpec specification page.",
+      kind: "spec",
+      destinationName: "spec-source.html"
+    });
+  }
+
+  for (const artifact of config.sources.artifacts || []) {
+    addAsset({
+      key: `artifact:${artifact.key}`,
+      label: artifact.label,
+      filePath: artifact.path,
+      description: artifact.description || "Additional configured source artifact.",
+      kind: "artifact",
+      destinationName: artifact.destinationName ? sanitizeFileName(artifact.destinationName) : undefined
     });
   }
 
@@ -1172,6 +1285,228 @@ function buildHierarchyTtl(ontologyInfo) {
   return [...prefixBlock, ...statements.sort((left, right) => collator.compare(left, right))].join("\n");
 }
 
+function buildReferenceHierarchy(context) {
+  const { config, ontologyInfo } = context;
+  if (!config.features.hierarchyOverview) {
+    return "";
+  }
+
+  const settings = config.hierarchy;
+  const includedTypes = new Set(settings.termTypes);
+  const eligibleNodes = ontologyInfo.nodes.filter(
+    (node) => (includedTypes.has(node.termType) || (settings.includeExternal && node.isExternal)) && (settings.includeExternal || !node.isExternal)
+  );
+  if (!eligibleNodes.length) {
+    return renderHierarchyUnavailable(config, settings, "No terms matched hierarchy.termTypes in the configured ontology.");
+  }
+  const eligibleById = new Map(eligibleNodes.map((node) => [node.id, node]));
+  const hierarchyEdges = ontologyInfo.edges.filter(
+    (edge) => settings.relations.includes(edge.relation) && eligibleById.has(edge.source) && eligibleById.has(edge.target)
+  );
+  const childrenByParent = new Map();
+  const parentsByChild = new Map();
+  for (const edge of hierarchyEdges) {
+    if (!childrenByParent.has(edge.target)) {
+      childrenByParent.set(edge.target, []);
+    }
+    childrenByParent.get(edge.target).push({ node: eligibleById.get(edge.source), edge });
+    if (!parentsByChild.has(edge.source)) {
+      parentsByChild.set(edge.source, []);
+    }
+    parentsByChild.get(edge.source).push(edge);
+  }
+
+  const descendantCache = new Map();
+  const descendantCount = (nodeId, path = new Set()) => {
+    if (descendantCache.has(nodeId)) {
+      return descendantCache.get(nodeId);
+    }
+    if (path.has(nodeId)) {
+      return 0;
+    }
+    const nextPath = new Set(path).add(nodeId);
+    const descendants = new Set();
+    for (const { node } of childrenByParent.get(nodeId) || []) {
+      if (descendants.has(node.id)) {
+        continue;
+      }
+      descendants.add(node.id);
+      for (const descendantId of descendantIds(node.id, nextPath)) {
+        descendants.add(descendantId);
+      }
+    }
+    descendantCache.set(nodeId, descendants.size);
+    return descendants.size;
+  };
+  const descendantIds = (nodeId, path = new Set()) => {
+    if (path.has(nodeId)) {
+      return [];
+    }
+    const nextPath = new Set(path).add(nodeId);
+    const result = [];
+    for (const { node } of childrenByParent.get(nodeId) || []) {
+      result.push(node.id, ...descendantIds(node.id, nextPath));
+    }
+    return result;
+  };
+  const importance = (node) =>
+    (childrenByParent.get(node.id)?.length || 0) * 100 + descendantCount(node.id) * 10 + (node.degree || 0);
+  const sortImportant = (left, right) => importance(right) - importance(left) || collator.compare(left.qname, right.qname);
+
+  const resolveRoot = (reference) =>
+    eligibleNodes.find(
+      (node) => node.id === reference || node.uri === reference || node.qname === reference || node.localName === reference
+    );
+  const configuredRoots = settings.rootTerms.map(resolveRoot).filter(Boolean);
+  const inferredRoots = eligibleNodes.filter((node) => !(parentsByChild.get(node.id) || []).length).sort(sortImportant);
+  const roots = (configuredRoots.length ? configuredRoots : inferredRoots.length ? inferredRoots : [...eligibleNodes].sort(sortImportant))
+    .slice(0, settings.maxRoots);
+
+  const selectedNodes = new Set();
+  const selectedEdges = new Set();
+  const selectBranch = (node, depth, path = new Set()) => {
+    if (selectedNodes.size >= settings.maxNodes || path.has(node.id)) {
+      return;
+    }
+    selectedNodes.add(node.id);
+    if (depth >= settings.maxDepth) {
+      return;
+    }
+    const children = [...(childrenByParent.get(node.id) || [])].sort((left, right) => sortImportant(left.node, right.node));
+    let includedChildren = 0;
+    for (const { node: child, edge } of children) {
+      if (!settings.includeLeafTerms && !(childrenByParent.get(child.id)?.length || 0)) {
+        continue;
+      }
+      if (includedChildren >= settings.maxChildrenPerNode || selectedNodes.size >= settings.maxNodes) {
+        break;
+      }
+      selectedEdges.add(edge.id);
+      selectBranch(child, depth + 1, new Set(path).add(node.id));
+      includedChildren += 1;
+    }
+  };
+  for (const root of roots) {
+    selectBranch(root, 0);
+    if (selectedNodes.size >= settings.maxNodes) {
+      break;
+    }
+  }
+
+  const selectedRootNodes = roots.filter((root) => selectedNodes.has(root.id));
+  const selectedHierarchyEdges = hierarchyEdges.filter((edge) => selectedEdges.has(edge.id));
+  const selectedNodeSet = new Set(selectedNodes);
+  const propertyRelations = settings.includePropertyRelations
+    ? ontologyInfo.edges
+        .filter((edge) => settings.propertyRelations.includes(edge.relation) && selectedNodeSet.has(edge.target))
+        .filter((edge) => ontologyInfo.nodes.find((node) => node.id === edge.source)?.termType.endsWith("Property"))
+        .sort((left, right) => {
+          const leftSource = ontologyInfo.nodes.find((node) => node.id === left.source);
+          const rightSource = ontologyInfo.nodes.find((node) => node.id === right.source);
+          return (rightSource?.degree || 0) - (leftSource?.degree || 0) || collator.compare(left.sourceQname, right.sourceQname);
+        })
+        .slice(0, settings.maxPropertyRelations)
+    : [];
+
+  if (!selectedRootNodes.length) {
+    return renderHierarchyUnavailable(config, settings, "No hierarchy roots could be inferred. Add a qname or IRI to hierarchy.rootTerms, or broaden the configured hierarchy relations.");
+  }
+
+  const selectedChildrenByParent = new Map();
+  for (const edge of selectedHierarchyEdges) {
+    if (!selectedChildrenByParent.has(edge.target)) {
+      selectedChildrenByParent.set(edge.target, []);
+    }
+    selectedChildrenByParent.get(edge.target).push({ node: eligibleById.get(edge.source), edge });
+  }
+  for (const children of selectedChildrenByParent.values()) {
+    children.sort((left, right) => sortImportant(left.node, right.node));
+  }
+
+  const tree = selectedRootNodes
+    .map((root) => renderHierarchyBranch(root, selectedChildrenByParent, config, new Set(), 0))
+    .join("");
+  const propertyLinkHtml = propertyRelations.length
+    ? `
+        <div class="hierarchy-links">
+          <h3>Key Structural Relationships</h3>
+          <ul>${propertyRelations
+            .map((edge) => {
+              const source = ontologyInfo.nodes.find((node) => node.id === edge.source);
+              const target = ontologyInfo.nodes.find((node) => node.id === edge.target);
+              return `<li>${referenceHierarchyTerm(source, config)} <span class="hierarchy-relation">${escapeHtml(RELATION_INFO[edge.relation] || edge.relation)}</span> ${referenceHierarchyTerm(target, config)}</li>`;
+            })
+            .join("")}</ul>
+        </div>`
+    : "";
+
+  return `
+    <section id="ontology-hierarchy" class="section reference-hierarchy">
+      <div class="section-head">
+        <div class="section-heading-row">
+          <h2>${escapeHtml(settings.title)}</h2>
+          ${howToLink(config, "reference")}
+        </div>
+        <p class="section-note">${escapeHtml(settings.description)}</p>
+      </div>
+      <div class="hierarchy-meta"><span>${selectedRootNodes.length} major branch${selectedRootNodes.length === 1 ? "" : "es"}</span><span>|</span><span>${selectedNodes.size} representative term${selectedNodes.size === 1 ? "" : "s"}</span>${propertyRelations.length ? `<span>|</span><span>${propertyRelations.length} structural link${propertyRelations.length === 1 ? "" : "s"}</span>` : ""}</div>
+      <div class="hierarchy-grid">
+        <div class="hierarchy-tree"><ul>${tree}</ul></div>
+        ${propertyLinkHtml}
+      </div>
+    </section>`;
+}
+
+function renderHierarchyUnavailable(config, settings, message) {
+  return `
+    <section id="ontology-hierarchy" class="section reference-hierarchy">
+      <div class="section-head">
+        <div class="section-heading-row">
+          <h2>${escapeHtml(settings.title)}</h2>
+          ${howToLink(config, "reference")}
+        </div>
+        <p class="section-note">${escapeHtml(settings.description)}</p>
+      </div>
+      <div class="hierarchy-empty">${escapeHtml(message)} The overview is intentionally a summary, so it does not attempt to render every ontology term.</div>
+    </section>`;
+}
+
+function renderHierarchyBranch(node, childrenByParent, config, path, depth) {
+  if (!node || path.has(node.id)) {
+    return "";
+  }
+  const nextPath = new Set(path).add(node.id);
+  const children = (childrenByParent.get(node.id) || []).filter(({ node: child }) => !nextPath.has(child.id));
+  const term = referenceHierarchyTerm(node, config);
+  if (!children.length) {
+    return `<li class="hierarchy-item hierarchy-item--leaf" data-depth="${depth}">${term}</li>`;
+  }
+  return `
+    <li class="hierarchy-item" data-depth="${depth}">
+      <details open>
+        <summary>${term}<span class="hierarchy-child-count">${children.length}</span></summary>
+        <ul>${children.map(({ node: child }) => renderHierarchyBranch(child, childrenByParent, config, nextPath, depth + 1)).join("")}</ul>
+      </details>
+    </li>`;
+}
+
+function referenceHierarchyTerm(node, config) {
+  if (!node) {
+    return "";
+  }
+  const displayLabel = node.label && node.label !== node.qname ? node.label : node.localName || node.qname;
+  const qname = `<code>${escapeHtml(node.qname)}</code>`;
+  const content = config.hierarchy.labelMode === "label"
+    ? `<span>${escapeHtml(displayLabel)}</span>`
+    : config.hierarchy.labelMode === "qname"
+      ? qname
+      : `<span>${escapeHtml(displayLabel)}</span> ${qname}`;
+  if (!node.isExternal && config.features.termPages) {
+    return `<a class="hierarchy-term" href="terms/${encodeURIComponent(node.localName || sanitizeFileName(node.qname))}.html">${content}</a>`;
+  }
+  return `<span class="hierarchy-term">${content}</span>`;
+}
+
 function writeTermPages(context) {
   const declaredNodes = context.ontologyInfo.nodes.filter((node) => !node.isExternal);
   writeText(path.join(TERMS_DIR, "index.html"), buildTermsIndexPage(context, declaredNodes));
@@ -1239,6 +1574,15 @@ function buildGuidePage(context) {
           path: "source/examples/basic.ttl",
           description: "A small valid instance graph."
         }
+      ],
+      artifacts: [
+        {
+          key: "context",
+          label: "Context JSON",
+          path: "source/context.json",
+          description: "Additional source documentation or metadata.",
+          destinationName: "context.json"
+        }
       ]
     },
     features: {
@@ -1248,8 +1592,26 @@ function buildGuidePage(context) {
       rawViewer: true,
       overviewCards: true,
       hierarchyAsset: true,
+      hierarchyOverview: true,
       specPage: true,
       usageGuidePage: true
+    },
+    hierarchy: {
+      title: "Ontology Structure",
+      description: "A curated overview of the main class and concept relationships.",
+      termTypes: ["class", "concept"],
+      relations: ["subClassOf", "broader"],
+      rootTerms: [],
+      maxRoots: 6,
+      maxDepth: 3,
+      maxChildrenPerNode: 6,
+      maxNodes: 36,
+      includeLeafTerms: true,
+      includeExternal: false,
+      includePropertyRelations: true,
+      propertyRelations: ["domain", "range"],
+      maxPropertyRelations: 12,
+      labelMode: "label-and-qname"
     },
     graph: {
       defaultView: "custom",
@@ -1333,7 +1695,9 @@ function buildGuidePage(context) {
     },
     curation: {
       featuredTerms: ["yv:ImportantClass", "yv:importantProperty"],
-      viewerTabs: ["ontology", "shapes", "shex", "example:basic", "config"]
+      autoFeaturedTerms: true,
+      featuredTermLimit: 6,
+      viewerTabs: []
     }
   };
   const configExampleHtml = escapeHtml(JSON.stringify(configExample, null, 2));
@@ -1345,7 +1709,7 @@ function buildGuidePage(context) {
       description: "Installs OCG into an existing ontology repository and controls initialization, validation, generation, cleanup, and local preview.",
       options: [
         ["npm install --save-dev ontology-companion-generator", "Installs the OCG CLI and its RDF, Sigma.js, and Graphology runtime dependencies."],
-        ["Node.js >= 22.19.0", "Required by the current RDF parser dependency chain; the generated GitHub Actions workflow uses Node.js 24."],
+        ["Node.js 24.x", "Required runtime for OCG and the generated GitHub Actions workflow."],
         ["ocg init --ontology path", "Creates an initial config, schema, Pages workflow, and npm scripts; namespace and common companion files are inferred when possible."],
         ["ocg init --force", "Replaces the generated ocg.config.json while preserving an existing schema and workflow."],
         ["ocg check", "Validates configuration, source paths, dependency assets, and ontology parsing without writing site output."],
@@ -1408,7 +1772,9 @@ function buildGuidePage(context) {
         ["site.customSections[].title", "Heading for an additional home-page section."],
         ["site.customSections[].body", "Paragraph displayed in an additional home-page section."],
         ["site.customSections[].items", "Optional list of supporting points displayed in that section."],
-        ["curation.featuredTerms", "Array of ontology qnames to feature on the home page."]
+        ["curation.featuredTerms", "Optional array of ontology qnames to feature on the home page. When empty, OCG selects terms automatically."],
+        ["curation.autoFeaturedTerms", "Set to false to hide automatic featured terms when no explicit featuredTerms are configured."],
+        ["curation.featuredTermLimit", "Maximum number of terms selected automatically when featuredTerms is empty."],
       ],
       example: {
         features: { overviewCards: true },
@@ -1425,25 +1791,33 @@ function buildGuidePage(context) {
       id: "artifacts",
       badge: "Source Package",
       title: "Artifacts and Viewer",
-      description: "Publishes source files into site/assets/ and controls which files appear in the raw artifact viewer. Primary ontology support is limited to Turtle, RDF/XML, JSON-LD, and N-Triples; other ontology syntaxes are rejected.",
+      description: "Publishes configured source files into site/assets/ and controls which files appear in the raw artifact viewer. OCG does not scan arbitrary directories. Primary ontology support is limited to Turtle, RDF/XML, JSON-LD, and N-Triples; other ontology syntaxes are rejected.",
       options: [
         ["sources.ontology", "Required path to the primary OWL/RDF ontology source."],
         ["sources.ontologyFormat", "Format override: auto, turtle, rdfxml, jsonld, or ntriples. Auto uses the file extension; use an override for ambiguous extensions. TriG, N-Quads, N3, OWL Functional/Manchester/XML, OBO, arbitrary JSON/XML/YAML, CSV, and schema formats are not accepted."],
         ["sources.shapes", "Optional path to a SHACL shapes file."],
         ["sources.shex", "Optional path to a ShEx schema file."],
+        ["sources.spec", "Optional source document for the ReSpec Specification page; it is also copied as a viewer artifact."],
         ["sources.examples[].key", "Stable key used by viewerTabs to select an example."],
         ["sources.examples[].label", "Human-readable example label shown in the artifact list and viewer."],
         ["sources.examples[].path", "Path to the example RDF or data file."],
         ["sources.examples[].description", "Optional explanation shown with the example artifact."],
+        ["sources.artifacts[].key", "Stable key used as artifact:<key> in viewerTabs."],
+        ["sources.artifacts[].label", "Human-readable label shown in the artifact viewer."],
+        ["sources.artifacts[].path", "Path to any additional source file to copy into site/assets/."],
+        ["sources.artifacts[].description", "Optional explanation shown with the additional artifact."],
+        ["sources.artifacts[].destinationName", "Optional filename for the copied artifact; defaults to the source filename."],
         ["features.rawViewer", "Set to false to remove the raw artifact viewer from the home page."],
         ["features.hierarchyAsset", "Set to false to omit the generated ontology_hierarchy.ttl asset."],
-        ["curation.viewerTabs", "Ordered asset keys to show in the raw viewer, such as ontology or example:basic."]
+        ["curation.viewerTabs", "Ordered source-asset keys to show in the raw viewer. Leave empty to show all source assets, or list keys such as ontology or artifact:context to curate the tabs. Config, schema, workflow, and guide assets are not viewer tabs."]
       ],
       example: {
         sources: {
           ontology: configExample.sources.ontology,
           shapes: configExample.sources.shapes,
           shex: configExample.sources.shex,
+          spec: configExample.sources.spec,
+          artifacts: configExample.sources.artifacts,
           examples: configExample.sources.examples
         },
         features: { rawViewer: true, hierarchyAsset: true },
@@ -1454,9 +1828,30 @@ function buildGuidePage(context) {
       id: "reference",
       badge: "Generated Page",
       title: "Vocabulary Reference",
-      description: "Generates a browsable reference page from terms declared in the configured ontology.",
-      options: [["features.referencePage", "Set to false to omit ontology-reference.html and its navigation link."]],
-      example: { features: { referencePage: true } }
+      description: "Generates a browsable reference page from terms declared in the configured ontology, with an optional curated hierarchy overview above the Classes section.",
+      options: [
+        ["features.referencePage", "Set to false to omit ontology-reference.html and its navigation link."],
+        ["features.hierarchyOverview", "Set to true to show the generated hierarchy summary above the Classes section."],
+        ["hierarchy.title", "Heading for the hierarchy overview."],
+        ["hierarchy.description", "Supporting explanation shown below the hierarchy heading."],
+        ["hierarchy.termTypes", "Term types eligible for hierarchy branches. Defaults to class and concept; objectProperty, datatypeProperty, annotationProperty, and declaredTerm can be added when useful."],
+        ["hierarchy.relations", "Hierarchy predicates to follow: subClassOf and/or broader."],
+        ["hierarchy.rootTerms", "Optional qnames, IRIs, or local names to use as the major roots. Empty means OCG infers roots."],
+        ["hierarchy.maxRoots", "Maximum number of major branches shown."],
+        ["hierarchy.maxDepth", "Maximum number of levels below each root."],
+        ["hierarchy.maxChildrenPerNode", "Maximum representative child terms shown for each branch."],
+        ["hierarchy.maxNodes", "Global cap on terms shown in the overview."],
+        ["hierarchy.includeLeafTerms", "Whether leaf terms are retained. Set false to emphasize only branching structure."],
+        ["hierarchy.includeExternal", "Whether external hierarchy terms may appear in the tree."],
+        ["hierarchy.includePropertyRelations", "Whether a capped list of important domain/range links is shown beside the tree."],
+        ["hierarchy.propertyRelations", "Property relationship types to summarize: domain and/or range."],
+        ["hierarchy.maxPropertyRelations", "Maximum number of structural links shown beside the tree."],
+        ["hierarchy.labelMode", "Term display: label, qname, or label-and-qname."],
+      ],
+      example: {
+        features: { referencePage: true, hierarchyOverview: true },
+        hierarchy: configExample.hierarchy
+      }
     },
     {
       id: "graph",
@@ -1472,7 +1867,7 @@ function buildGuidePage(context) {
         ["graph.custom.modes.predicateEdges", "Enables predicates as labeled edges between domain and range nodes."],
         ["graph.webvowl.enabled", "Enables the WebVOWL representation toggle."],
         ["graph.webvowl.serviceUrl", "WebVOWL service URL loaded by the graph iframe."],
-        ["graph.webvowl.ontologyUrl", "Optional public ontology URL; leave empty to derive the deployed asset URL."],
+        ["graph.webvowl.ontologyUrl", "Optional public URL of the serialized ontology document; leave empty to derive the deployed asset URL. Do not use project.namespace or a URL ending in #."],
         ["graph.webvowl.height", "Iframe height in pixels; minimum value is 320."],
         ["graph.colors.class", "Fill color for class nodes."],
         ["graph.colors.objectProperty", "Fill color for object-property nodes."],
@@ -1686,7 +2081,7 @@ function buildGuidePage(context) {
         <div class="guide-grid">
           <article id="package-cli-summary" class="guide-card"><div class="term-badge">Developer Workflow</div><h3><a href="#package-cli">Package and CLI</a></h3><p>Install OCG as a development dependency and use the CLI to initialize, validate, build, preview, and clean the companion site.</p><p><strong>Customize:</strong> CLI paths, output directory, local preview host, and the full <code>ocg.config.json</code> surface.</p></article>
           <article id="home-summary" class="guide-card"><div class="term-badge">Landing Page</div><h3><a href="#home">Home</a></h3><p>The home page presents your project identity, navigation, source artifacts, ontology snapshot, configurable overview cards, featured terms, examples, and the raw artifact viewer.</p><p><strong>Customize:</strong> <code>site.hero</code>, <code>site.resourcePanel</code>, <code>site.overviewCards</code>, <code>site.customSections</code>, and <code>curation.featuredTerms</code>.</p></article>
-          <article id="artifacts-summary" class="guide-card"><div class="term-badge">Source Package</div><h3><a href="#artifacts">Artifacts and Viewer</a></h3><p>OWL Ontology, SHACL, ShEx, examples, configuration, and workflow files are copied into <code>site/assets/</code>. The home page can expose them as buttons and configurable raw-viewer tabs.</p><p><strong>Customize:</strong> <code>sources</code>, <code>features.rawViewer</code>, and <code>curation.viewerTabs</code>.</p></article>
+          <article id="artifacts-summary" class="guide-card"><div class="term-badge">Source Package</div><h3><a href="#artifacts">Artifacts and Viewer</a></h3><p>OWL Ontology, SHACL, ShEx, specification, examples, and additional configured source files are copied into <code>site/assets/</code>. Config, schema, workflow, and guide files are available as generated links but are not raw-viewer tabs.</p><p><strong>Customize:</strong> <code>sources</code>, <code>features.rawViewer</code>, and <code>curation.viewerTabs</code>.</p></article>
           <article id="reference-summary" class="guide-card"><div class="term-badge">Generated Page</div><h3><a href="#reference">Vocabulary Reference</a></h3><p>The reference page extracts declared terms from the configured ontology and groups them by class, property, concept, and declared-term type.</p><p><strong>Enable or disable:</strong> <code>features.referencePage</code>.</p></article>
           <article id="graph-summary" class="guide-card"><div class="term-badge">Interactive Page</div><h3><a href="#graph">Ontology Graph</a></h3><p>The custom Sigma.js graph supports <strong>Predicates as Nodes</strong> or <strong>Predicates as Edges</strong>, plus filters, search, selection, layout, and external-term visibility. WebVOWL can be enabled alongside it.</p><p><strong>Customize:</strong> <code>graph.custom</code>, <code>graph.webvowl</code>, and <code>graph.colors</code>.</p></article>
           <article id="terms-summary" class="guide-card"><div class="term-badge">Generated Pages</div><h3><a href="#terms">Term Pages</a></h3><p>Every declared ontology term can receive an individual page with its IRI, labels, types, source links, and incoming/outgoing relationships.</p><p><strong>Enable or disable:</strong> <code>features.termPages</code>.</p></article>
@@ -1723,14 +2118,25 @@ npm run ocg:clean   # remove generated site/</code></pre>
   });
 }
 
+function resolveFeaturedTerms(config, ontologyInfo) {
+  const declaredNodes = ontologyInfo.nodes.filter((node) => !node.isExternal);
+  if (config.curation.featuredTerms.length) {
+    return config.curation.featuredTerms
+      .map((qname) => declaredNodes.find((node) => node.qname === qname))
+      .filter(Boolean);
+  }
+  if (!config.curation.autoFeaturedTerms) {
+    return [];
+  }
+  return declaredNodes.slice(0, config.curation.featuredTermLimit);
+}
+
 function buildIndexPage(context) {
   const { config, ontologyInfo, assets, relationshipSummary } = context;
   const ontologyAsset = getAsset(assets, "ontology");
   const shapesAsset = getAsset(assets, "shapes");
   const shexAsset = getAsset(assets, "shex");
-  const featuredTerms = config.curation.featuredTerms
-    .map((qname) => ontologyInfo.nodes.find((node) => node.qname === qname && !node.isExternal))
-    .filter(Boolean);
+  const featuredTerms = resolveFeaturedTerms(config, ontologyInfo);
 
   const primaryHeroButtons = [
     config.features.referencePage
@@ -1966,15 +2372,14 @@ function buildIndexPage(context) {
 
 function buildRawViewerSection(context) {
   const { config, assets } = context;
+  const viewerAssets = assets.filter((asset) => VIEWER_ASSET_KINDS.has(asset.kind));
   const keys = config.curation.viewerTabs.length
     ? config.curation.viewerTabs
-    : assets
-        .filter((asset) => ["ontology", "shapes", "shex", "example", "config"].includes(asset.kind))
-        .map((asset) => asset.key);
+    : viewerAssets.map((asset) => asset.key);
 
   const tabs = keys
     .map((key) => assets.find((asset) => asset.key === key))
-    .filter(Boolean);
+    .filter((asset) => asset && VIEWER_ASSET_KINDS.has(asset.kind));
 
   if (!tabs.length) {
     return "";
@@ -2080,7 +2485,7 @@ function buildReferencePage(context) {
       return `
         <section class="section">
           <div class="section-head">
-            <h2>${escapeHtml(TERM_TYPE_INFO[type].label)}s</h2>
+            <h2>${escapeHtml(pluralTermTypeLabel(type))}</h2>
             <p class="section-note">Declared ontology terms extracted from the configured primary source file.</p>
           </div>
           <div class="table-wrap">
@@ -2117,9 +2522,23 @@ function buildReferencePage(context) {
           <p class="section-note">This page is generated from the configured ontology file and links through to per-term pages when that feature is enabled.</p>
         </div>
       </section>
+      ${buildReferenceHierarchy(context)}
       ${sections}
     `
   });
+}
+
+function pluralTermTypeLabel(type) {
+  if (type === "class") {
+    return "Classes";
+  }
+  if (type === "concept") {
+    return "Concepts";
+  }
+  if (type === "declaredTerm") {
+    return "Declared Terms";
+  }
+  return `${TERM_TYPE_INFO[type].label}s`;
 }
 
 function buildGraphPage(context) {
@@ -3887,6 +4306,157 @@ function sharedCss(config) {
     .section-note {
       max-width: 78ch;
     }
+    .reference-hierarchy {
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 248, 0.94)),
+        var(--panel);
+    }
+    .hierarchy-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: -4px 0 16px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .hierarchy-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .hierarchy-tree,
+    .hierarchy-links {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.82);
+    }
+    .hierarchy-tree > ul,
+    .hierarchy-tree ul {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding-left: 18px;
+      list-style: none;
+    }
+    .hierarchy-tree > ul {
+      padding-left: 0;
+    }
+    .hierarchy-item {
+      min-width: 0;
+    }
+    .hierarchy-item details {
+      border-left: 2px solid #d8e5e7;
+      padding-left: 12px;
+    }
+    .hierarchy-item summary,
+    .hierarchy-item--leaf {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 35px;
+      padding: 7px 9px;
+      border: 1px solid #e0e8e9;
+      border-radius: 9px;
+      background: #fbfdfd;
+      color: var(--ink);
+      cursor: pointer;
+      list-style: none;
+    }
+    .hierarchy-item summary::-webkit-details-marker {
+      display: none;
+    }
+    .hierarchy-item summary::before {
+      content: ">";
+      flex: 0 0 auto;
+      color: var(--accent);
+      font-family: var(--mono-font);
+      font-weight: 700;
+      transform: rotate(0deg);
+      transition: transform 0.16s ease;
+    }
+    .hierarchy-item details[open] > summary::before {
+      transform: rotate(90deg);
+    }
+    .hierarchy-item summary:hover,
+    .hierarchy-item summary:focus-visible,
+    .hierarchy-item--leaf:hover {
+      border-color: #b9d1d4;
+      background: #f1f8f8;
+      outline: none;
+    }
+    .hierarchy-item summary .hierarchy-term,
+    .hierarchy-item--leaf .hierarchy-term {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .hierarchy-term {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 7px;
+      color: var(--ink);
+      overflow-wrap: anywhere;
+    }
+    .hierarchy-term:hover {
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
+    .hierarchy-term code {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+    .hierarchy-child-count {
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 auto;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #e8f1f2;
+      color: #4e6d72;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .hierarchy-links h3 {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+    }
+    .hierarchy-links ul {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding-left: 17px;
+      color: var(--muted);
+    }
+    .hierarchy-links li {
+      line-height: 1.5;
+    }
+    .hierarchy-empty {
+      padding: 14px 16px;
+      border: 1px dashed #b9cdd0;
+      border-radius: 12px;
+      background: rgba(241, 248, 248, 0.72);
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .hierarchy-links .hierarchy-term {
+      display: inline;
+    }
+    .hierarchy-relation {
+      display: inline-block;
+      margin: 0 3px;
+      color: var(--accent-strong);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
     .card-grid,
     .metrics-grid {
       display: grid;
@@ -4775,6 +5345,9 @@ function sharedCss(config) {
       .guide-hero > .guide-toc {
         width: 100%;
         max-width: none;
+      }
+      .hierarchy-grid {
+        grid-template-columns: 1fr;
       }
     }
     @media (max-width: 1100px) {
