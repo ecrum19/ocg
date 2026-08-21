@@ -2529,16 +2529,15 @@ function buildReferencePage(context) {
 }
 
 function pluralTermTypeLabel(type) {
-  if (type === "class") {
-    return "Classes";
-  }
-  if (type === "concept") {
-    return "Concepts";
-  }
-  if (type === "declaredTerm") {
-    return "Declared Terms";
-  }
-  return `${TERM_TYPE_INFO[type].label}s`;
+  return {
+    class: "Classes",
+    objectProperty: "Object Properties",
+    datatypeProperty: "Datatype Properties",
+    annotationProperty: "Annotation Properties",
+    concept: "Concepts",
+    declaredTerm: "Declared Terms",
+    external: "External References"
+  }[type] || TERM_TYPE_INFO[type].label;
 }
 
 function buildGraphPage(context) {

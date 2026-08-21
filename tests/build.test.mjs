@@ -87,8 +87,10 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(referenceHtml, /class="hierarchy-tree"/);
   assert.match(referenceHtml, /class="hierarchy-links"/);
   assert.match(referenceHtml, /href="terms\/Capability\.html"><span>Capability<\/span>/);
-  assert.match(referenceHtml, /<h2>Classes<\/h2>/);
-  assert.doesNotMatch(referenceHtml, /Classs/);
+  for (const heading of ["Classes", "Object Properties", "Datatype Properties", "Annotation Properties", "Concepts"]) {
+    assert.match(referenceHtml, new RegExp(`<h2>${heading}<\\/h2>`));
+  }
+  assert.doesNotMatch(referenceHtml, /Classs|Propertys/);
 
   const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
   const navOrder = [
