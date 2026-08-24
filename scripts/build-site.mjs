@@ -1995,7 +1995,7 @@ function buildGuidePage(context) {
       description: "Installs OCG into an existing ontology repository and controls initialization, validation, generation, cleanup, and local preview.",
       options: [
         ["npm install --save-dev ontology-companion-generator", "Installs the OCG CLI and its RDF, Sigma.js, and Graphology runtime dependencies."],
-        ["Node.js 24.x", "Required runtime for OCG and the generated GitHub Actions workflow."],
+        ["Node.js 22.19+", "Supported runtime floor for OCG; generated GitHub Actions workflows use Node.js 24."],
         ["ocg init --ontology path", "Creates an initial config, schema, Pages workflow, and npm scripts; namespace and common companion files are inferred when possible."],
         ["ocg init --force", "Replaces the generated ocg.config.json while preserving an existing schema and workflow."],
         ["ocg check", "Validates configuration, source paths, dependency assets, and ontology parsing without writing site output."],

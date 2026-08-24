@@ -8,7 +8,7 @@
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/v/ontology-companion-generator?label=npm%20version&color=0e7b81" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/dm/ontology-companion-generator?label=npm%20downloads&color=cb3837" alt="npm monthly downloads" /></a>
   <a href="https://github.com/ecrum19/ocg/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ocg?color=2f8040" alt="MIT license" /></a>
-  <img src="https://img.shields.io/badge/Node.js-24.x-339933" alt="Node.js 24.x" />
+  <img src="https://img.shields.io/badge/Node.js-22.19%2B-339933" alt="Node.js 22.19 or newer" />
   <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
 </p>
 
@@ -40,7 +40,7 @@ For a ready-made template instead, fork this repository, replace the example fil
 
 ## Requirements
 
-- Node.js `24.x` and npm. The package and generated workflows use Node.js 24.
+- Node.js `22.19.0` or newer and npm. The package supports newer Node.js releases without an upper version limit; generated workflows use Node.js 24.
 - An ontology repository containing the primary source and any optional shapes, examples, or specification files.
 - GitHub Pages configured to use GitHub Actions for deployment.
 

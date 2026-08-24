@@ -12,6 +12,8 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 test("build-site produces the expected publish artifacts for the bundled example", () => {
   assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
+  assert.equal(PACKAGE_JSON.engines.node, ">=22.19.0");
+  assert.doesNotMatch(PACKAGE_JSON.engines.node, /</g, "the Node engine should not impose an upper version limit");
   assert.equal(PACKAGE_JSON.repository.url, "git+https://github.com/ecrum19/ocg.git");
   assert.equal(PACKAGE_JSON.publishConfig.registry, "https://registry.npmjs.org/");
   for (const dependency of ["rdf-parse", "graphology", "graphology-layout-forceatlas2", "graphology-layout-noverlap", "sigma"]) {
