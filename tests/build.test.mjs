@@ -97,6 +97,9 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /href="#repository-workflow">Repository Workflow/);
   assert.match(indexHtml, /href="#featured-terms">Featured Terms/);
   assert.match(indexHtml, /class="page-content-layout"/);
+  assert.match(indexHtml, /data-page-toc-toggle/);
+  assert.match(indexHtml, /function setPageTocCollapsed/);
+  assert.match(indexHtml, /page-content-layout--toc-collapsed/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
   assert.match(referenceHtml, /id="ontology-hierarchy"/);
@@ -363,6 +366,8 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site.home.artifacts",
     "site.toc.enabled",
     "site.toc.title",
+    "site.toc.collapseLabel",
+    "site.toc.expandLabel",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
     "graph.custom.label",
@@ -542,6 +547,8 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(config.site.home.artifacts.ontologyLabel, "OWL Ontology");
     assert.equal(config.site.toc.enabled, true);
     assert.equal(config.site.toc.title, "On this page");
+    assert.equal(config.site.toc.collapseLabel, "Collapse page contents");
+    assert.equal(config.site.toc.expandLabel, "Expand page contents");
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
     const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
@@ -604,7 +611,12 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     };
     config.project.title = "Example Capability Vocabulary for Distributed Research Infrastructure and Interoperable Services";
     config.project.shortName = "Example Capability Vocabulary";
-    config.site.toc = { enabled: true, title: "Page map" };
+    config.site.toc = {
+      enabled: true,
+      title: "Page map",
+      collapseLabel: "Hide page map",
+      expandLabel: "Show page map"
+    };
     config.site.overviewCards = [
       {
         title: "Start Here",
@@ -635,6 +647,7 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.match(artifactIndexHtml, /<h2>Source Viewer<\/h2>/);
     assert.match(artifactIndexHtml, />View Source</);
     assert.match(artifactIndexHtml, /<aside class="page-toc" aria-label="Page map">/);
+    assert.match(artifactIndexHtml, /aria-label="Hide page map"/);
     assert.doesNotMatch(artifactIndexHtml, /<h2>Repository Workflow<\/h2>/);
     assert.doesNotMatch(artifactIndexHtml, /These cards come directly from ocg\.config\.json/);
     assert.match(artifactIndexHtml, /data-label="Vocabulary Source"/);

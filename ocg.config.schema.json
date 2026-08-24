@@ -256,7 +256,9 @@
           "type": "object",
           "properties": {
             "enabled": { "type": "boolean" },
-            "title": { "type": "string" }
+            "title": { "type": "string" },
+            "collapseLabel": { "type": "string" },
+            "expandLabel": { "type": "string" }
           },
           "additionalProperties": false
         },

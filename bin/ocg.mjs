@@ -136,7 +136,9 @@ const DEFAULT_CONFIG = {
     },
     toc: {
       enabled: true,
-      title: "On this page"
+      title: "On this page",
+      collapseLabel: "Collapse page contents",
+      expandLabel: "Expand page contents"
     },
     home: {
       actions: {

@@ -182,7 +182,9 @@ const DEFAULT_SITE = {
   },
   toc: {
     enabled: true,
-    title: "On this page"
+    title: "On this page",
+    collapseLabel: "Collapse page contents",
+    expandLabel: "Expand page contents"
   },
   home: {
     actions: {
@@ -2031,7 +2033,9 @@ function buildGuidePage(context) {
       },
       toc: {
         enabled: true,
-        title: "On this page"
+        title: "On this page",
+        collapseLabel: "Collapse page contents",
+        expandLabel: "Expand page contents"
       },
       home: {
         actions: {
@@ -2384,7 +2388,9 @@ function buildGuidePage(context) {
         ["theme.colors.accentStrong", "Strong accent color for active and emphasized controls."],
         ["theme.colors.border", "Shared border color."],
         ["site.toc.enabled", "Set to false to remove the contextual table of contents from Home, Reference, and term-detail pages."],
-        ["site.toc.title", "Heading for the contextual table of contents. It is collapsible and is shown only when a page has multiple sections."],
+        ["site.toc.title", "Heading for the contextual table of contents. It is shown only when a page has multiple sections."],
+        ["site.toc.collapseLabel", "Accessible label and tooltip for the control that collapses the TOC rail and expands the page content."],
+        ["site.toc.expandLabel", "Accessible label and tooltip for the control that restores the expanded TOC rail."],
         ["site.footer.primary", "Primary footer sentence."],
         ["site.footer.secondary", "Secondary footer sentence."],
         ["site.generator.repositoryUrl", "Optional link to the OCG repository in the generated footer."],
@@ -4421,14 +4427,18 @@ function buildPageToc(config, items = []) {
   }
 
   const title = escapeHtml(config.site.toc.title);
+  const collapseLabel = escapeHtml(config.site.toc.collapseLabel);
   return `
     <aside class="page-toc" aria-label="${title}">
-      <details open>
-        <summary>
-          <span>${title}</span>
-          <span class="page-toc-chevron" aria-hidden="true"></span>
-        </summary>
-        <nav aria-label="${title}">
+      <div class="page-toc-panel">
+        <div class="page-toc-head">
+          <span class="page-toc-title">${title}</span>
+          <button class="page-toc-toggle" type="button" data-page-toc-toggle aria-controls="page-toc-links" aria-expanded="true" aria-label="${collapseLabel}" title="${collapseLabel}">
+            <svg data-page-toc-icon="collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
+            <svg data-page-toc-icon="expand" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m10 6 6 6-6 6"></path></svg>
+          </button>
+        </div>
+        <nav id="page-toc-links" aria-label="${title}">
           <ol>
             ${tocItems
               .map(
@@ -4437,8 +4447,35 @@ function buildPageToc(config, items = []) {
               .join("")}
           </ol>
         </nav>
-      </details>
-    </aside>`;
+      </div>
+    </aside>
+    <script>
+      (() => {
+        const pageToc = document.querySelector(".page-toc");
+        const pageTocToggle = pageToc?.querySelector("[data-page-toc-toggle]");
+        const pageLayout = pageToc?.closest(".page-content-layout");
+        if (!pageTocToggle || !pageLayout) return;
+
+        const collapseLabel = ${JSON.stringify(config.site.toc.collapseLabel)};
+        const expandLabel = ${JSON.stringify(config.site.toc.expandLabel)};
+        const collapseIcon = pageTocToggle.querySelector('[data-page-toc-icon="collapse"]');
+        const expandIcon = pageTocToggle.querySelector('[data-page-toc-icon="expand"]');
+
+        function setPageTocCollapsed(collapsed) {
+          pageToc.classList.toggle("is-collapsed", collapsed);
+          pageLayout.classList.toggle("page-content-layout--toc-collapsed", collapsed);
+          pageTocToggle.setAttribute("aria-expanded", String(!collapsed));
+          pageTocToggle.setAttribute("aria-label", collapsed ? expandLabel : collapseLabel);
+          pageTocToggle.title = collapsed ? expandLabel : collapseLabel;
+          collapseIcon.hidden = collapsed;
+          expandIcon.hidden = !collapsed;
+        }
+
+        pageTocToggle.addEventListener("click", () => {
+          setPageTocCollapsed(!pageToc.classList.contains("is-collapsed"));
+        });
+      })();
+    </script>`;
 }
 
 function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [] }) {
@@ -4588,6 +4625,11 @@ function sharedCss(config) {
       grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
       align-items: start;
       gap: 22px;
+      transition: grid-template-columns 0.2s ease, gap 0.2s ease;
+    }
+    .page-content-layout--toc-collapsed {
+      grid-template-columns: 48px minmax(0, 1fr);
+      gap: 14px;
     }
     .page-content {
       min-width: 0;
@@ -4596,8 +4638,10 @@ function sharedCss(config) {
       position: sticky;
       top: 22px;
       align-self: start;
+      width: 100%;
+      transition: width 0.2s ease;
     }
-    .page-toc details {
+    .page-toc-panel {
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -4605,7 +4649,7 @@ function sharedCss(config) {
       box-shadow: 0 12px 28px rgba(16, 37, 56, 0.07);
       backdrop-filter: blur(10px);
     }
-    .page-toc summary {
+    .page-toc-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -4613,43 +4657,67 @@ function sharedCss(config) {
       min-height: 44px;
       padding: 10px 12px;
       color: var(--ink);
-      cursor: pointer;
       font-family: var(--heading-font);
       font-size: 0.86rem;
       font-weight: 700;
-      list-style: none;
     }
-    .page-toc summary::-webkit-details-marker {
+    .page-toc-title {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    .page-toc-toggle {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      padding: 5px;
+      border: 1px solid #d3dde0;
+      border-radius: 8px;
+      background: #f6f8f8;
+      color: #566972;
+      cursor: pointer;
+      transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+    }
+    .page-toc-toggle:hover,
+    .page-toc-toggle:focus-visible {
+      border-color: #aebfc4;
+      background: #e9f1f2;
+      color: var(--accent-strong);
+      outline: none;
+    }
+    .page-toc-toggle svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 2;
+    }
+    .page-toc-toggle svg[hidden] {
       display: none;
-    }
-    .page-toc-chevron {
-      position: relative;
-      flex: 0 0 18px;
-      width: 18px;
-      height: 18px;
-      border: 1px solid #d7e0e3;
-      border-radius: 6px;
-      background: #f1f4f5;
-    }
-    .page-toc-chevron::before {
-      content: "";
-      position: absolute;
-      top: 6px;
-      left: 5px;
-      width: 6px;
-      height: 6px;
-      border-right: 1.5px solid #5e6d75;
-      border-bottom: 1.5px solid #5e6d75;
-      transform: rotate(45deg);
-      transition: transform 0.16s ease;
-    }
-    .page-toc details[open] .page-toc-chevron::before {
-      top: 8px;
-      transform: rotate(225deg);
     }
     .page-toc nav {
       border-top: 1px solid #e1e8ea;
       padding: 8px;
+    }
+    .page-toc.is-collapsed {
+      width: 44px;
+    }
+    .page-toc.is-collapsed .page-toc-panel {
+      padding: 4px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+    .page-toc.is-collapsed .page-toc-head {
+      justify-content: center;
+      min-height: 36px;
+      padding: 0;
+    }
+    .page-toc.is-collapsed .page-toc-title,
+    .page-toc.is-collapsed nav {
+      display: none;
     }
     .page-toc ol {
       display: grid;
@@ -6563,8 +6631,14 @@ function sharedCss(config) {
         grid-template-columns: 1fr;
         gap: 16px;
       }
+      .page-content-layout--toc-collapsed {
+        grid-template-columns: 1fr;
+      }
       .page-toc {
         position: static;
+      }
+      .page-toc.is-collapsed {
+        width: 100%;
       }
     }
     @media (max-width: 860px) {
