@@ -252,6 +252,98 @@
           },
           "additionalProperties": false
         },
+        "home": {
+          "type": "object",
+          "properties": {
+            "actions": {
+              "type": "object",
+              "properties": {
+                "reference": { "type": "string" },
+                "graph": { "type": "string" },
+                "terms": { "type": "string" },
+                "specification": { "type": "string" },
+                "ontology": { "type": "string" },
+                "shapes": { "type": "string" },
+                "shex": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "canonicalUri": { "type": "string" },
+                "version": { "type": "string" },
+                "maintainer": { "type": "string" },
+                "unspecified": { "type": "string" },
+                "copyNamespace": { "type": "string" },
+                "namespaceCopied": { "type": "string" },
+                "namespaceCopyUnavailable": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "snapshot": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "overview": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "featuredTerms": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" },
+                "emptyBody": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "examples": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" },
+                "defaultDescription": { "type": "string" },
+                "linkText": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "viewer": {
+              "type": "object",
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" },
+                "viewFileText": { "type": "string" },
+                "loadingText": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "artifacts": {
+              "type": "object",
+              "properties": {
+                "ontologyLabel": { "type": "string" },
+                "ontologyDescription": { "type": "string" },
+                "shapesLabel": { "type": "string" },
+                "shapesDescription": { "type": "string" },
+                "shexLabel": { "type": "string" },
+                "shexDescription": { "type": "string" },
+                "specificationLabel": { "type": "string" },
+                "specificationDescription": { "type": "string" },
+                "additionalArtifactDescription": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
         "overviewCards": {
           "type": "array",
           "items": {

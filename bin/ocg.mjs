@@ -134,6 +134,62 @@ const DEFAULT_CONFIG = {
       title: "Published Artifacts",
       body: "Generated outputs from the configured ontology source package."
     },
+    home: {
+      actions: {
+        reference: "Vocabulary Reference",
+        graph: "Graph View",
+        terms: "Terms",
+        specification: "Specification",
+        ontology: "OWL Ontology",
+        shapes: "SHACL",
+        shex: "ShEx"
+      },
+      metadata: {
+        canonicalUri: "Canonical URI",
+        version: "Version",
+        maintainer: "Maintainer",
+        unspecified: "Unspecified",
+        copyNamespace: "Copy namespace",
+        namespaceCopied: "Namespace copied",
+        namespaceCopyUnavailable: "Namespace copy unavailable"
+      },
+      snapshot: {
+        title: "Ontology Snapshot",
+        body: "A summary of the configured ontology."
+      },
+      overview: {
+        title: "Repository Workflow",
+        body: "Configure these cards with onboarding, publication, or other project guidance."
+      },
+      featuredTerms: {
+        title: "Featured Terms",
+        body: "Important ontology terms selected for this landing page.",
+        emptyBody: "No featured terms are currently configured."
+      },
+      examples: {
+        title: "Examples",
+        body: "Configured example files for this ontology.",
+        defaultDescription: "Example artifact configured for the site.",
+        linkText: "Example"
+      },
+      viewer: {
+        title: "Artifact Viewer",
+        body: "Configured source artifacts available in this companion site.",
+        viewFileText: "View File",
+        loadingText: "Loading..."
+      },
+      artifacts: {
+        ontologyLabel: "OWL Ontology",
+        ontologyDescription: "Primary ontology source configured for the site.",
+        shapesLabel: "SHACL Shapes",
+        shapesDescription: "Optional SHACL constraints package.",
+        shexLabel: "ShEx Schema",
+        shexDescription: "Optional ShEx schema file.",
+        specificationLabel: "Specification Source",
+        specificationDescription: "Source document for the optional ReSpec specification page.",
+        additionalArtifactDescription: "Additional configured source artifact."
+      }
+    },
     overviewCards: [],
     customSections: [],
     footer: { primary: "", secondary: "" },

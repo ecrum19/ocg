@@ -180,6 +180,62 @@ const DEFAULT_SITE = {
     title: "Published Artifacts",
     body: "Generated outputs for the configured ontology package."
   },
+  home: {
+    actions: {
+      reference: "Vocabulary Reference",
+      graph: "Graph View",
+      terms: "Terms",
+      specification: "Specification",
+      ontology: "OWL Ontology",
+      shapes: "SHACL",
+      shex: "ShEx"
+    },
+    metadata: {
+      canonicalUri: "Canonical URI",
+      version: "Version",
+      maintainer: "Maintainer",
+      unspecified: "Unspecified",
+      copyNamespace: "Copy namespace",
+      namespaceCopied: "Namespace copied",
+      namespaceCopyUnavailable: "Namespace copy unavailable"
+    },
+    snapshot: {
+      title: "Ontology Snapshot",
+      body: "A summary of the configured ontology."
+    },
+    overview: {
+      title: "Repository Workflow",
+      body: "Configure these cards with onboarding, publication, or other project guidance."
+    },
+    featuredTerms: {
+      title: "Featured Terms",
+      body: "Important ontology terms selected for this landing page.",
+      emptyBody: "No featured terms are currently configured."
+    },
+    examples: {
+      title: "Examples",
+      body: "Configured example files for this ontology.",
+      defaultDescription: "Example artifact configured for the site.",
+      linkText: "Example"
+    },
+    viewer: {
+      title: "Artifact Viewer",
+      body: "Configured source artifacts available in this companion site.",
+      viewFileText: "View File",
+      loadingText: "Loading..."
+    },
+    artifacts: {
+      ontologyLabel: "OWL Ontology",
+      ontologyDescription: "Primary ontology source configured for the site.",
+      shapesLabel: "SHACL Shapes",
+      shapesDescription: "Optional SHACL constraints package.",
+      shexLabel: "ShEx Schema",
+      shexDescription: "Optional ShEx schema file.",
+      specificationLabel: "Specification Source",
+      specificationDescription: "Source document for the optional ReSpec specification page.",
+      additionalArtifactDescription: "Additional configured source artifact."
+    }
+  },
   overviewCards: [],
   customSections: [],
   footer: {
@@ -304,6 +360,18 @@ function loadConfig(configPath) {
       ...(raw.site || {}),
       hero: { ...DEFAULT_SITE.hero, ...(raw.site?.hero || {}) },
       resourcePanel: { ...DEFAULT_SITE.resourcePanel, ...(raw.site?.resourcePanel || {}) },
+      home: {
+        ...DEFAULT_SITE.home,
+        ...(raw.site?.home || {}),
+        actions: { ...DEFAULT_SITE.home.actions, ...(raw.site?.home?.actions || {}) },
+        metadata: { ...DEFAULT_SITE.home.metadata, ...(raw.site?.home?.metadata || {}) },
+        snapshot: { ...DEFAULT_SITE.home.snapshot, ...(raw.site?.home?.snapshot || {}) },
+        overview: { ...DEFAULT_SITE.home.overview, ...(raw.site?.home?.overview || {}) },
+        featuredTerms: { ...DEFAULT_SITE.home.featuredTerms, ...(raw.site?.home?.featuredTerms || {}) },
+        examples: { ...DEFAULT_SITE.home.examples, ...(raw.site?.home?.examples || {}) },
+        viewer: { ...DEFAULT_SITE.home.viewer, ...(raw.site?.home?.viewer || {}) },
+        artifacts: { ...DEFAULT_SITE.home.artifacts, ...(raw.site?.home?.artifacts || {}) }
+      },
       footer: { ...DEFAULT_SITE.footer, ...(raw.site?.footer || {}) },
       generator: { ...DEFAULT_SITE.generator, ...(raw.site?.generator || {}) }
     },
@@ -527,6 +595,7 @@ function validateHierarchyConfig(config) {
 
 function buildAssetManifest(config) {
   const assets = [];
+  const homeArtifacts = config.site.home.artifacts;
   const addAsset = ({ key, label, filePath, description, kind, destinationName }) => {
     const absolute = path.isAbsolute(filePath) ? filePath : resolveProjectPath(filePath);
     const relativeSource = path.relative(PROJECT_ROOT, absolute).replaceAll("\\", "/");
@@ -545,18 +614,18 @@ function buildAssetManifest(config) {
 
   addAsset({
     key: "ontology",
-    label: "OWL Ontology",
+    label: homeArtifacts.ontologyLabel,
     filePath: config.sources.ontology,
-    description: "Primary ontology source configured for the site.",
+    description: homeArtifacts.ontologyDescription,
     kind: "ontology"
   });
 
   if (config.sources.shapes) {
     addAsset({
       key: "shapes",
-      label: "SHACL Shapes",
+      label: homeArtifacts.shapesLabel,
       filePath: config.sources.shapes,
-      description: "Optional SHACL constraints package.",
+      description: homeArtifacts.shapesDescription,
       kind: "shapes"
     });
   }
@@ -564,9 +633,9 @@ function buildAssetManifest(config) {
   if (config.sources.shex) {
     addAsset({
       key: "shex",
-      label: "ShEx Schema",
+      label: homeArtifacts.shexLabel,
       filePath: config.sources.shex,
-      description: "Optional ShEx schema file.",
+      description: homeArtifacts.shexDescription,
       kind: "shex"
     });
   }
@@ -584,9 +653,9 @@ function buildAssetManifest(config) {
   if (config.sources.spec) {
     addAsset({
       key: "spec",
-      label: "Specification Source",
+      label: homeArtifacts.specificationLabel,
       filePath: config.sources.spec,
-      description: "Source document for the optional ReSpec specification page.",
+      description: homeArtifacts.specificationDescription,
       kind: "spec",
       destinationName: "spec-source.html"
     });
@@ -597,7 +666,7 @@ function buildAssetManifest(config) {
       key: `artifact:${artifact.key}`,
       label: artifact.label,
       filePath: artifact.path,
-      description: artifact.description || "Additional configured source artifact.",
+      description: artifact.description || homeArtifacts.additionalArtifactDescription,
       kind: "artifact",
       destinationName: artifact.destinationName ? sanitizeFileName(artifact.destinationName) : undefined
     });
@@ -1955,6 +2024,62 @@ function buildGuidePage(context) {
         title: "Published Artifacts",
         body: "A short explanation shown above the artifact links."
       },
+      home: {
+        actions: {
+          reference: "Reference",
+          graph: "Ontology Network",
+          terms: "Browse Terms",
+          specification: "Specification",
+          ontology: "Ontology Source",
+          shapes: "Validation Shapes",
+          shex: "ShEx Schema"
+        },
+        metadata: {
+          canonicalUri: "Vocabulary IRI",
+          version: "Release",
+          maintainer: "Maintained by",
+          unspecified: "Not provided",
+          copyNamespace: "Copy vocabulary namespace",
+          namespaceCopied: "Vocabulary namespace copied",
+          namespaceCopyUnavailable: "Vocabulary namespace could not be copied"
+        },
+        snapshot: {
+          title: "Vocabulary at a Glance",
+          body: "Counts are generated from the configured ontology source."
+        },
+        overview: {
+          title: "Using This Vocabulary",
+          body: "Add project-specific guidance above the configurable overview cards."
+        },
+        featuredTerms: {
+          title: "Key Terms",
+          body: "Highlight the concepts and properties visitors should understand first.",
+          emptyBody: "No key terms are selected yet."
+        },
+        examples: {
+          title: "Example Data",
+          body: "Link to representative instance data or usage examples.",
+          defaultDescription: "A configured example for this vocabulary.",
+          linkText: "View Example"
+        },
+        viewer: {
+          title: "Source Viewer",
+          body: "Choose source files and their order with curation.viewerTabs.",
+          viewFileText: "View Source",
+          loadingText: "Loading source..."
+        },
+        artifacts: {
+          ontologyLabel: "Ontology Source",
+          ontologyDescription: "Primary ontology source published with the companion site.",
+          shapesLabel: "Validation Shapes",
+          shapesDescription: "Optional SHACL constraints package.",
+          shexLabel: "ShEx Schema",
+          shexDescription: "Optional ShEx schema file.",
+          specificationLabel: "Specification Source",
+          specificationDescription: "Source document for the optional ReSpec specification page.",
+          additionalArtifactDescription: "Additional configured source artifact."
+        }
+      },
       overviewCards: [
         {
           title: "Card Title",
@@ -2043,7 +2168,7 @@ function buildGuidePage(context) {
       id: "home",
       badge: "Landing Page",
       title: "Home",
-      description: "Controls the landing-page copy, cards, featured terms, and custom narrative content.",
+      description: "Controls all editorial landing-page copy and labels, including the repository-workflow heading, source controls, metadata, cards, featured terms, examples, and viewer.",
       options: [
         ["features.overviewCards", "Set to false to hide the configurable overview-card row."],
         ["site.hero.kicker", "Small eyebrow text above the home-page headline."],
@@ -2051,6 +2176,24 @@ function buildGuidePage(context) {
         ["site.hero.body", "Introductory home-page paragraph; falls back to project.description when empty."],
         ["site.resourcePanel.title", "Heading for the published-artifacts panel."],
         ["site.resourcePanel.body", "Supporting text for the published-artifacts panel."],
+        ["site.home.actions", "Labels for the Reference, Graph, Terms, Specification, OWL Ontology, SHACL, and ShEx actions. Set reference, graph, terms, specification, ontology, shapes, and shex."],
+        ["site.home.metadata", "Home metadata labels and namespace-copy status messages. Set canonicalUri, version, maintainer, unspecified, copyNamespace, namespaceCopied, and namespaceCopyUnavailable."],
+        ["site.home.snapshot.title", "Heading above the ontology-derived metric cards."],
+        ["site.home.snapshot.body", "Supporting copy above the ontology-derived metric cards."],
+        ["site.home.overview.title", "Heading above site.overviewCards. Use this to replace Repository Workflow with vocabulary-specific guidance."],
+        ["site.home.overview.body", "Supporting copy above site.overviewCards."],
+        ["site.home.featuredTerms.title", "Heading for the featured ontology terms section."],
+        ["site.home.featuredTerms.body", "Supporting copy for the featured ontology terms section."],
+        ["site.home.featuredTerms.emptyBody", "Message displayed when there are no explicit or automatically selected featured terms."],
+        ["site.home.examples.title", "Heading for the configured example-files section."],
+        ["site.home.examples.body", "Supporting copy for the configured example-files section."],
+        ["site.home.examples.defaultDescription", "Fallback description for an example without sources.examples[].description."],
+        ["site.home.examples.linkText", "Action label for each example card."],
+        ["site.home.viewer.title", "Heading for the raw source viewer."],
+        ["site.home.viewer.body", "Supporting copy for the raw source viewer."],
+        ["site.home.viewer.viewFileText", "Action label linking to the selected raw source file."],
+        ["site.home.viewer.loadingText", "Temporary message displayed while the selected source file loads."],
+        ["site.home.artifacts", "Fallback labels and descriptions for built-in ontology, SHACL, ShEx, and specification source assets. Set ontologyLabel/Description, shapesLabel/Description, shexLabel/Description, specificationLabel/Description, and additionalArtifactDescription."],
         ["site.overviewCards[].title", "Heading for a configurable home-page card."],
         ["site.overviewCards[].body", "Description shown inside a configurable home-page card."],
         ["site.overviewCards[].linkText", "Optional label for the card link."],
@@ -2067,6 +2210,7 @@ function buildGuidePage(context) {
         site: {
           hero: configExample.site.hero,
           resourcePanel: configExample.site.resourcePanel,
+          home: configExample.site.home,
           overviewCards: configExample.site.overviewCards,
           customSections: configExample.site.customSections
         },
@@ -2431,6 +2575,7 @@ function resolveFeaturedTerms(config, ontologyInfo) {
 
 function buildIndexPage(context) {
   const { config, ontologyInfo, assets, relationshipSummary } = context;
+  const home = config.site.home;
   const ontologyAsset = getAsset(assets, "ontology");
   const shapesAsset = getAsset(assets, "shapes");
   const shexAsset = getAsset(assets, "shex");
@@ -2438,25 +2583,25 @@ function buildIndexPage(context) {
 
   const primaryHeroButtons = [
     config.features.referencePage
-      ? `<a class="btn btn--primary" href="ontology-reference.html">Vocabulary Reference</a>`
+      ? `<a class="btn btn--primary" href="ontology-reference.html">${escapeHtml(home.actions.reference)}</a>`
       : "",
     config.features.graphPage
-      ? `<a class="btn btn--ghost" href="ontology-graph.html">Graph View</a>`
+      ? `<a class="btn btn--ghost" href="ontology-graph.html">${escapeHtml(home.actions.graph)}</a>`
       : "",
     config.features.termPages
-      ? `<a class="btn btn--ghost" href="terms/index.html">Terms</a>`
+      ? `<a class="btn btn--ghost" href="terms/index.html">${escapeHtml(home.actions.terms)}</a>`
       : "",
     config.features.specPage && config.sources.spec
-      ? `<a class="btn btn--ghost" href="spec/index.html">Specification</a>`
+      ? `<a class="btn btn--ghost" href="spec/index.html">${escapeHtml(home.actions.specification)}</a>`
       : ""
   ]
     .filter(Boolean)
     .join("");
 
   const artifactHeroButtons = [
-    ontologyAsset ? `<a class="btn btn--ghost" href="${ontologyAsset.publicPath}" target="_blank" rel="noreferrer">OWL Ontology</a>` : "",
-    shapesAsset ? `<a class="btn btn--ghost" href="${shapesAsset.publicPath}" target="_blank" rel="noreferrer">SHACL</a>` : "",
-    shexAsset ? `<a class="btn btn--ghost" href="${shexAsset.publicPath}" target="_blank" rel="noreferrer">ShEx</a>` : ""
+    ontologyAsset ? `<a class="btn btn--ghost" href="${ontologyAsset.publicPath}" target="_blank" rel="noreferrer">${escapeHtml(home.actions.ontology)}</a>` : "",
+    shapesAsset ? `<a class="btn btn--ghost" href="${shapesAsset.publicPath}" target="_blank" rel="noreferrer">${escapeHtml(home.actions.shapes)}</a>` : "",
+    shexAsset ? `<a class="btn btn--ghost" href="${shexAsset.publicPath}" target="_blank" rel="noreferrer">${escapeHtml(home.actions.shex)}</a>` : ""
   ]
     .filter(Boolean)
     .join("");
@@ -2508,7 +2653,7 @@ function buildIndexPage(context) {
           `
         )
         .join("")
-    : `<p class="section-note">No featured terms are currently configured.</p>`;
+    : `<p class="section-note">${escapeHtml(home.featuredTerms.emptyBody)}</p>`;
 
   const exampleCards = (config.sources.examples || [])
     .map((example) => {
@@ -2516,8 +2661,8 @@ function buildIndexPage(context) {
       return `
         <article class="card">
           <h3>${escapeHtml(example.label)}</h3>
-          <p>${escapeHtml(example.description || "Example artifact configured for the site.")}</p>
-          <a class="card-link" href="${asset.publicPath}" target="_blank" rel="noreferrer">Example</a>
+          <p>${escapeHtml(example.description || home.examples.defaultDescription)}</p>
+          <a class="card-link" href="${asset.publicPath}" target="_blank" rel="noreferrer">${escapeHtml(home.examples.linkText)}</a>
         </article>
       `;
     })
@@ -2561,7 +2706,7 @@ function buildIndexPage(context) {
           <div class="meta-item--namespace">
             <dd class="namespace-value">
               <code>${escapeHtml(config.project.namespace)}</code>
-              <button class="icon-button" id="copy-namespace" type="button" aria-label="Copy namespace" title="Copy namespace">
+              <button class="icon-button" id="copy-namespace" type="button" aria-label="${escapeHtml(home.metadata.copyNamespace)}" title="${escapeHtml(home.metadata.copyNamespace)}">
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <rect x="9" y="9" width="10" height="10" rx="2"></rect>
                   <path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"></path>
@@ -2570,16 +2715,16 @@ function buildIndexPage(context) {
             </dd>
           </div>
           <div class="meta-item--canonical">
-            <dt>Canonical URI</dt>
+            <dt>${escapeHtml(home.metadata.canonicalUri)}</dt>
             <dd><code>${escapeHtml(config.project.canonicalUri)}</code></dd>
           </div>
           <div>
-            <dt>Version</dt>
-            <dd>${escapeHtml(config.project.version || "Unspecified")}</dd>
+            <dt>${escapeHtml(home.metadata.version)}</dt>
+            <dd>${escapeHtml(config.project.version || home.metadata.unspecified)}</dd>
           </div>
           <div>
-            <dt>Maintainer</dt>
-            <dd>${escapeHtml(config.project.maintainer || "Unspecified")}</dd>
+            <dt>${escapeHtml(home.metadata.maintainer)}</dt>
+            <dd>${escapeHtml(config.project.maintainer || home.metadata.unspecified)}</dd>
           </div>
         </dl>
       </aside>
@@ -2588,10 +2733,10 @@ function buildIndexPage(context) {
     <section class="section">
       <div class="section-head">
         <div class="section-heading-row">
-          <h2>Ontology Snapshot</h2>
+          <h2>${escapeHtml(home.snapshot.title)}</h2>
           ${howToLink(config, "home")}
         </div>
-        <p class="section-note">${escapeHtml(config.project.description)}</p>
+        <p class="section-note">${escapeHtml(home.snapshot.body)}</p>
       </div>
       <div class="metrics-grid" style="--metric-count: ${Math.max(1, snapshotEntries.length)}">${statsCards}</div>
     </section>
@@ -2601,8 +2746,8 @@ function buildIndexPage(context) {
         ? `
           <section class="section">
             <div class="section-head">
-              <h2>Repository Workflow</h2>
-              <p class="section-note">These cards come directly from ocg.config.json and can be replaced with your own onboarding or publication guidance.</p>
+              <h2>${escapeHtml(home.overview.title)}</h2>
+              <p class="section-note">${escapeHtml(home.overview.body)}</p>
             </div>
             <div class="card-grid">${overviewCards}</div>
           </section>
@@ -2612,8 +2757,8 @@ function buildIndexPage(context) {
 
     <section class="section">
       <div class="section-head">
-        <h2>Featured Terms</h2>
-        <p class="section-note">Pin important ontology terms in the config so the landing page foregrounds what matters most.</p>
+        <h2>${escapeHtml(home.featuredTerms.title)}</h2>
+        <p class="section-note">${escapeHtml(home.featuredTerms.body)}</p>
       </div>
       <div class="card-grid featured-terms-grid">${featuredTermCards}</div>
     </section>
@@ -2623,8 +2768,8 @@ function buildIndexPage(context) {
         ? `
           <section class="section">
             <div class="section-head">
-              <h2>Examples</h2>
-              <p class="section-note">Configured example files are surfaced both as cards and optional raw-viewer tabs.</p>
+              <h2>${escapeHtml(home.examples.title)}</h2>
+              <p class="section-note">${escapeHtml(home.examples.body)}</p>
             </div>
             <div class="card-grid">${exampleCards}</div>
           </section>
@@ -2641,16 +2786,16 @@ function buildIndexPage(context) {
           try {
             await navigator.clipboard.writeText(${JSON.stringify(config.project.namespace)});
             copyNamespaceButton.dataset.copied = "true";
-            copyNamespaceButton.setAttribute("aria-label", "Namespace copied");
-            copyNamespaceButton.title = "Namespace copied";
+            copyNamespaceButton.setAttribute("aria-label", ${JSON.stringify(home.metadata.namespaceCopied)});
+            copyNamespaceButton.title = ${JSON.stringify(home.metadata.namespaceCopied)};
             window.setTimeout(() => {
               copyNamespaceButton.dataset.copied = "false";
-              copyNamespaceButton.setAttribute("aria-label", "Copy namespace");
-              copyNamespaceButton.title = "Copy namespace";
+              copyNamespaceButton.setAttribute("aria-label", ${JSON.stringify(home.metadata.copyNamespace)});
+              copyNamespaceButton.title = ${JSON.stringify(home.metadata.copyNamespace)};
             }, 1600);
           } catch {
-            copyNamespaceButton.setAttribute("aria-label", "Namespace copy unavailable");
-            copyNamespaceButton.title = "Namespace copy unavailable";
+            copyNamespaceButton.setAttribute("aria-label", ${JSON.stringify(home.metadata.namespaceCopyUnavailable)});
+            copyNamespaceButton.title = ${JSON.stringify(home.metadata.namespaceCopyUnavailable)};
           }
         });
       }
@@ -2670,6 +2815,7 @@ function buildIndexPage(context) {
 
 function buildRawViewerSection(context) {
   const { config, assets } = context;
+  const viewerCopy = config.site.home.viewer;
   const viewerAssets = assets.filter((asset) => VIEWER_ASSET_KINDS.has(asset.kind));
   const keys = config.curation.viewerTabs.length
     ? config.curation.viewerTabs
@@ -2697,10 +2843,10 @@ function buildRawViewerSection(context) {
     <section class="section">
       <div class="section-head">
         <div class="section-heading-row">
-          <h2>Artifact Viewer</h2>
+          <h2>${escapeHtml(viewerCopy.title)}</h2>
           ${howToLink(config, "artifacts")}
         </div>
-        <p class="section-note">The raw-viewer tab order is configurable through <code>curation.viewerTabs</code>.</p>
+        <p class="section-note">${escapeHtml(viewerCopy.body)}</p>
       </div>
       <div class="viewer">
         <div class="tabs">${buttons}</div>
@@ -2709,9 +2855,9 @@ function buildRawViewerSection(context) {
             <strong id="viewer-label">${escapeHtml(tabs[0].label)}</strong>
             <div class="viewer-note" id="viewer-description">${escapeHtml(tabs[0].description || "")}</div>
           </div>
-          <a class="btn btn--ghost btn--small" id="viewer-open" href="${tabs[0].publicPath}" target="_blank" rel="noreferrer">View File</a>
+          <a class="btn btn--ghost btn--small" id="viewer-open" href="${tabs[0].publicPath}" target="_blank" rel="noreferrer">${escapeHtml(viewerCopy.viewFileText)}</a>
         </div>
-        <pre class="viewer-pane"><code id="viewer-code">Loading…</code></pre>
+        <pre class="viewer-pane"><code id="viewer-code">${escapeHtml(viewerCopy.loadingText)}</code></pre>
       </div>
       <script>
         const viewerTabs = Array.from(document.querySelectorAll(".tab"));
@@ -2726,7 +2872,7 @@ function buildRawViewerSection(context) {
           viewerLabel.textContent = label;
           viewerDescription.textContent = description || "";
           viewerOpen.href = file;
-          viewerCode.textContent = "Loading…";
+          viewerCode.textContent = ${JSON.stringify(viewerCopy.loadingText)};
           const response = await fetch(file);
           const text = await response.text();
           viewerCode.textContent = text;

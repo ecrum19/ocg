@@ -82,6 +82,54 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 
 Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 
+### Home-Page Copy
+
+All editorial home-page copy and labels are configured in `site`. Use `site.hero` and `site.resourcePanel` for the top area, and `site.home` for the action labels, metadata, snapshot, overview-card heading, featured terms, examples, source viewer, and built-in source artifacts. This means the `Repository Workflow` wording in the bundled example is not part of the generator: replace it with terminology appropriate to your ontology.
+
+`ocg init` writes every `site.home` option into the new config. The generated [Home guide](https://ecrum19.github.io/ocg/usage-guide.html#home) documents each option; this focused example shows the common editorial changes:
+
+```json
+{
+  "site": {
+    "hero": {
+      "kicker": "Published Vocabulary",
+      "headline": "Explore the Example Ontology",
+      "body": "A concise introduction for visitors."
+    },
+    "home": {
+      "actions": {
+        "reference": "Reference",
+        "graph": "Ontology Network",
+        "terms": "Browse Terms",
+        "ontology": "Ontology Source"
+      },
+      "snapshot": {
+        "title": "Vocabulary at a Glance",
+        "body": "Counts are generated from the configured ontology source."
+      },
+      "overview": {
+        "title": "Using This Vocabulary",
+        "body": "Add project-specific onboarding, publication, or contribution guidance here."
+      },
+      "featuredTerms": {
+        "title": "Key Terms",
+        "body": "Important concepts and properties for new users."
+      },
+      "examples": {
+        "title": "Example Data",
+        "linkText": "View Example"
+      },
+      "viewer": {
+        "title": "Source Viewer",
+        "viewFileText": "View Source"
+      }
+    }
+  }
+}
+```
+
+Use `site.home.metadata` to rename the canonical-IRI, version, and maintainer labels and the namespace-copy messages. Use `site.home.artifacts` to change fallback labels and descriptions for the ontology, SHACL, ShEx, and specification source assets. Labels and descriptions supplied directly in `sources.examples` and `sources.artifacts` take precedence for those individual files.
+
 ### Optional Ontology Hierarchy
 
 Set `features.hierarchyOverview` to `true` to add a curated ontology-structure overview above the `Classes` section on the Reference page. OCG derives it from `subClassOf` and/or `broader` relationships; it does not display the entire ontology. Use the `hierarchy` block to choose term types, roots, depth, branch limits, leaf/external-term visibility, and a capped list of important domain/range links. The default package config leaves this feature off because the useful scope varies by ontology; the bundled example enables it.

@@ -134,6 +134,62 @@
       "title": "Published Artifacts",
       "body": "Every linked artifact below is derived from the configured source package and exposed through a static site that can be deployed directly with GitHub Actions."
     },
+    "home": {
+      "actions": {
+        "reference": "Vocabulary Reference",
+        "graph": "Graph View",
+        "terms": "Terms",
+        "specification": "Specification",
+        "ontology": "OWL Ontology",
+        "shapes": "SHACL",
+        "shex": "ShEx"
+      },
+      "metadata": {
+        "canonicalUri": "Canonical URI",
+        "version": "Version",
+        "maintainer": "Maintainer",
+        "unspecified": "Unspecified",
+        "copyNamespace": "Copy namespace",
+        "namespaceCopied": "Namespace copied",
+        "namespaceCopyUnavailable": "Namespace copy unavailable"
+      },
+      "snapshot": {
+        "title": "Ontology Snapshot",
+        "body": "A built-in demonstration ontology that shows how to configure OCG for a vocabulary-oriented GitHub Pages site."
+      },
+      "overview": {
+        "title": "Repository Workflow",
+        "body": "These cards come directly from ocg.config.json and can be replaced with your own onboarding or publication guidance."
+      },
+      "featuredTerms": {
+        "title": "Featured Terms",
+        "body": "Pin important ontology terms in the config so the landing page foregrounds what matters most.",
+        "emptyBody": "No featured terms are currently configured."
+      },
+      "examples": {
+        "title": "Examples",
+        "body": "Configured example files are surfaced both as cards and optional raw-viewer tabs.",
+        "defaultDescription": "Example artifact configured for the site.",
+        "linkText": "Example"
+      },
+      "viewer": {
+        "title": "Artifact Viewer",
+        "body": "The raw-viewer tab order is configurable through curation.viewerTabs.",
+        "viewFileText": "View File",
+        "loadingText": "Loading..."
+      },
+      "artifacts": {
+        "ontologyLabel": "OWL Ontology",
+        "ontologyDescription": "Primary ontology source configured for the site.",
+        "shapesLabel": "SHACL Shapes",
+        "shapesDescription": "Optional SHACL constraints package.",
+        "shexLabel": "ShEx Schema",
+        "shexDescription": "Optional ShEx schema file.",
+        "specificationLabel": "Specification Source",
+        "specificationDescription": "Source document for the optional ReSpec specification page.",
+        "additionalArtifactDescription": "Additional configured source artifact."
+      }
+    },
     "overviewCards": [
       {
         "title": "Replace the Example Source",

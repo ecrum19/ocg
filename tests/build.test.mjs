@@ -83,6 +83,9 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.doesNotMatch(indexHtml, />Open (TTL|File|Example)</);
   assert.doesNotMatch(indexHtml, /<dt>Namespace<\/dt>/);
   assert.match(indexHtml, /id="copy-namespace"/);
+  assert.match(indexHtml, /<h2>Repository Workflow<\/h2>/);
+  assert.match(indexHtml, /These cards come directly from ocg\.config\.json/);
+  assert.match(indexHtml, /<h2>Artifact Viewer<\/h2>/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
   assert.match(referenceHtml, /id="ontology-hierarchy"/);
@@ -327,6 +330,14 @@ test("build-site produces the expected publish artifacts for the bundled example
     "hierarchy.maxNodes",
     "hierarchy.includePropertyRelations",
     "hierarchy.labelMode",
+    "site.home.actions",
+    "site.home.metadata",
+    "site.home.snapshot.title",
+    "site.home.overview.title",
+    "site.home.featuredTerms.emptyBody",
+    "site.home.examples.linkText",
+    "site.home.viewer.viewFileText",
+    "site.home.artifacts",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
     "graph.custom.label",
@@ -501,6 +512,9 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(config.features.hierarchyOverview, false);
     assert.equal(config.hierarchy.maxNodes, 36);
     assert.equal(config.project.namespace, "https://example.org/ecv#");
+    assert.equal(config.site.home.overview.title, "Repository Workflow");
+    assert.equal(config.site.home.viewer.title, "Artifact Viewer");
+    assert.equal(config.site.home.artifacts.ontologyLabel, "OWL Ontology");
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
     const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
@@ -519,6 +533,54 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.doesNotMatch(indexHtml, /data-label="Config Schema"/);
 
     fs.writeFileSync(path.join(tempDir, "context.json"), "{\"example\":true}\n");
+    config.site.home = {
+      ...config.site.home,
+      actions: {
+        ...config.site.home.actions,
+        reference: "Read the Reference",
+        ontology: "Vocabulary Source"
+      },
+      metadata: {
+        ...config.site.home.metadata,
+        canonicalUri: "Vocabulary IRI",
+        unspecified: "Not provided"
+      },
+      snapshot: {
+        title: "Vocabulary at a Glance",
+        body: "Counts derived from this vocabulary source."
+      },
+      overview: {
+        title: "Using This Vocabulary",
+        body: "Project-specific onboarding guidance."
+      },
+      featuredTerms: {
+        ...config.site.home.featuredTerms,
+        title: "Key Terms"
+      },
+      examples: {
+        ...config.site.home.examples,
+        title: "Example Data",
+        defaultDescription: "Configured example data.",
+        linkText: "View Example"
+      },
+      viewer: {
+        title: "Source Viewer",
+        body: "Select a published source file.",
+        viewFileText: "View Source",
+        loadingText: "Loading source..."
+      },
+      artifacts: {
+        ...config.site.home.artifacts,
+        ontologyLabel: "Vocabulary Source",
+        ontologyDescription: "Published primary vocabulary file."
+      }
+    };
+    config.site.overviewCards = [
+      {
+        title: "Start Here",
+        body: "Read the project guidance before using the vocabulary."
+      }
+    ];
     config.sources.artifacts = [
       {
         key: "context",
@@ -530,6 +592,19 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     fs.writeFileSync(path.join(tempDir, "ocg.config.json"), JSON.stringify(config, null, 2));
     execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
     const artifactIndexHtml = fs.readFileSync(path.join(tempDir, "site", "index.html"), "utf8");
+    assert.match(artifactIndexHtml, /Read the Reference/);
+    assert.match(artifactIndexHtml, /Vocabulary Source/);
+    assert.match(artifactIndexHtml, /<dt>Vocabulary IRI<\/dt>/);
+    assert.match(artifactIndexHtml, /<h2>Vocabulary at a Glance<\/h2>/);
+    assert.match(artifactIndexHtml, /Counts derived from this vocabulary source\./);
+    assert.match(artifactIndexHtml, /<h2>Using This Vocabulary<\/h2>/);
+    assert.match(artifactIndexHtml, /Project-specific onboarding guidance\./);
+    assert.match(artifactIndexHtml, /<h2>Key Terms<\/h2>/);
+    assert.match(artifactIndexHtml, /<h2>Source Viewer<\/h2>/);
+    assert.match(artifactIndexHtml, />View Source</);
+    assert.doesNotMatch(artifactIndexHtml, /<h2>Repository Workflow<\/h2>/);
+    assert.doesNotMatch(artifactIndexHtml, /These cards come directly from ocg\.config\.json/);
+    assert.match(artifactIndexHtml, /data-label="Vocabulary Source"/);
     assert.match(artifactIndexHtml, /data-file="assets\/context\.json"/);
     assert.match(artifactIndexHtml, /data-label="Context JSON"/);
     assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "context.json")), true);
