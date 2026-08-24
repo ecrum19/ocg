@@ -170,8 +170,11 @@ const DEFAULT_THEME = {
     text: "#1d1f22",
     mutedText: "#5f6b7a",
     accent: "#1f6f78",
+    accentStart: "#248992",
+    accentBorder: "#1c7d86",
     accentStrong: "#13535a",
-    border: "#d6dee6"
+    border: "#d6dee6",
+    warmAccent: "#e1ab4e"
   }
 };
 
@@ -846,6 +849,23 @@ function specPageCss(config) {
   const fonts = config.theme.fonts;
   return `
     <style>
+      :root {
+        --ocg-spec-panel: ${colors.panelBackground};
+        --ocg-spec-panel-soft: color-mix(in srgb, ${colors.panelBackground} 94%, transparent);
+        --ocg-spec-text: ${colors.text};
+        --ocg-spec-muted: ${colors.mutedText};
+        --ocg-spec-accent: ${colors.accent};
+        --ocg-spec-accent-start: ${colors.accentStart};
+        --ocg-spec-accent-strong: ${colors.accentStrong};
+        --ocg-spec-border: ${colors.border};
+        --ocg-spec-shadow: color-mix(in srgb, ${colors.text} 11%, transparent);
+        --ocg-spec-accent-tint: color-mix(in srgb, ${colors.accent} 12%, transparent);
+        --ocg-spec-muted-surface: color-mix(in srgb, ${colors.mutedText} 10%, ${colors.panelBackground} 90%);
+        --ocg-spec-muted-surface-hover: color-mix(in srgb, ${colors.mutedText} 16%, ${colors.panelBackground} 84%);
+        --ocg-spec-muted-border: color-mix(in srgb, ${colors.border} 82%, ${colors.mutedText} 18%);
+        --ocg-spec-muted-border-hover: color-mix(in srgb, ${colors.border} 62%, ${colors.mutedText} 38%);
+        --ocg-spec-muted-strong: color-mix(in srgb, ${colors.mutedText} 68%, ${colors.text} 32%);
+      }
       body.ocg-spec-page {
         padding-top: 106px !important;
       }
@@ -874,10 +894,10 @@ function specPageCss(config) {
         width: min(1120px, 100%);
         margin: 0 auto;
         padding: 12px 14px;
-        background: rgba(255, 255, 255, 0.94);
+        background: var(--ocg-spec-panel-soft);
         border: 1px solid ${colors.border};
         border-radius: 16px;
-        box-shadow: 0 18px 38px rgba(16, 37, 56, 0.11);
+        box-shadow: 0 18px 38px var(--ocg-spec-shadow);
         backdrop-filter: blur(12px);
       }
       .ocg-spec-brand {
@@ -885,7 +905,7 @@ function specPageCss(config) {
         align-items: center;
         gap: 11px;
         min-width: 0;
-        color: ${colors.text};
+        color: var(--ocg-spec-text);
         text-decoration: none;
       }
       .ocg-spec-brand:hover {
@@ -898,8 +918,8 @@ function specPageCss(config) {
         place-items: center;
         flex: 0 0 auto;
         border-radius: 12px;
-        background: linear-gradient(140deg, #248992 0%, ${colors.accent} 100%);
-        color: #ffffff;
+        background: linear-gradient(140deg, var(--ocg-spec-accent-start) 0%, var(--ocg-spec-accent) 100%);
+        color: var(--ocg-spec-panel);
         font-family: "${fonts.heading}", sans-serif;
         font-size: 0.9rem;
         font-weight: 700;
@@ -920,12 +940,12 @@ function specPageCss(config) {
         min-width: 0;
       }
       .ocg-spec-brand-copy strong {
-        color: ${colors.text};
+        color: var(--ocg-spec-text);
         font-family: "${fonts.heading}", sans-serif;
         font-size: 0.92rem;
       }
       .ocg-spec-brand-copy span {
-        color: ${colors.mutedText};
+        color: var(--ocg-spec-muted);
         font-size: 0.76rem;
         overflow-wrap: anywhere;
       }
@@ -939,29 +959,29 @@ function specPageCss(config) {
       .ocg-spec-nav .nav-link {
         padding: 7px 10px;
         border-radius: 999px;
-        color: #294456;
+        color: var(--ocg-spec-text);
         font-size: 0.88rem;
         font-weight: 600;
         text-decoration: none;
       }
       .ocg-spec-nav .nav-link:hover,
       .ocg-spec-nav .nav-link.is-active {
-        color: ${colors.accentStrong};
-        background: rgba(31, 111, 120, 0.12);
+        color: var(--ocg-spec-accent-strong);
+        background: var(--ocg-spec-accent-tint);
         text-decoration: none;
       }
       .ocg-spec-nav .nav-link--guide,
       .ocg-spec-nav .nav-link--how-to {
-        color: #687681;
-        background: #f0f2f3;
-        border: 1px solid #d7dde1;
+        color: var(--ocg-spec-muted);
+        background: var(--ocg-spec-muted-surface);
+        border: 1px solid var(--ocg-spec-muted-border);
       }
       .ocg-spec-nav .nav-link--guide:hover,
       .ocg-spec-nav .nav-link--how-to:hover,
       .ocg-spec-nav .nav-link--guide.is-active {
-        color: #45525c;
-        background: #e4e8ea;
-        border-color: #c4ccd1;
+        color: var(--ocg-spec-muted-strong);
+        background: var(--ocg-spec-muted-surface-hover);
+        border-color: var(--ocg-spec-muted-border-hover);
       }
       .ocg-spec-footer {
         width: min(1120px, 92vw);
@@ -2073,8 +2093,11 @@ function buildGuidePage(context) {
         text: "#1d1f22",
         mutedText: "#5f6b7a",
         accent: "#1f6f78",
+        accentStart: "#248992",
+        accentBorder: "#1c7d86",
         accentStrong: "#13535a",
-        border: "#d6dee6"
+        border: "#d6dee6",
+        warmAccent: "#e1ab4e"
       }
     },
     site: {
@@ -2448,8 +2471,11 @@ function buildGuidePage(context) {
         ["theme.colors.text", "Primary text and heading color."],
         ["theme.colors.mutedText", "Secondary text color."],
         ["theme.colors.accent", "Primary link and accent color."],
+        ["theme.colors.accentStart", "Starting color for accent gradients and branded controls."],
+        ["theme.colors.accentBorder", "Border color for primary accent controls."],
         ["theme.colors.accentStrong", "Strong accent color for active and emphasized controls."],
         ["theme.colors.border", "Shared border color."],
+        ["theme.colors.warmAccent", "Warm accent used by the page background glow and supporting highlights."],
         ["site.toc.enabled", "Set to false to remove the contextual table of contents from Home, Reference, Terms, and term-detail pages."],
         ["site.toc.title", "Heading for the contextual table of contents. It is shown only when a page has multiple sections."],
         ["site.toc.collapseLabel", "Accessible label and tooltip for the control that collapses the TOC rail and expands the page content."],
@@ -3385,6 +3411,13 @@ function buildGraphPage(context) {
 }
 
 function buildSigmaGraphScript(config) {
+  const graphThemeColors = {
+    text: config.theme.colors.text,
+    muted: config.theme.colors.mutedText,
+    accentStrong: config.theme.colors.accentStrong,
+    panel: config.theme.colors.panelBackground,
+    border: config.theme.colors.border
+  };
   const typeLabels = Object.fromEntries(
     Object.entries(TERM_TYPE_INFO).map(([type, info]) => [type, info.label])
   );
@@ -3407,6 +3440,7 @@ function buildSigmaGraphScript(config) {
       <script>
         (() => {
           const TYPE_COLOR = ${JSON.stringify(config.graph.colors)};
+          const THEME_COLOR = ${JSON.stringify(graphThemeColors)};
           const TYPE_LABEL = ${JSON.stringify(typeLabels)};
           const TYPE_PLURAL = ${JSON.stringify(typePlurals)};
           const RELATION_LABEL = ${JSON.stringify(RELATION_INFO)};
@@ -3469,14 +3503,24 @@ function buildSigmaGraphScript(config) {
               .replaceAll("'", "&#39;");
           }
 
-          function hexToRgba(hex, alpha) {
-            const source = String(hex || "#dfe6ee").replace("#", "");
-            const value = source.length === 3 ? source.split("").map((part) => part + part).join("") : source;
-            const intValue = parseInt(value, 16);
-            const r = (intValue >> 16) & 255;
-            const g = (intValue >> 8) & 255;
-            const b = intValue & 255;
-            return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+          function colorToRgba(color, alpha) {
+            const source = String(color || THEME_COLOR.border).trim();
+            if (source.startsWith("#")) {
+              const value = source.slice(1);
+              const expanded = value.length === 3 ? value.split("").map((part) => part + part).join("") : value;
+              const intValue = parseInt(expanded, 16);
+              if (Number.isFinite(intValue)) {
+                const r = (intValue >> 16) & 255;
+                const g = (intValue >> 8) & 255;
+                const b = intValue & 255;
+                return "rgba(" + r + ", " + g + ", " + b + ", " + alpha + ")";
+              }
+            }
+            const rgb = source.match(/^rgba?\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(?:\\s*,\\s*([\\d.]+))?\\s*\\)$/i);
+            if (rgb) {
+              return "rgba(" + rgb[1] + ", " + rgb[2] + ", " + rgb[3] + ", " + alpha + ")";
+            }
+            return source;
           }
 
           function setStatus(message) {
@@ -3728,7 +3772,7 @@ function buildSigmaGraphScript(config) {
             const legendTypes = graphData.nodes.some((node) => node.isExternal) ? [...nodeTypes, "external"] : nodeTypes;
             legendEl.innerHTML = "<span class=\\\"sigma-legend-title\\\">Legend</span>" +
               legendTypes.map((type) => "<span class=\\\"sigma-legend-chip\\\"><span class=\\\"sigma-swatch\\\" style=\\\"background:" + (TYPE_COLOR[type] || TYPE_COLOR.declaredTerm) + ";\\\"></span>" + escapeHtml(TYPE_LABEL[type] || type) + "</span>").join("") +
-              relations.map((relation) => "<span class=\\\"sigma-legend-chip\\\"><span class=\\\"sigma-line\\\" style=\\\"--line-color:" + (TYPE_COLOR[relation] || "#6f8394") + ";\\\"><svg viewBox=\\\"0 0 28 10\\\" aria-hidden=\\\"true\\\"><path d=\\\"M1 5H20\\\" stroke=\\\"currentColor\\\" stroke-width=\\\"3.8\\\" stroke-linecap=\\\"round\\\"></path><path d=\\\"M20 1L27 5L20 9Z\\\" fill=\\\"currentColor\\\"></path></svg></span>" + escapeHtml(relationLabel(relation)) + "</span>").join("");
+              relations.map((relation) => "<span class=\\\"sigma-legend-chip\\\"><span class=\\\"sigma-line\\\" style=\\\"--line-color:" + (TYPE_COLOR[relation] || THEME_COLOR.muted) + ";\\\"><svg viewBox=\\\"0 0 28 10\\\" aria-hidden=\\\"true\\\"><path d=\\\"M1 5H20\\\" stroke=\\\"currentColor\\\" stroke-width=\\\"3.8\\\" stroke-linecap=\\\"round\\\"></path><path d=\\\"M20 1L27 5L20 9Z\\\" fill=\\\"currentColor\\\"></path></svg></span>" + escapeHtml(relationLabel(relation)) + "</span>").join("");
           }
 
           function recomputeVisibility() {
@@ -3940,37 +3984,37 @@ function buildSigmaGraphScript(config) {
                 hidden: false,
                 label: filters.showLabels ? attrs.qname : "",
                 forceLabel: filters.showLabels && attrs.baseForceLabel,
-                labelColor: "#253846"
+                labelColor: THEME_COLOR.text
               };
               const matchesQuery = !filters.searchTerm || attrs.qnameLower.includes(filters.searchTerm) || attrs.labelLower.includes(filters.searchTerm);
               if (!matchesQuery) {
-                result.color = hexToRgba(attrs.baseColor, 0.2);
-                result.labelColor = "#9aa6ae";
+                result.color = colorToRgba(attrs.baseColor, 0.2);
+                result.labelColor = THEME_COLOR.muted;
               }
               if (selectedEdge) {
                 if (!selectedEdgeEndpoints.has(node)) {
-                  result.color = hexToRgba(attrs.baseColor, 0.15);
-                  result.labelColor = "#a4afb6";
+                  result.color = colorToRgba(attrs.baseColor, 0.15);
+                  result.labelColor = THEME_COLOR.muted;
                 } else {
                   result.size = attrs.baseSize * 1.18;
                   result.color = attrs.baseColor;
                   result.forceLabel = filters.showLabels;
-                  result.labelColor = "#142f3a";
+                  result.labelColor = THEME_COLOR.accentStrong;
                 }
                 return result;
               }
               if (selectedNode) {
                 if (!selectedNeighborhood.has(node)) {
-                  result.color = hexToRgba(attrs.baseColor, 0.17);
-                  result.labelColor = "#a4afb6";
+                  result.color = colorToRgba(attrs.baseColor, 0.17);
+                  result.labelColor = THEME_COLOR.muted;
                 } else if (selectedNode === node) {
                   result.size = attrs.baseSize * 1.22;
                   result.color = attrs.baseColor;
                   result.forceLabel = filters.showLabels;
-                  result.labelColor = "#102f3b";
+                  result.labelColor = THEME_COLOR.accentStrong;
                 } else {
                   result.forceLabel = filters.showLabels;
-                  result.labelColor = "#294653";
+                  result.labelColor = THEME_COLOR.text;
                 }
               }
               return result;
@@ -3982,7 +4026,7 @@ function buildSigmaGraphScript(config) {
               const result = { ...attrs, hidden: false };
               if (selectedEdge) {
                 if (edge !== selectedEdge) {
-                  result.color = "rgba(117, 127, 140, 0.16)";
+                  result.color = colorToRgba(THEME_COLOR.muted, 0.16);
                   result.size = EDGE_DIM_SIZE;
                 } else {
                   result.size = attrs.baseSize * 1.7;
@@ -3994,7 +4038,7 @@ function buildSigmaGraphScript(config) {
               if (selectedNode) {
                 const adjacent = graph.source(edge) === selectedNode || graph.target(edge) === selectedNode;
                 if (!adjacent) {
-                  result.color = "rgba(117, 127, 140, 0.16)";
+                  result.color = colorToRgba(THEME_COLOR.muted, 0.16);
                   result.size = EDGE_DIM_SIZE;
                 } else {
                   result.size = attrs.baseSize * 1.25;
@@ -4212,10 +4256,10 @@ function buildSigmaGraphScript(config) {
             context.textAlign = placement.align;
             context.lineJoin = "round";
             context.miterLimit = 2;
-            context.strokeStyle = "rgba(251, 253, 255, 0.96)";
+            context.strokeStyle = colorToRgba(THEME_COLOR.panel, 0.96);
             context.lineWidth = 3.5;
             context.strokeText(data.label, x, y);
-            context.fillStyle = data.labelColor || "#253846";
+            context.fillStyle = data.labelColor || THEME_COLOR.text;
             context.fillText(data.label, x, y);
             context.restore();
           }
@@ -4248,7 +4292,7 @@ function buildSigmaGraphScript(config) {
                 qname: node.qname,
                 qnameLower: node.qname.toLowerCase(),
                 labelLower: (node.label || node.qname).toLowerCase(),
-                labelColor: "#253846",
+                labelColor: THEME_COLOR.text,
                 forceLabel: forceAllLabels || priorityNodeIds.has(node.id),
                 baseForceLabel: forceAllLabels || priorityNodeIds.has(node.id),
                 color,
@@ -4258,7 +4302,7 @@ function buildSigmaGraphScript(config) {
               });
             });
             graphData.edges.forEach((edge, index) => {
-              const color = TYPE_COLOR[edge.relation] || "#6f8394";
+              const color = TYPE_COLOR[edge.relation] || THEME_COLOR.muted;
               const id = edge.id || "rel-" + String(index + 1).padStart(3, "0");
               graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: EDGE_BASE_SIZE, baseSize: EDGE_BASE_SIZE, relation: edge.relation, label: edge.label || edge.relation });
             });
@@ -4272,7 +4316,7 @@ function buildSigmaGraphScript(config) {
               labelFont: LABEL_FONT,
               labelSize: 13,
               labelWeight: "500",
-              labelColor: { attribute: "labelColor", color: "#253846" },
+              labelColor: { attribute: "labelColor", color: THEME_COLOR.text },
               labelRenderer: drawReadableNodeLabel,
               stagePadding: 72,
               minCameraRatio: 0.04,
@@ -4542,10 +4586,10 @@ function buildPageToc(config, items = []) {
         const collapseLabel = ${JSON.stringify(config.site.toc.collapseLabel)};
         const expandLabel = ${JSON.stringify(config.site.toc.expandLabel)};
         function setPageTocCollapsed(collapsed) {
-          if (collapsed) {
-            pageToc.style.setProperty("--page-toc-expanded-height", Math.ceil(pageTocPanel.getBoundingClientRect().height) + "px");
-            void pageToc.offsetHeight;
-          }
+          const expandedHeight = Math.ceil(pageTocPanel.scrollHeight);
+          pageToc.style.setProperty("--page-toc-expanded-height", expandedHeight + "px");
+          pageTocPanel.style.setProperty("--page-toc-panel-expanded-height", expandedHeight + "px");
+          void pageToc.offsetHeight;
           pageToc.classList.toggle("is-collapsed", collapsed);
           pageLayout.classList.toggle("page-content-layout--toc-collapsed", collapsed);
           pageTocToggle.setAttribute("aria-expanded", String(!collapsed));
@@ -4556,6 +4600,7 @@ function buildPageToc(config, items = []) {
         pageToc.addEventListener("transitionend", (event) => {
           if (event.target === pageToc && event.propertyName === "height" && !pageToc.classList.contains("is-collapsed")) {
             pageToc.style.removeProperty("--page-toc-expanded-height");
+            pageTocPanel.style.removeProperty("--page-toc-panel-expanded-height");
           }
         });
 
@@ -4669,8 +4714,55 @@ function sharedCss(config) {
       --ink: ${colors.text};
       --muted: ${colors.mutedText};
       --accent: ${colors.accent};
+      --accent-start: ${colors.accentStart};
+      --accent-border: ${colors.accentBorder};
       --accent-strong: ${colors.accentStrong};
       --border: ${colors.border};
+      --warm-accent: ${colors.warmAccent};
+      --white: var(--panel);
+      --white-98: color-mix(in srgb, var(--panel) 98%, transparent);
+      --white-96: color-mix(in srgb, var(--panel) 96%, transparent);
+      --white-94: color-mix(in srgb, var(--panel) 94%, transparent);
+      --white-92: color-mix(in srgb, var(--panel) 92%, transparent);
+      --white-88: color-mix(in srgb, var(--panel) 88%, transparent);
+      --white-84: color-mix(in srgb, var(--panel) 84%, transparent);
+      --white-82: color-mix(in srgb, var(--panel) 82%, transparent);
+      --white-72: color-mix(in srgb, var(--panel) 72%, transparent);
+      --warm-surface: color-mix(in srgb, var(--bg) 70%, var(--bg-alt) 30%);
+      --accent-tint: color-mix(in srgb, var(--accent) 12%, transparent);
+      --accent-soft: color-mix(in srgb, var(--accent) 9%, transparent);
+      --accent-faint: color-mix(in srgb, var(--accent) 8%, transparent);
+      --accent-strong-tint: color-mix(in srgb, var(--accent) 14%, transparent);
+      --accent-outline: color-mix(in srgb, var(--accent) 25%, transparent);
+      --warm-glow: color-mix(in srgb, var(--warm-accent) 16%, transparent);
+      --page-glow: color-mix(in srgb, var(--accent) 18%, transparent);
+      --text-strong: color-mix(in srgb, var(--ink) 78%, var(--accent-strong) 22%);
+      --text-dark: color-mix(in srgb, var(--ink) 88%, var(--accent-strong) 12%);
+      --muted-strong: color-mix(in srgb, var(--muted) 82%, var(--ink) 18%);
+      --muted-dark: color-mix(in srgb, var(--muted) 68%, var(--ink) 32%);
+      --muted-faint: color-mix(in srgb, var(--muted) 60%, var(--panel) 40%);
+      --border-soft: color-mix(in srgb, var(--border) 75%, var(--panel) 25%);
+      --border-medium: color-mix(in srgb, var(--border) 70%, var(--ink) 30%);
+      --surface-muted: color-mix(in srgb, var(--panel) 88%, var(--muted) 12%);
+      --surface-hover: color-mix(in srgb, var(--panel) 78%, var(--muted) 22%);
+      --surface-alt: color-mix(in srgb, var(--panel) 90%, var(--bg-alt) 10%);
+      --surface-accent: color-mix(in srgb, var(--panel) 90%, var(--accent) 10%);
+      --code-bg: color-mix(in srgb, var(--ink) 92%, var(--accent-strong) 8%);
+      --code-fg: color-mix(in srgb, var(--panel) 92%, var(--accent) 8%);
+      --table-header: color-mix(in srgb, var(--bg-alt) 55%, var(--panel) 45%);
+      --table-stripe: color-mix(in srgb, var(--bg-alt) 35%, var(--panel) 65%);
+      --graph-surface: color-mix(in srgb, var(--panel) 96%, var(--bg-alt) 4%);
+      --graph-panel: color-mix(in srgb, var(--panel) 90%, var(--bg-alt) 10%);
+      --graph-label-outline: color-mix(in srgb, var(--panel) 96%, transparent);
+      --graph-tooltip-bg: color-mix(in srgb, var(--ink) 90%, var(--accent-strong) 10%);
+      --graph-tooltip-text: color-mix(in srgb, var(--panel) 96%, var(--accent) 4%);
+      --graph-dim: color-mix(in srgb, var(--muted) 16%, transparent);
+      --shadow: color-mix(in srgb, var(--ink) 11%, transparent);
+      --shadow-strong: color-mix(in srgb, var(--ink) 15%, transparent);
+      --shadow-soft: color-mix(in srgb, var(--ink) 8%, transparent);
+      --shadow-faint: color-mix(in srgb, var(--ink) 6.5%, transparent);
+      --shadow-control: color-mix(in srgb, var(--ink) 12%, transparent);
+      --shadow-accent: color-mix(in srgb, var(--accent) 24%, transparent);
       --heading-font: "${fonts.heading}", sans-serif;
       --body-font: "${fonts.body}", sans-serif;
       --mono-font: "${fonts.mono}", monospace;
@@ -4681,9 +4773,9 @@ function sharedCss(config) {
       color: var(--ink);
       font-family: var(--body-font);
       background:
-        radial-gradient(circle at top right, rgba(31, 111, 120, 0.18), transparent 43%),
-        radial-gradient(circle at bottom left, rgba(225, 171, 78, 0.16), transparent 40%),
-        linear-gradient(120deg, var(--bg) 0%, var(--bg-alt) 65%, #f8f2e6 100%);
+        radial-gradient(circle at top right, var(--page-glow), transparent 43%),
+        radial-gradient(circle at bottom left, var(--warm-glow), transparent 40%),
+        linear-gradient(120deg, var(--bg) 0%, var(--bg-alt) 65%, var(--warm-surface) 100%);
       min-height: 100vh;
     }
     body::before {
@@ -4693,7 +4785,7 @@ function sharedCss(config) {
       height: 420px;
       top: -140px;
       right: -120px;
-      background: radial-gradient(circle at top, rgba(31, 111, 120, 0.18), transparent 70%);
+      background: radial-gradient(circle at top, var(--page-glow), transparent 70%);
       z-index: -1;
     }
     a { color: var(--accent); text-decoration: none; }
@@ -4715,8 +4807,8 @@ function sharedCss(config) {
       transition: grid-template-columns 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), gap 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-content-layout--toc-collapsed {
-      grid-template-columns: 48px minmax(0, 1fr);
-      gap: 14px;
+      grid-template-columns: 44px minmax(0, 1fr);
+      gap: 18px;
     }
     .page-content {
       min-width: 0;
@@ -4734,12 +4826,14 @@ function sharedCss(config) {
       --page-toc-panel-width: 214px;
       width: var(--page-toc-panel-width);
       min-width: var(--page-toc-panel-width);
+      height: var(--page-toc-panel-expanded-height, auto);
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.84);
-      box-shadow: 0 12px 28px rgba(16, 37, 56, 0.07);
+      background: var(--white-84);
+      box-shadow: 0 12px 28px var(--shadow-soft);
       backdrop-filter: blur(10px);
+      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), height 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-toc-head {
       position: relative;
@@ -4770,17 +4864,17 @@ function sharedCss(config) {
       width: 28px;
       height: 28px;
       padding: 5px;
-      border: 1px solid #d3dde0;
+      border: 1px solid var(--border-soft);
       border-radius: 8px;
-      background: #f6f8f8;
-      color: #566972;
+      background: var(--surface-muted);
+      color: var(--muted-strong);
       cursor: pointer;
       transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
     }
     .page-toc-toggle:hover,
     .page-toc-toggle:focus-visible {
-      border-color: #aebfc4;
-      background: #e9f1f2;
+      border-color: var(--border-medium);
+      background: var(--surface-accent);
       color: var(--accent-strong);
       outline: none;
     }
@@ -4796,7 +4890,7 @@ function sharedCss(config) {
       transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-toc nav {
-      border-top: 1px solid #e1e8ea;
+      border-top: 1px solid var(--border-soft);
       padding: 8px;
       opacity: 1;
       transform: translateX(0);
@@ -4807,10 +4901,17 @@ function sharedCss(config) {
       height: 44px;
     }
     .page-toc.is-collapsed .page-toc-panel {
-      background: rgba(255, 255, 255, 0.72);
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--white-72);
     }
     .page-toc.is-collapsed .page-toc-head {
+      width: 44px;
+      height: 44px;
       min-height: 44px;
+      padding: 0;
     }
     .page-toc.is-collapsed .page-toc-title,
     .page-toc.is-collapsed nav {
@@ -4821,7 +4922,7 @@ function sharedCss(config) {
       transition: opacity 0.1s ease, transform 0.14s ease, visibility 0s linear 0.14s;
     }
     .page-toc.is-collapsed .page-toc-toggle {
-      transform: translateX(calc(-1 * (var(--page-toc-panel-width) - 44px)));
+      transform: none;
     }
     .page-toc.is-collapsed .page-toc-toggle-icon {
       transform: rotate(180deg);
@@ -4846,7 +4947,7 @@ function sharedCss(config) {
     }
     .page-toc a:hover,
     .page-toc a:focus-visible {
-      background: rgba(31, 111, 120, 0.09);
+      background: var(--accent-soft);
       color: var(--accent-strong);
       text-decoration: none;
       outline: none;
@@ -4866,11 +4967,11 @@ function sharedCss(config) {
       align-items: center;
       margin-bottom: 34px;
       padding: 14px 16px;
-      background: rgba(255, 255, 255, 0.88);
+      background: var(--white-88);
       border: 1px solid var(--border);
       backdrop-filter: blur(12px);
       border-radius: 16px;
-      box-shadow: 0 18px 38px rgba(16, 37, 56, 0.11);
+      box-shadow: 0 18px 38px var(--shadow);
     }
     .brand {
       display: flex;
@@ -4889,8 +4990,8 @@ function sharedCss(config) {
       place-items: center;
       padding: 0 10px;
       border-radius: 14px;
-      background: linear-gradient(140deg, #248992 0%, var(--accent) 100%);
-      color: #ffffff;
+      background: linear-gradient(140deg, var(--accent-start) 0%, var(--accent) 100%);
+      color: var(--panel);
       font-family: var(--heading-font);
       font-size: 1rem;
       font-weight: 700;
@@ -4945,26 +5046,26 @@ function sharedCss(config) {
       padding: 8px 11px;
       border-radius: 999px;
       font-weight: 600;
-      color: #294456;
+      color: var(--text-strong);
       transition: background-color 0.2s ease, color 0.2s ease;
     }
     .nav-link:hover,
     .nav-link.is-active {
       color: var(--accent-strong);
-      background: rgba(31, 111, 120, 0.12);
+      background: var(--accent-tint);
     }
     .nav-link--guide,
     .nav-link--how-to {
-      color: #687681;
-      background: #f0f2f3;
-      border: 1px solid #d7dde1;
+      color: var(--muted-strong);
+      background: var(--surface-muted);
+      border: 1px solid var(--border-soft);
     }
     .nav-link--guide:hover,
     .nav-link--how-to:hover,
     .nav-link--guide.is-active {
-      color: #45525c;
-      background: #e4e8ea;
-      border-color: #c4ccd1;
+      color: var(--muted-dark);
+      background: var(--surface-hover);
+      border-color: var(--border-medium);
       text-decoration: none;
     }
     .hero {
@@ -4978,10 +5079,10 @@ function sharedCss(config) {
     .section,
     .graph-shell,
     .viewer {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 252, 253, 0.96) 100%);
+      background: linear-gradient(180deg, var(--white-96) 0%, var(--surface-alt) 100%);
       border: 1px solid var(--border);
       border-radius: 22px;
-      box-shadow: 0 18px 38px rgba(16, 37, 56, 0.11);
+      box-shadow: 0 18px 38px var(--shadow);
     }
     .hero-copy {
       padding: 28px;
@@ -4999,7 +5100,7 @@ function sharedCss(config) {
       margin-bottom: 10px;
       padding: 7px 12px;
       border-radius: 999px;
-      background: rgba(31, 111, 120, 0.12);
+      background: var(--accent-tint);
       color: var(--accent-strong);
       font-size: 0.84rem;
       font-weight: 700;
@@ -5226,26 +5327,26 @@ function sharedCss(config) {
     }
     .btn:hover {
       transform: translateY(-1px);
-      box-shadow: 0 12px 24px rgba(19, 55, 70, 0.18);
+      box-shadow: 0 12px 24px var(--shadow-control);
     }
     .btn:focus-visible {
-      outline: 3px solid rgba(31, 111, 120, 0.25);
+      outline: 3px solid var(--accent-outline);
       outline-offset: 2px;
     }
     .btn--primary {
-      background: linear-gradient(140deg, #248992 0%, var(--accent) 100%);
-      border-color: #1c7d86;
-      color: #ffffff;
-      box-shadow: 0 8px 18px rgba(31, 111, 120, 0.24);
+      background: linear-gradient(140deg, var(--accent-start) 0%, var(--accent) 100%);
+      border-color: var(--accent-border);
+      color: var(--panel);
+      box-shadow: 0 8px 18px var(--shadow-accent);
     }
     .btn--ghost {
-      border-color: #c7d3de;
-      background: rgba(255, 255, 255, 0.92);
+      border-color: var(--border-medium);
+      background: var(--white-92);
       color: var(--accent-strong);
     }
     .btn--ghost:hover {
-      border-color: #9ab0c3;
-      background: #ffffff;
+      border-color: var(--accent-border);
+      background: var(--panel);
     }
     .btn--small {
       min-height: 36px;
@@ -5294,7 +5395,7 @@ function sharedCss(config) {
       padding: 7px;
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: #ffffff;
+      background: var(--panel);
       color: var(--accent-strong);
       cursor: pointer;
       transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
@@ -5303,11 +5404,11 @@ function sharedCss(config) {
     .icon-button:focus-visible {
       transform: translateY(-1px);
       border-color: var(--accent);
-      background: rgba(14, 123, 129, 0.08);
+      background: var(--accent-faint);
       outline: none;
     }
     .icon-button[data-copied="true"] {
-      background: rgba(14, 123, 129, 0.14);
+      background: var(--accent-strong-tint);
       border-color: var(--accent);
     }
     .icon-button svg {
@@ -5333,7 +5434,7 @@ function sharedCss(config) {
     }
     .reference-hierarchy {
       background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 248, 0.94)),
+        linear-gradient(135deg, var(--white-98), var(--surface-accent)),
         var(--panel);
     }
     .hierarchy-meta {
@@ -5357,7 +5458,7 @@ function sharedCss(config) {
       padding: 16px;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.82);
+      background: var(--white-82);
     }
     .hierarchy-tree > ul,
     .hierarchy-tree ul {
@@ -5374,7 +5475,7 @@ function sharedCss(config) {
       min-width: 0;
     }
     .hierarchy-item details {
-      border-left: 2px solid #d8e5e7;
+      border-left: 2px solid var(--border-soft);
       padding-left: 12px;
     }
     .hierarchy-item summary,
@@ -5385,9 +5486,9 @@ function sharedCss(config) {
       gap: 10px;
       min-height: 35px;
       padding: 7px 9px;
-      border: 1px solid #e0e8e9;
+      border: 1px solid var(--border-soft);
       border-radius: 9px;
-      background: #fbfdfd;
+      background: var(--surface-alt);
       color: var(--ink);
       cursor: pointer;
       list-style: none;
@@ -5410,8 +5511,8 @@ function sharedCss(config) {
     .hierarchy-item summary:hover,
     .hierarchy-item summary:focus-visible,
     .hierarchy-item--leaf:hover {
-      border-color: #b9d1d4;
-      background: #f1f8f8;
+      border-color: var(--accent-border);
+      background: var(--surface-accent);
       outline: none;
     }
     .hierarchy-item summary .hierarchy-term,
@@ -5443,8 +5544,8 @@ function sharedCss(config) {
       height: 22px;
       padding: 0 5px;
       border-radius: 999px;
-      background: #e8f1f2;
-      color: #4e6d72;
+      background: var(--surface-accent);
+      color: var(--muted-dark);
       font-size: 0.72rem;
       font-weight: 700;
     }
@@ -5464,9 +5565,9 @@ function sharedCss(config) {
     }
     .hierarchy-empty {
       padding: 14px 16px;
-      border: 1px dashed #b9cdd0;
+      border: 1px dashed var(--border-medium);
       border-radius: 12px;
-      background: rgba(241, 248, 248, 0.72);
+      background: var(--white-72);
       color: var(--muted);
       line-height: 1.55;
     }
@@ -5495,7 +5596,7 @@ function sharedCss(config) {
       gap: 28px;
       padding: 30px;
       background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 248, 0.96)),
+        linear-gradient(135deg, var(--white-98), var(--surface-accent)),
         var(--panel);
     }
     .guide-hero > .guide-toc {
@@ -5531,10 +5632,10 @@ function sharedCss(config) {
       margin-left: auto;
       padding: 0;
       overflow: hidden;
-      background: linear-gradient(180deg, #ffffff 0%, #f9fbfb 100%);
-      border: 1px solid #d8e0e3;
+      background: linear-gradient(180deg, var(--panel) 0%, var(--surface-alt) 100%);
+      border: 1px solid var(--border-soft);
       border-radius: 16px;
-      box-shadow: 0 12px 28px rgba(16, 37, 56, 0.08);
+      box-shadow: 0 12px 28px var(--shadow-soft);
       scroll-margin-top: 28px;
     }
     .guide-toc-summary,
@@ -5565,7 +5666,7 @@ function sharedCss(config) {
       letter-spacing: -0.015em;
     }
     .guide-toc[open] .guide-toc-summary {
-      border-bottom: 1px solid #e2e8ea;
+      border-bottom: 1px solid var(--border-soft);
     }
     .guide-toc-toggle {
       position: relative;
@@ -5574,7 +5675,7 @@ function sharedCss(config) {
       height: 28px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #f0f2f3;
+      background: var(--surface-muted);
     }
     .guide-toc-toggle::before,
     .guide-toc-toggle::after {
@@ -5584,7 +5685,7 @@ function sharedCss(config) {
       left: 50%;
       width: 11px;
       height: 1px;
-      background: #687681;
+      background: var(--muted-strong);
       transform: translate(-50%, -50%);
     }
     .guide-toc-toggle::after {
@@ -5595,8 +5696,8 @@ function sharedCss(config) {
       transform: translate(-50%, -50%) rotate(0deg);
     }
     .guide-toc-summary:hover .guide-toc-toggle {
-      border-color: #bdc7cc;
-      background: #e4e8ea;
+      border-color: var(--border-medium);
+      background: var(--surface-hover);
     }
     .guide-toc-nav {
       padding: 18px 20px 22px;
@@ -5606,7 +5707,7 @@ function sharedCss(config) {
       gap: 3px;
       margin: 0;
       padding: 2px 0 2px 14px;
-      border-left: 2px solid #e2e9eb;
+      border-left: 2px solid var(--border-soft);
       list-style: none;
     }
     .guide-toc-item--level-1 {
@@ -5626,8 +5727,8 @@ function sharedCss(config) {
       transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
     }
     .guide-toc-item--level-0 .guide-toc-link {
-      border-color: #e5ebed;
-      background: rgba(241, 245, 246, 0.72);
+      border-color: var(--border-soft);
+      background: var(--white-72);
       color: var(--ink);
       font-weight: 700;
     }
@@ -5643,10 +5744,10 @@ function sharedCss(config) {
       place-items: center;
       width: 26px;
       height: 22px;
-      border: 1px solid #d7e1e4;
+      border: 1px solid var(--border-soft);
       border-radius: 6px;
-      background: #edf3f4;
-      color: #52646c;
+      background: var(--surface-alt);
+      color: var(--muted-dark);
       font-family: var(--mono-font);
       font-size: 0.68rem;
       font-weight: 600;
@@ -5656,20 +5757,20 @@ function sharedCss(config) {
       flex-basis: 7px;
       width: 7px;
       height: 7px;
-      border: 1px solid #aeb9bf;
+      border: 1px solid var(--border-medium);
       border-radius: 50%;
       background: transparent;
       font-size: 0;
     }
     .guide-toc-link:hover {
       border-color: var(--border);
-      background: #f0f2f3;
+      background: var(--surface-muted);
       color: var(--accent-strong);
       text-decoration: none;
     }
     .guide-toc-item--level-0 .guide-toc-link:hover {
-      border-color: #cbd8dc;
-      background: #eef3f4;
+      border-color: var(--border-medium);
+      background: var(--surface-alt);
     }
     .guide-quick-links {
       display: flex;
@@ -5750,7 +5851,7 @@ function sharedCss(config) {
     }
     .guide-options thead th {
       color: var(--ink);
-      background: rgba(237, 243, 247, 0.72);
+      background: var(--white-72);
       font-size: 0.78rem;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -5783,8 +5884,8 @@ function sharedCss(config) {
       margin: 0;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: #102027;
-      color: #ecf5f7;
+      background: var(--code-bg);
+      color: var(--code-fg);
       font-size: 0.84rem;
       line-height: 1.55;
       overflow-x: auto;
@@ -5793,7 +5894,7 @@ function sharedCss(config) {
       padding: 14px 16px;
       border-left: 4px solid var(--accent);
       border-radius: 8px;
-      background: rgba(31, 111, 120, 0.08);
+      background: var(--accent-faint);
       color: var(--muted);
       line-height: 1.55;
     }
@@ -5806,10 +5907,10 @@ function sharedCss(config) {
       justify-content: center;
       min-height: 30px;
       padding: 5px 10px;
-      border: 1px solid #d1d8dc;
+      border: 1px solid var(--border-soft);
       border-radius: 999px;
-      background: #eef1f2;
-      color: #687681;
+      background: var(--surface-muted);
+      color: var(--muted-strong);
       font-size: 0.78rem;
       font-weight: 600;
       white-space: nowrap;
@@ -5817,9 +5918,9 @@ function sharedCss(config) {
       transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
     }
     .how-to-link:hover {
-      border-color: #bdc7cc;
-      background: #e4e8ea;
-      color: #45525c;
+      border-color: var(--border-medium);
+      background: var(--surface-hover);
+      color: var(--muted-dark);
       text-decoration: none;
     }
     .section-heading-row {
@@ -5838,7 +5939,7 @@ function sharedCss(config) {
       border: 1px solid var(--border);
       border-radius: 14px;
       background: var(--card);
-      box-shadow: 0 18px 34px rgba(25, 39, 52, 0.08);
+      box-shadow: 0 18px 34px var(--shadow-soft);
       display: grid;
       gap: 12px;
     }
@@ -5862,7 +5963,7 @@ function sharedCss(config) {
       margin-bottom: 12px;
       padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(14, 123, 129, 0.1);
+      background: var(--accent-faint);
       color: var(--accent-strong);
       font-size: 0.8rem;
       font-weight: 700;
@@ -5903,13 +6004,13 @@ function sharedCss(config) {
       margin-top: 12px;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: #ffffff;
+      background: var(--panel);
     }
     table {
       width: 100%;
       border-collapse: collapse;
       min-width: 760px;
-      background: #ffffff;
+      background: var(--panel);
     }
     th, td {
       text-align: left;
@@ -5920,14 +6021,14 @@ function sharedCss(config) {
       border-bottom: 1px solid var(--border);
     }
     th {
-      color: #234;
+      color: var(--text-dark);
       font-size: 0.88rem;
-      background: #edf5f8;
+      background: var(--table-header);
       position: sticky;
       top: 0;
       z-index: 1;
     }
-    tbody tr:nth-child(even) td { background: #fbfdff; }
+    tbody tr:nth-child(even) td { background: var(--table-stripe); }
     tr:last-child td {
       border-bottom: none;
     }
@@ -5941,15 +6042,15 @@ function sharedCss(config) {
       padding: 9px 12px;
       border: 1px solid var(--border);
       border-radius: 999px;
-      background: #ffffff;
+      background: var(--panel);
       color: var(--muted);
       font-weight: 700;
       cursor: pointer;
     }
     .tab.active {
-      background: rgba(14, 123, 129, 0.12);
+      background: var(--accent-tint);
       color: var(--accent-strong);
-      border-color: rgba(14, 123, 129, 0.3);
+      border-color: var(--accent-outline);
     }
     .viewer-head {
       justify-content: space-between;
@@ -5965,8 +6066,8 @@ function sharedCss(config) {
       padding: 18px;
       border-radius: 16px;
       border: 1px solid var(--border);
-      background: #102027;
-      color: #ecf5f7;
+      background: var(--code-bg);
+      color: var(--code-fg);
       overflow: auto;
       white-space: pre-wrap;
       word-break: break-word;
@@ -5984,7 +6085,7 @@ function sharedCss(config) {
       padding: 5px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: #f3f6f7;
+      background: var(--surface-muted);
       overflow: hidden;
       isolation: isolate;
     }
@@ -6004,13 +6105,13 @@ function sharedCss(config) {
     .graph-mode-tab:hover,
     .graph-mode-tab:focus-visible {
       color: var(--accent-strong);
-      outline: 2px solid rgba(14, 123, 129, 0.25);
+      outline: 2px solid var(--accent-outline);
       outline-offset: 1px;
     }
     .graph-view-tab.active,
     .graph-mode-tab.active {
       background: var(--accent-strong);
-      color: #ffffff;
+      color: var(--panel);
     }
     .graph-view-panel[hidden] {
       display: none;
@@ -6018,10 +6119,10 @@ function sharedCss(config) {
     .graph-expand-btn {
       min-height: 36px;
       padding: 8px 13px;
-      border: 1px solid #c6d2d8;
+      border: 1px solid var(--graph-control-border, var(--border-medium));
       border-radius: 9px;
-      background: rgba(255, 255, 255, 0.96);
-      color: #345664;
+      background: var(--white-96);
+      color: var(--graph-control-text, var(--text-strong));
       font: inherit;
       font-size: 0.84rem;
       font-weight: 700;
@@ -6040,7 +6141,7 @@ function sharedCss(config) {
       min-height: 0;
       padding: 7px;
       border-radius: 9px;
-      box-shadow: 0 5px 12px rgba(16, 37, 56, 0.12);
+      box-shadow: 0 5px 12px var(--shadow-control);
     }
     .graph-expand-btn--icon svg {
       display: block;
@@ -6065,11 +6166,11 @@ function sharedCss(config) {
       gap: 7px;
       min-height: 36px;
       padding: 7px 10px;
-      border: 1px solid #c6d2d8;
+      border: 1px solid var(--border-medium);
       border-radius: 9px;
-      background: rgba(255, 255, 255, 0.96);
-      color: #345664;
-      box-shadow: 0 5px 12px rgba(16, 37, 56, 0.12);
+      background: var(--white-96);
+      color: var(--text-strong);
+      box-shadow: 0 5px 12px var(--shadow-control);
       font: inherit;
       font-size: 0.8rem;
       font-weight: 700;
@@ -6086,9 +6187,9 @@ function sharedCss(config) {
     .sigma-controls-toggle:hover,
     .sigma-controls-toggle:focus-visible {
       border-color: var(--accent);
-      background: #eff8fa;
+      background: var(--surface-accent);
       color: var(--accent-strong);
-      outline: 2px solid rgba(14, 123, 129, 0.2);
+      outline: 2px solid var(--accent-outline);
       outline-offset: 2px;
     }
     .graph-expand-help {
@@ -6097,15 +6198,15 @@ function sharedCss(config) {
       right: 10px;
       z-index: 24;
       padding: 5px 8px;
-      border: 1px solid rgba(184, 200, 210, 0.78);
+      border: 1px solid var(--border-medium);
       border-radius: 7px;
-      background: rgba(255, 255, 255, 0.94);
-      color: #5b6773;
+      background: var(--white-94);
+      color: var(--muted-strong);
       font-size: 0.76rem;
       line-height: 1.3;
       white-space: nowrap;
       pointer-events: none;
-      box-shadow: 0 5px 12px rgba(16, 37, 56, 0.12);
+      box-shadow: 0 5px 12px var(--shadow-control);
     }
     .graph-expand-help[hidden] {
       display: none;
@@ -6113,9 +6214,9 @@ function sharedCss(config) {
     .graph-expand-btn:hover,
     .graph-expand-btn:focus-visible {
       border-color: var(--accent);
-      background: #eff8fa;
+      background: var(--surface-accent);
       color: var(--accent-strong);
-      outline: 2px solid rgba(14, 123, 129, 0.2);
+      outline: 2px solid var(--accent-outline);
       outline-offset: 2px;
     }
     .graph-view-panel.graph-panel--expanded,
@@ -6161,7 +6262,7 @@ function sharedCss(config) {
     .sigma-graph-panel:-webkit-full-screen {
       padding: 0;
       overflow: hidden;
-      background: #f7fafb;
+      background: var(--graph-panel);
     }
     .sigma-graph-panel.graph-panel--expanded .sigma-layout,
     .sigma-graph-panel:fullscreen .sigma-layout,
@@ -6213,7 +6314,7 @@ function sharedCss(config) {
       padding: 9px;
       gap: 7px;
       border-radius: 11px;
-      box-shadow: 0 10px 24px rgba(16, 37, 56, 0.14);
+      box-shadow: 0 10px 24px var(--shadow-strong);
       transition: transform 180ms ease, opacity 180ms ease;
     }
     .sigma-graph-panel.graph-panel--expanded.graph-controls-collapsed .sigma-panel,
@@ -6242,8 +6343,8 @@ function sharedCss(config) {
       margin: 0 auto;
       padding: 7px 9px;
       gap: 5px 9px;
-      background: rgba(255, 255, 255, 0.92);
-      box-shadow: 0 5px 14px rgba(16, 37, 56, 0.1);
+      background: var(--white-92);
+      box-shadow: 0 5px 14px var(--shadow);
       pointer-events: auto;
     }
     .sigma-graph-panel.graph-panel--expanded .sigma-graph-hint,
@@ -6260,7 +6361,7 @@ function sharedCss(config) {
       left: 50%;
       margin: 0;
       transform: translateX(-50%);
-      box-shadow: 0 6px 16px rgba(16, 37, 56, 0.13);
+      box-shadow: 0 6px 16px var(--shadow-strong);
     }
     .sigma-graph-panel.graph-panel--expanded .sigma-block-toggle,
     .sigma-graph-panel:fullscreen .sigma-block-toggle,
@@ -6305,10 +6406,10 @@ function sharedCss(config) {
     }
     .sigma-panel,
     .sigma-card {
-      background: #ffffff;
-      border: 1px solid #dce4e8;
+      background: var(--panel);
+      border: 1px solid var(--border-soft);
       border-radius: 12px;
-      box-shadow: 0 7px 20px rgba(16, 37, 56, 0.065);
+      box-shadow: 0 7px 20px var(--shadow-faint);
       padding: 12px;
     }
     .sigma-panel {
@@ -6322,30 +6423,30 @@ function sharedCss(config) {
       max-height: calc(150vh - 200px);
       overflow: auto;
       scrollbar-width: thin;
-      scrollbar-color: #bdcbd2 transparent;
-      background: #f8fafb;
+      scrollbar-color: var(--border-medium) transparent;
+      background: var(--graph-panel);
     }
     .sigma-panel::-webkit-scrollbar { width: 7px; }
     .sigma-panel::-webkit-scrollbar-track { background: transparent; }
     .sigma-panel::-webkit-scrollbar-thumb {
-      background: #bdcbd2;
+      background: var(--border-medium);
       border-radius: 999px;
       border: 2px solid transparent;
       background-clip: padding-box;
     }
     .sigma-block {
       min-width: 0;
-      border: 1px solid #dfe6e9;
+      border: 1px solid var(--border-soft);
       border-radius: 8px;
-      background: #ffffff;
+      background: var(--panel);
       overflow: visible;
     }
     .sigma-block-toggle {
       width: 100%;
       border: 0;
       border-bottom: 1px solid transparent;
-      background: #ffffff;
-      color: #1f2f3f;
+      background: var(--panel);
+      color: var(--text-dark);
       cursor: pointer;
       padding: 9px 10px;
       display: flex;
@@ -6362,15 +6463,15 @@ function sharedCss(config) {
     }
     .sigma-block-toggle::-webkit-details-marker { display: none; }
     .sigma-block-toggle::marker { content: ""; }
-    .sigma-block-toggle:hover { background: #f4f7f8; }
+    .sigma-block-toggle:hover { background: var(--surface-muted); }
     .sigma-block[open] .sigma-block-toggle {
-      border-bottom-color: #e4eaed;
-      background: #f7f9fa;
+      border-bottom-color: var(--border-soft);
+      background: var(--surface-muted);
       border-radius: 7px 7px 0 0;
     }
     .sigma-chevron {
       font-size: 0.9rem;
-      color: #4b6073;
+      color: var(--muted-dark);
       transition: transform 0.15s ease;
       transform: rotate(-90deg);
     }
@@ -6385,7 +6486,7 @@ function sharedCss(config) {
     .sigma-status,
     .sigma-graph-hint {
       margin: 0;
-      color: #5b6773;
+      color: var(--muted-strong);
       font-size: 0.86rem;
       line-height: 1.45;
     }
@@ -6396,7 +6497,7 @@ function sharedCss(config) {
       align-items: center;
       gap: 8px;
       font-size: 0.86rem;
-      color: #2c3946;
+      color: var(--text-dark);
     }
     .sigma-filter-title {
       margin: 4px 0 0;
@@ -6404,7 +6505,7 @@ function sharedCss(config) {
       font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: #5b6b7b;
+      color: var(--muted-dark);
     }
     .sigma-search {
       width: 100%;
@@ -6414,7 +6515,7 @@ function sharedCss(config) {
       padding: 8px 9px;
       font-family: inherit;
       color: var(--ink);
-      background: #ffffff;
+      background: var(--panel);
     }
     .sigma-search-actions {
       display: grid;
@@ -6422,11 +6523,11 @@ function sharedCss(config) {
       gap: 6px;
     }
     .sigma-btn {
-      border: 1px solid #cfdade;
+      border: 1px solid var(--border-medium);
       border-radius: 7px;
       padding: 7px 9px;
       font-weight: 600;
-      background: #ffffff;
+      background: var(--panel);
       color: var(--accent);
       display: inline-flex;
       align-items: center;
@@ -6436,12 +6537,12 @@ function sharedCss(config) {
       font-size: 0.8rem;
       font-family: inherit;
     }
-    .sigma-btn:hover { background: #f2f8fb; }
+    .sigma-btn:hover { background: var(--surface-accent); }
     .sigma-btn--reset {
       grid-column: 1 / -1;
-      background: #176e79;
-      color: #ffffff;
-      border-color: #176e79;
+      background: var(--accent-strong);
+      color: var(--panel);
+      border-color: var(--accent-strong);
       box-shadow: none;
       padding: 8px 10px;
       min-height: 34px;
@@ -6451,7 +6552,7 @@ function sharedCss(config) {
       min-width: 0;
       font-size: 0.84rem;
       line-height: 1.4;
-      color: #2d3c4c;
+      color: var(--text-dark);
       display: grid;
       gap: 8px;
     }
@@ -6463,10 +6564,10 @@ function sharedCss(config) {
       display: grid;
       gap: 5px;
       padding-bottom: 8px;
-      border-bottom: 1px solid #e5ebee;
+      border-bottom: 1px solid var(--border-soft);
     }
     .sigma-detail-heading strong {
-      color: #203642;
+      color: var(--text-dark);
       font-family: var(--mono-font);
       font-size: 0.86rem;
       overflow-wrap: anywhere;
@@ -6475,21 +6576,21 @@ function sharedCss(config) {
       width: fit-content;
       padding: 2px 7px;
       border-radius: 999px;
-      background: #edf3f5;
-      color: #526571;
+      background: var(--surface-alt);
+      color: var(--muted-dark);
       font-size: 0.68rem;
       font-weight: 700;
       letter-spacing: 0.035em;
       text-transform: uppercase;
     }
     .sigma-detail-label {
-      color: #324a57;
+      color: var(--text-strong);
       font-weight: 600;
       overflow-wrap: anywhere;
     }
     .sigma-detail-description {
       margin: 0;
-      color: #5a6973;
+      color: var(--muted-strong);
       font-size: 0.8rem;
       overflow-wrap: anywhere;
     }
@@ -6500,7 +6601,7 @@ function sharedCss(config) {
     .sigma-detail-group-title {
       display: flex;
       justify-content: space-between;
-      color: #4d606b;
+      color: var(--muted-dark);
       font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.035em;
@@ -6518,17 +6619,17 @@ function sharedCss(config) {
       gap: 2px;
       padding: 6px 7px;
       border-radius: 6px;
-      background: #f5f8f9;
+      background: var(--surface-alt);
       overflow-wrap: anywhere;
     }
     .sigma-relation-kind {
-      color: #667781;
+      color: var(--muted-strong);
       font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
     }
     .sigma-detail-empty {
-      color: #829099;
+      color: var(--muted-faint);
       font-style: italic;
     }
     .sigma-detail-metadata {
@@ -6538,7 +6639,7 @@ function sharedCss(config) {
       margin: 0;
     }
     .sigma-detail-metadata dt {
-      color: #73818a;
+      color: var(--muted-faint);
       font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -6550,8 +6651,8 @@ function sharedCss(config) {
     .sigma-detail code,
     .sigma-overview code {
       font-family: var(--mono-font);
-      background: rgba(31, 111, 120, 0.11);
-      color: #16535d;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
       border-radius: 6px;
       padding: 2px 6px;
       word-break: break-word;
@@ -6560,14 +6661,14 @@ function sharedCss(config) {
       display: grid;
       gap: 6px;
       font-size: 0.88rem;
-      color: #2f4458;
+      color: var(--text-strong);
     }
     .sigma-graph-card { display: grid; gap: 10px; align-content: start; }
     .sigma-graph-top { display: grid; gap: 8px; }
     .sigma-legend {
-      border: 1px solid #dbe4e8;
+      border: 1px solid var(--border-soft);
       border-radius: 10px;
-      background: #f7fafb;
+      background: var(--graph-panel);
       padding: 9px 10px;
       display: flex;
       flex-wrap: wrap;
@@ -6577,14 +6678,14 @@ function sharedCss(config) {
     .sigma-legend-title {
       font-family: var(--heading-font);
       font-size: 0.95rem;
-      color: #1f2f3f;
+      color: var(--text-dark);
       margin-right: 3px;
     }
     .sigma-legend-chip {
       display: inline-flex;
       align-items: center;
       font-size: 0.82rem;
-      color: #32485a;
+      color: var(--text-strong);
       white-space: nowrap;
       gap: 5px;
     }
@@ -6592,7 +6693,7 @@ function sharedCss(config) {
       width: 11px;
       height: 11px;
       border-radius: 3px;
-      border: 1px solid #b9c6d2;
+      border: 1px solid var(--border-medium);
       flex: 0 0 auto;
     }
     .sigma-line {
@@ -6609,7 +6710,7 @@ function sharedCss(config) {
       height: calc(100vh - 190px);
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: #fbfdff;
+      background: var(--graph-surface);
       position: relative;
       overflow: hidden;
     }
@@ -6627,17 +6728,17 @@ function sharedCss(config) {
       max-width: 320px;
       font-size: 0.78rem;
       line-height: 1.3;
-      color: #f3f8ff;
-      background: rgba(17, 27, 37, 0.92);
-      border: 1px solid rgba(205, 220, 234, 0.35);
+      color: var(--graph-tooltip-text);
+      background: var(--graph-tooltip-bg);
+      border: 1px solid var(--border-medium);
       border-radius: 8px;
       padding: 6px 8px;
-      box-shadow: 0 8px 20px rgba(8, 16, 22, 0.28);
+      box-shadow: 0 8px 20px var(--shadow-control);
     }
     .sigma-node-tooltip {
       max-width: 290px;
-      background: rgba(11, 34, 45, 0.92);
-      border-color: rgba(186, 220, 230, 0.38);
+      background: var(--graph-tooltip-bg);
+      border-color: var(--border-medium);
     }
     .sigma-tooltip.visible { display: block; }
     .graph-view-note {
@@ -6645,7 +6746,7 @@ function sharedCss(config) {
       padding: 12px 14px;
       border-left: 3px solid var(--accent);
       border-radius: 8px;
-      background: rgba(14, 123, 129, 0.07);
+      background: var(--accent-faint);
     }
     .webvowl-frame {
       display: block;
@@ -6653,7 +6754,7 @@ function sharedCss(config) {
       min-height: 320px;
       border: 1px solid var(--border);
       border-radius: 16px;
-      background: #ffffff;
+      background: var(--panel);
     }
     .graph-shell {
       padding: 12px;
@@ -6663,7 +6764,7 @@ function sharedCss(config) {
       width: 100%;
       min-width: 900px;
       height: auto;
-      background: linear-gradient(180deg, rgba(248, 251, 252, 0.96) 0%, rgba(236, 243, 245, 0.96) 100%);
+      background: linear-gradient(180deg, var(--graph-surface) 0%, var(--surface-alt) 100%);
       border-radius: 16px;
     }
     .legend {
@@ -6702,7 +6803,7 @@ function sharedCss(config) {
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid var(--border);
-      background: #ffffff;
+      background: var(--panel);
       color: var(--ink);
       font: inherit;
     }

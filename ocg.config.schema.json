@@ -223,8 +223,11 @@
             "text": { "type": "string" },
             "mutedText": { "type": "string" },
             "accent": { "type": "string" },
+            "accentStart": { "type": "string" },
+            "accentBorder": { "type": "string" },
             "accentStrong": { "type": "string" },
-            "border": { "type": "string" }
+            "border": { "type": "string" },
+            "warmAccent": { "type": "string" }
           },
           "additionalProperties": true
         }

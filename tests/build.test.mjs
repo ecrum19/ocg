@@ -382,7 +382,10 @@ test("build-site produces the expected publish artifacts for the bundled example
     "graph.custom.label",
     "graph.webvowl.height",
     "graph.colors.broader",
+    "theme.colors.accentStart",
+    "theme.colors.accentBorder",
     "theme.colors.accentStrong",
+    "theme.colors.warmAccent",
     "site.generator.documentationUrl",
     "curation.viewerTabs"
   ]) {
@@ -418,6 +421,52 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.doesNotMatch(npmWorkflow, /actions\/(?:checkout|setup-node)@v[234]\b/);
   assert.match(npmWorkflow, /test "v\$\{PACKAGE_VERSION\}" = "\$\{TAG_NAME\}"/);
   assert.doesNotMatch(npmWorkflow, /NPM_TOKEN/);
+});
+
+test("custom theme colors reach shared pages, ReSpec, and Sigma runtime settings", () => {
+  const configPath = path.join(ROOT, "ocg.config.json");
+  const originalConfigText = fs.readFileSync(configPath, "utf8");
+  const originalConfig = JSON.parse(originalConfigText);
+  const customColors = {
+    pageBackground: "#102027",
+    pageBackgroundAlt: "#1b3440",
+    panelBackground: "#eef7f8",
+    cardBackground: "#ffffff",
+    text: "#102027",
+    mutedText: "#45606b",
+    accent: "#c25d3d",
+    accentStart: "#e08a54",
+    accentBorder: "#a94832",
+    accentStrong: "#7d3328",
+    border: "#caa9a0",
+    warmAccent: "#e6b85c"
+  };
+
+  try {
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify(
+        { ...originalConfig, theme: { ...originalConfig.theme, colors: customColors } },
+        null,
+        2
+      )
+    );
+    execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+
+    const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
+    const graphHtml = fs.readFileSync(path.join(ROOT, "site/ontology-graph.html"), "utf8");
+    const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
+    assert.match(indexHtml, /--accent-start: #e08a54;/);
+    assert.match(indexHtml, /--accent-border: #a94832;/);
+    assert.match(indexHtml, /--warm-accent: #e6b85c;/);
+    assert.match(graphHtml, /const THEME_COLOR = \{"text":"#102027","muted":"#45606b","accentStrong":"#7d3328","panel":"#eef7f8","border":"#caa9a0"\}/);
+    assert.match(graphHtml, /function colorToRgba\(color, alpha\)/);
+    assert.match(specHtml, /--ocg-spec-accent-start: #e08a54;/);
+    assert.match(specHtml, /--ocg-spec-muted-surface:/);
+  } finally {
+    fs.writeFileSync(configPath, originalConfigText);
+    execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+  }
 });
 
 test("build-site accepts the documented primary ontology formats", () => {

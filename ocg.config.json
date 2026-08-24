@@ -119,8 +119,11 @@
       "text": "#1d1f22",
       "mutedText": "#5f6b7a",
       "accent": "#1f6f78",
+      "accentStart": "#248992",
+      "accentBorder": "#1c7d86",
       "accentStrong": "#13535a",
-      "border": "#d6dee6"
+      "border": "#d6dee6",
+      "warmAccent": "#e1ab4e"
     }
   },
   "site": {

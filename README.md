@@ -86,6 +86,33 @@ Use `site.branding` to replace the abbreviation square in the upper-left header 
 
 `headerImage` accepts `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, or `.svg`; it replaces `project.shortName` in the square header mark, including the ReSpec page. `favicon` accepts `.ico`, `.png`, or `.svg`. Leave either value empty to retain the default text mark or existing `source/branding/favicon.png` and `favicon.ico` fallback.
 
+### Theme Colors
+
+Set `theme.colors` to restyle the generated page shell, panels, controls, tables, contextual TOCs, graph UI, and ReSpec navigation. The three accent variants control gradients, borders, and warm background details; the remaining tokens are the primary palette inputs used to derive shared surface and shadow colors.
+
+```json
+{
+  "theme": {
+    "colors": {
+      "pageBackground": "#f6f1ea",
+      "pageBackgroundAlt": "#edf3f7",
+      "panelBackground": "#ffffff",
+      "cardBackground": "#ffffff",
+      "text": "#1d1f22",
+      "mutedText": "#5f6b7a",
+      "accent": "#1f6f78",
+      "accentStart": "#248992",
+      "accentBorder": "#1c7d86",
+      "accentStrong": "#13535a",
+      "border": "#d6dee6",
+      "warmAccent": "#e1ab4e"
+    }
+  }
+}
+```
+
+Use CSS color values, preferably hex or `rgb(...)` values so translucent graph highlights can be derived reliably. Graph node and relationship semantic colors remain separately configurable under `graph.colors`.
+
 Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
 
 - [Package and CLI](https://ecrum19.github.io/ocg/usage-guide.html#package-cli)
