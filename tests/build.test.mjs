@@ -124,7 +124,11 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(termHtml, /href="#outgoing-relationships">Outgoing Relationships/);
   assert.match(termHtml, /href="#incoming-relationships">Incoming Relationships/);
   const termsIndexHtml = fs.readFileSync(path.join(ROOT, "site/terms/index.html"), "utf8");
-  assert.doesNotMatch(termsIndexHtml, /<aside class="page-toc"/);
+  assert.match(termsIndexHtml, /<aside class="page-toc" aria-label="On this page">/);
+  assert.match(termsIndexHtml, /href="#terms-index">Overview/);
+  assert.match(termsIndexHtml, /href="#terms-class">Classes/);
+  assert.match(termsIndexHtml, /id="terms-objectProperty"/);
+  assert.match(termsIndexHtml, /\.page-toc\.is-collapsed \{\s*width: 44px;\s*height: 44px;/);
 
   const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
   const navOrder = [

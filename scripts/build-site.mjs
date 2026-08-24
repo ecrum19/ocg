@@ -2450,7 +2450,7 @@ function buildGuidePage(context) {
         ["theme.colors.accent", "Primary link and accent color."],
         ["theme.colors.accentStrong", "Strong accent color for active and emphasized controls."],
         ["theme.colors.border", "Shared border color."],
-        ["site.toc.enabled", "Set to false to remove the contextual table of contents from Home, Reference, and term-detail pages."],
+        ["site.toc.enabled", "Set to false to remove the contextual table of contents from Home, Reference, Terms, and term-detail pages."],
         ["site.toc.title", "Heading for the contextual table of contents. It is shown only when a page has multiple sections."],
         ["site.toc.collapseLabel", "Accessible label and tooltip for the control that collapses the TOC rail and expands the page content."],
         ["site.toc.expandLabel", "Accessible label and tooltip for the control that restores the expanded TOC rail."],
@@ -4312,18 +4312,45 @@ function buildSigmaGraphScript(config) {
 
 function buildTermsIndexPage(context, declaredNodes) {
   const { config } = context;
-  const rows = declaredNodes
-    .map(
-      (node) => `
+  const rowsFor = (nodes) => nodes
+    .map((node) => `
         <tr>
           <td><a href="${encodeURIComponent(node.localName)}.html"><code>${escapeHtml(node.qname)}</code></a></td>
           <td>${escapeHtml(TERM_TYPE_INFO[node.termType].label)}</td>
           <td>${escapeHtml(node.label)}</td>
           <td>${escapeHtml(node.comment || "-")}</td>
         </tr>
-      `
-    )
+      `)
     .join("");
+  const typeSections = TERM_TYPE_ORDER
+    .filter((type) => type !== "external")
+    .map((type) => ({ type, nodes: declaredNodes.filter((node) => node.termType === type) }))
+    .filter(({ nodes }) => nodes.length)
+    .map(({ type, nodes }) => ({
+      id: `terms-${type}`,
+      label: pluralTermTypeLabel(type),
+      content: `
+        <section id="terms-${type}" class="section">
+          <div class="section-head">
+            <h2>${escapeHtml(pluralTermTypeLabel(type))}</h2>
+            <p class="section-note">${nodes.length} declared ${escapeHtml(pluralTermTypeLabel(type).toLowerCase())} in the configured ontology.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Term</th>
+                  <th>Type</th>
+                  <th>Label</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>${rowsFor(nodes)}</tbody>
+            </table>
+          </div>
+        </section>
+      `
+    }));
 
   return renderPage({
     config,
@@ -4331,6 +4358,10 @@ function buildTermsIndexPage(context, declaredNodes) {
     description: `Per-term pages for ${config.project.title}.`,
     currentNav: "terms",
     pathPrefix: "../",
+    pageToc: [
+      { id: "terms-index", label: "Overview" },
+      ...typeSections.map(({ id, label }) => ({ id, label }))
+    ],
     content: `
       <section id="terms-index" class="section">
         <div class="section-head">
@@ -4340,20 +4371,8 @@ function buildTermsIndexPage(context, declaredNodes) {
           </div>
           <p class="section-note">Every declared ontology term gets its own generated HTML page when <code>features.termPages</code> is enabled.</p>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Term</th>
-                <th>Type</th>
-                <th>Label</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
       </section>
+      ${typeSections.map(({ content }) => content).join("")}
     `
   });
 }
@@ -4517,17 +4536,28 @@ function buildPageToc(config, items = []) {
         const pageToc = document.querySelector(".page-toc");
         const pageTocToggle = pageToc?.querySelector("[data-page-toc-toggle]");
         const pageLayout = pageToc?.closest(".page-content-layout");
-        if (!pageTocToggle || !pageLayout) return;
+        const pageTocPanel = pageToc?.querySelector(".page-toc-panel");
+        if (!pageTocToggle || !pageLayout || !pageTocPanel) return;
 
         const collapseLabel = ${JSON.stringify(config.site.toc.collapseLabel)};
         const expandLabel = ${JSON.stringify(config.site.toc.expandLabel)};
         function setPageTocCollapsed(collapsed) {
+          if (collapsed) {
+            pageToc.style.setProperty("--page-toc-expanded-height", Math.ceil(pageTocPanel.getBoundingClientRect().height) + "px");
+            void pageToc.offsetHeight;
+          }
           pageToc.classList.toggle("is-collapsed", collapsed);
           pageLayout.classList.toggle("page-content-layout--toc-collapsed", collapsed);
           pageTocToggle.setAttribute("aria-expanded", String(!collapsed));
           pageTocToggle.setAttribute("aria-label", collapsed ? expandLabel : collapseLabel);
           pageTocToggle.title = collapsed ? expandLabel : collapseLabel;
         }
+
+        pageToc.addEventListener("transitionend", (event) => {
+          if (event.target === pageToc && event.propertyName === "height" && !pageToc.classList.contains("is-collapsed")) {
+            pageToc.style.removeProperty("--page-toc-expanded-height");
+          }
+        });
 
         pageTocToggle.addEventListener("click", () => {
           setPageTocCollapsed(!pageToc.classList.contains("is-collapsed"));
@@ -4696,8 +4726,9 @@ function sharedCss(config) {
       top: 22px;
       align-self: start;
       width: 100%;
+      height: var(--page-toc-expanded-height, auto);
       overflow: hidden;
-      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
+      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), height 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-toc-panel {
       --page-toc-panel-width: 214px;
@@ -4773,6 +4804,7 @@ function sharedCss(config) {
     }
     .page-toc.is-collapsed {
       width: 44px;
+      height: 44px;
     }
     .page-toc.is-collapsed .page-toc-panel {
       background: rgba(255, 255, 255, 0.72);

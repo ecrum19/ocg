@@ -149,7 +149,7 @@ Use `site.home.metadata` to rename the canonical-IRI, version, and maintainer la
 
 ### Page Navigation
 
-OCG adds a compact table of contents to Home, Reference, and individual term pages when they contain multiple sections. It remains a sticky side rail on wide displays; its icon control collapses the rail horizontally and expands the page content. On narrower screens it becomes an inline panel. The graph, Usage Guide, ReSpec source page, and single-section indexes are intentionally excluded to avoid duplicate or distracting controls.
+OCG adds a compact table of contents to Home, Reference, Terms, and individual term pages when they contain multiple sections. It remains a sticky side rail on wide displays; its icon control contracts it to a compact square and expands the page content. On narrower screens it becomes an inline panel. The graph, Usage Guide, and ReSpec source page are intentionally excluded to avoid duplicate or distracting controls.
 
 ```json
 {
