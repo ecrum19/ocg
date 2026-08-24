@@ -134,6 +134,10 @@
       "title": "Published Artifacts",
       "body": "Every linked artifact below is derived from the configured source package and exposed through a static site that can be deployed directly with GitHub Actions."
     },
+    "toc": {
+      "enabled": true,
+      "title": "On this page"
+    },
     "home": {
       "actions": {
         "reference": "Vocabulary Reference",

@@ -180,6 +180,10 @@ const DEFAULT_SITE = {
     title: "Published Artifacts",
     body: "Generated outputs for the configured ontology package."
   },
+  toc: {
+    enabled: true,
+    title: "On this page"
+  },
   home: {
     actions: {
       reference: "Vocabulary Reference",
@@ -360,6 +364,7 @@ function loadConfig(configPath) {
       ...(raw.site || {}),
       hero: { ...DEFAULT_SITE.hero, ...(raw.site?.hero || {}) },
       resourcePanel: { ...DEFAULT_SITE.resourcePanel, ...(raw.site?.resourcePanel || {}) },
+      toc: { ...DEFAULT_SITE.toc, ...(raw.site?.toc || {}) },
       home: {
         ...DEFAULT_SITE.home,
         ...(raw.site?.home || {}),
@@ -2024,6 +2029,10 @@ function buildGuidePage(context) {
         title: "Published Artifacts",
         body: "A short explanation shown above the artifact links."
       },
+      toc: {
+        enabled: true,
+        title: "On this page"
+      },
       home: {
         actions: {
           reference: "Reference",
@@ -2358,8 +2367,8 @@ function buildGuidePage(context) {
     {
       id: "branding",
       badge: "Shared Styling",
-      title: "Theme, Footer, and Generator Links",
-      description: "Applies site-wide fonts, colors, footer copy, and OCG attribution links.",
+      title: "Theme, Page Navigation, Footer, and Generator Links",
+      description: "Applies site-wide fonts, colors, page table-of-contents behavior, footer copy, and OCG attribution links.",
       options: [
         ["site.basePath", "Deployment base-path setting retained for repository configuration; generated links are currently relative."],
         ["theme.fonts.heading", "Font family for headings and brand text."],
@@ -2374,6 +2383,8 @@ function buildGuidePage(context) {
         ["theme.colors.accent", "Primary link and accent color."],
         ["theme.colors.accentStrong", "Strong accent color for active and emphasized controls."],
         ["theme.colors.border", "Shared border color."],
+        ["site.toc.enabled", "Set to false to remove the contextual table of contents from Home, Reference, and term-detail pages."],
+        ["site.toc.title", "Heading for the contextual table of contents. It is collapsible and is shown only when a page has multiple sections."],
         ["site.footer.primary", "Primary footer sentence."],
         ["site.footer.secondary", "Secondary footer sentence."],
         ["site.generator.repositoryUrl", "Optional link to the OCG repository in the generated footer."],
@@ -2382,6 +2393,7 @@ function buildGuidePage(context) {
       example: {
         site: {
           basePath: configExample.site.basePath,
+          toc: configExample.site.toc,
           footer: configExample.site.footer,
           generator: configExample.site.generator
         },
@@ -2670,8 +2682,8 @@ function buildIndexPage(context) {
 
   const customSections = (config.site.customSections || [])
     .map(
-      (section) => `
-        <section class="section">
+      (section, index) => `
+        <section id="custom-section-${index + 1}" class="section">
           <div class="section-head">
             <h2>${escapeHtml(section.title)}</h2>
             ${section.body ? `<p class="section-note">${escapeHtml(section.body)}</p>` : ""}
@@ -2687,6 +2699,20 @@ function buildIndexPage(context) {
     .join("");
 
   const viewerSection = config.features.rawViewer ? buildRawViewerSection(context) : "";
+  const hasOverviewCards = Boolean(config.features.overviewCards && overviewCards);
+  const hasExamples = Boolean(exampleCards);
+  const hasViewerSection = Boolean(viewerSection.trim());
+  const pageToc = [
+    { id: "ontology-snapshot", label: home.snapshot.title },
+    ...(hasOverviewCards ? [{ id: "repository-workflow", label: home.overview.title }] : []),
+    { id: "featured-terms", label: home.featuredTerms.title },
+    ...(hasExamples ? [{ id: "examples", label: home.examples.title }] : []),
+    ...(hasViewerSection ? [{ id: "artifact-viewer", label: home.viewer.title }] : []),
+    ...(config.site.customSections || []).map((section, index) => ({
+      id: `custom-section-${index + 1}`,
+      label: section.title
+    }))
+  ];
 
   const content = `
     <section class="hero">
@@ -2730,7 +2756,7 @@ function buildIndexPage(context) {
       </aside>
     </section>
 
-    <section class="section">
+    <section id="ontology-snapshot" class="section">
       <div class="section-head">
         <div class="section-heading-row">
           <h2>${escapeHtml(home.snapshot.title)}</h2>
@@ -2742,9 +2768,9 @@ function buildIndexPage(context) {
     </section>
 
     ${
-      config.features.overviewCards && overviewCards
+      hasOverviewCards
         ? `
-          <section class="section">
+          <section id="repository-workflow" class="section section--overview">
             <div class="section-head">
               <h2>${escapeHtml(home.overview.title)}</h2>
               <p class="section-note">${escapeHtml(home.overview.body)}</p>
@@ -2755,7 +2781,7 @@ function buildIndexPage(context) {
         : ""
     }
 
-    <section class="section">
+    <section id="featured-terms" class="section">
       <div class="section-head">
         <h2>${escapeHtml(home.featuredTerms.title)}</h2>
         <p class="section-note">${escapeHtml(home.featuredTerms.body)}</p>
@@ -2764,9 +2790,9 @@ function buildIndexPage(context) {
     </section>
 
     ${
-      exampleCards
+      hasExamples
         ? `
-          <section class="section">
+          <section id="examples" class="section">
             <div class="section-head">
               <h2>${escapeHtml(home.examples.title)}</h2>
               <p class="section-note">${escapeHtml(home.examples.body)}</p>
@@ -2809,6 +2835,7 @@ function buildIndexPage(context) {
     bodyClass: "page-home",
     currentNav: "home",
     pathPrefix: "",
+    pageToc,
     content
   });
 }
@@ -2840,7 +2867,7 @@ function buildRawViewerSection(context) {
     .join("");
 
   return `
-    <section class="section">
+    <section id="artifact-viewer" class="section">
       <div class="section-head">
         <div class="section-heading-row">
           <h2>${escapeHtml(viewerCopy.title)}</h2>
@@ -2905,12 +2932,11 @@ function buildRawViewerSection(context) {
 function buildReferencePage(context) {
   const { config, ontologyInfo } = context;
   const declaredNodes = ontologyInfo.nodes.filter((node) => !node.isExternal);
-  const sections = ["class", "objectProperty", "datatypeProperty", "annotationProperty", "concept", "declaredTerm"]
-    .map((type) => {
-      const nodes = declaredNodes.filter((node) => node.termType === type);
-      if (!nodes.length) {
-        return "";
-      }
+  const sectionDefinitions = ["class", "objectProperty", "datatypeProperty", "annotationProperty", "concept", "declaredTerm"]
+    .map((type) => ({ type, nodes: declaredNodes.filter((node) => node.termType === type) }))
+    .filter(({ nodes }) => nodes.length);
+  const sections = sectionDefinitions
+    .map(({ type, nodes }) => {
 
       const rows = nodes
         .map((node) => {
@@ -2927,7 +2953,7 @@ function buildReferencePage(context) {
         .join("");
 
       return `
-        <section class="section">
+        <section id="reference-${type}" class="section">
           <div class="section-head">
             <h2>${escapeHtml(pluralTermTypeLabel(type))}</h2>
             <p class="section-note">Declared ontology terms extracted from the configured primary source file.</p>
@@ -2949,6 +2975,12 @@ function buildReferencePage(context) {
       `;
     })
     .join("");
+  const hierarchySection = buildReferenceHierarchy(context);
+  const pageToc = [
+    { id: "reference-overview", label: "Overview" },
+    ...(hierarchySection.trim() ? [{ id: "ontology-hierarchy", label: config.hierarchy.title }] : []),
+    ...sectionDefinitions.map(({ type }) => ({ id: `reference-${type}`, label: pluralTermTypeLabel(type) }))
+  ];
 
   return renderPage({
     config,
@@ -2956,8 +2988,9 @@ function buildReferencePage(context) {
     description: `Reference documentation for ${config.project.title}.`,
     currentNav: "reference",
     pathPrefix: "",
+    pageToc,
     content: `
-      <section class="section">
+      <section id="reference-overview" class="section">
         <div class="section-head">
           <div class="section-heading-row">
             <h1>Vocabulary Reference</h1>
@@ -2966,7 +2999,7 @@ function buildReferencePage(context) {
           <p class="section-note">This page is generated from the configured ontology file and links through to per-term pages when that feature is enabled.</p>
         </div>
       </section>
-      ${buildReferenceHierarchy(context)}
+      ${hierarchySection}
       ${sections}
     `
   });
@@ -4229,7 +4262,7 @@ function buildTermsIndexPage(context, declaredNodes) {
     currentNav: "terms",
     pathPrefix: "../",
     content: `
-      <section class="section">
+      <section id="terms-index" class="section">
         <div class="section-head">
           <div class="section-heading-row">
             <h1>Term Pages</h1>
@@ -4295,8 +4328,13 @@ function buildTermPage(context, node) {
     description: node.comment || node.label,
     currentNav: "terms",
     pathPrefix: "../",
+    pageToc: [
+      { id: "term-overview", label: node.qname },
+      { id: "outgoing-relationships", label: "Outgoing Relationships" },
+      { id: "incoming-relationships", label: "Incoming Relationships" }
+    ],
     content: `
-      <section class="section">
+      <section id="term-overview" class="section">
         <div class="section-head">
           <div class="eyebrow">${escapeHtml(TERM_TYPE_INFO[node.termType].badge)}</div>
           <div class="section-heading-row">
@@ -4335,7 +4373,7 @@ function buildTermPage(context, node) {
         </dl>
       </section>
 
-      <section class="section">
+      <section id="outgoing-relationships" class="section">
         <div class="section-head">
           <h2>Outgoing Relationships</h2>
           <p class="section-note">Edges emitted from this term while building the graph and reference views.</p>
@@ -4354,7 +4392,7 @@ function buildTermPage(context, node) {
         </div>
       </section>
 
-      <section class="section">
+      <section id="incoming-relationships" class="section">
         <div class="section-head">
           <h2>Incoming Relationships</h2>
           <p class="section-note">Terms that point at this term in the generated relationship graph.</p>
@@ -4376,8 +4414,40 @@ function buildTermPage(context, node) {
   });
 }
 
-function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "" }) {
+function buildPageToc(config, items = []) {
+  const tocItems = items.filter((item) => item?.id && item?.label);
+  if (!config.site.toc.enabled || tocItems.length < 2) {
+    return "";
+  }
+
+  const title = escapeHtml(config.site.toc.title);
+  return `
+    <aside class="page-toc" aria-label="${title}">
+      <details open>
+        <summary>
+          <span>${title}</span>
+          <span class="page-toc-chevron" aria-hidden="true"></span>
+        </summary>
+        <nav aria-label="${title}">
+          <ol>
+            ${tocItems
+              .map(
+                (item) => `<li><a href="#${escapeHtml(item.id)}">${escapeHtml(item.label)}</a></li>`
+              )
+              .join("")}
+          </ol>
+        </nav>
+      </details>
+    </aside>`;
+}
+
+function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [] }) {
   const nav = buildNav(config, currentNav, pathPrefix);
+  const pageTocMarkup = buildPageToc(config, pageToc);
+  const pageBodyClass = [bodyClass, pageTocMarkup ? "page-has-toc" : ""].filter(Boolean).join(" ");
+  const mainContent = pageTocMarkup
+    ? `<div class="page-content-layout">${pageTocMarkup}<div class="page-content">${content}</div></div>`
+    : content;
   const customFooter = [config.site.footer.primary, config.site.footer.secondary]
     .filter(Boolean)
     .map((copy) => `<div>${escapeHtml(copy)}</div>`)
@@ -4396,7 +4466,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />
   <style>${sharedCss(config)}</style>
 </head>
-<body class="${escapeHtml(bodyClass)}">
+<body class="${escapeHtml(pageBodyClass)}">
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="${pathPrefix}index.html">
@@ -4408,7 +4478,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
       </a>
       <nav class="site-nav">${nav}</nav>
     </header>
-    <main>${content}</main>
+    <main>${mainContent}</main>
     ${customFooter ? `<footer class="site-footer">${customFooter}</footer>` : ""}
     <footer class="site-footer-generator">
       ${generatorAttribution(config, pathPrefix)}
@@ -4510,12 +4580,112 @@ function sharedCss(config) {
       margin: 0 auto;
       padding: 48px 0 80px;
     }
+    .page-has-toc .page-shell {
+      width: min(1320px, 95vw);
+    }
+    .page-content-layout {
+      display: grid;
+      grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
+      align-items: start;
+      gap: 22px;
+    }
+    .page-content {
+      min-width: 0;
+    }
+    .page-toc {
+      position: sticky;
+      top: 22px;
+      align-self: start;
+    }
+    .page-toc details {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.84);
+      box-shadow: 0 12px 28px rgba(16, 37, 56, 0.07);
+      backdrop-filter: blur(10px);
+    }
+    .page-toc summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      padding: 10px 12px;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: var(--heading-font);
+      font-size: 0.86rem;
+      font-weight: 700;
+      list-style: none;
+    }
+    .page-toc summary::-webkit-details-marker {
+      display: none;
+    }
+    .page-toc-chevron {
+      position: relative;
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
+      border: 1px solid #d7e0e3;
+      border-radius: 6px;
+      background: #f1f4f5;
+    }
+    .page-toc-chevron::before {
+      content: "";
+      position: absolute;
+      top: 6px;
+      left: 5px;
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid #5e6d75;
+      border-bottom: 1.5px solid #5e6d75;
+      transform: rotate(45deg);
+      transition: transform 0.16s ease;
+    }
+    .page-toc details[open] .page-toc-chevron::before {
+      top: 8px;
+      transform: rotate(225deg);
+    }
+    .page-toc nav {
+      border-top: 1px solid #e1e8ea;
+      padding: 8px;
+    }
+    .page-toc ol {
+      display: grid;
+      gap: 2px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .page-toc a {
+      display: block;
+      padding: 7px 8px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+      transition: background-color 0.16s ease, color 0.16s ease;
+    }
+    .page-toc a:hover,
+    .page-toc a:focus-visible {
+      background: rgba(31, 111, 120, 0.09);
+      color: var(--accent-strong);
+      text-decoration: none;
+      outline: none;
+    }
+    section[id] {
+      scroll-margin-top: 22px;
+    }
     .page-graph .page-shell {
       width: min(1450px, 95vw);
       padding: 24px 0 46px;
     }
     .site-header {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       gap: 16px;
       align-items: center;
@@ -4531,13 +4701,18 @@ function sharedCss(config) {
       display: flex;
       align-items: center;
       gap: 14px;
+      flex: 1 1 360px;
+      max-width: 100%;
       min-width: 0;
     }
     .brand-mark {
-      width: 48px;
+      width: auto;
+      min-width: 48px;
+      max-width: min(40vw, 320px);
       height: 48px;
       display: grid;
       place-items: center;
+      padding: 0 10px;
       border-radius: 14px;
       background: linear-gradient(140deg, #248992 0%, var(--accent) 100%);
       color: #ffffff;
@@ -4545,12 +4720,23 @@ function sharedCss(config) {
       font-size: 1rem;
       font-weight: 700;
       letter-spacing: 0.04em;
+      line-height: 1.1;
+      overflow-wrap: anywhere;
+      text-align: center;
       flex: 0 0 auto;
     }
     .brand-copy {
       display: grid;
+      flex: 1 1 auto;
       gap: 3px;
       min-width: 0;
+    }
+    .brand-copy strong,
+    .brand-copy span {
+      display: block;
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .brand-copy strong {
       font-family: var(--heading-font);
@@ -4559,13 +4745,14 @@ function sharedCss(config) {
     .brand-copy span {
       color: var(--muted);
       font-size: 0.86rem;
-      overflow-wrap: anywhere;
     }
     .site-nav {
       display: flex;
+      flex: 0 1 auto;
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 10px;
+      min-width: 0;
     }
     .nav-link {
       padding: 8px 11px;
@@ -4671,8 +4858,9 @@ function sharedCss(config) {
       gap: 11px;
     }
     .page-home .brand-mark {
-      width: 42px;
+      min-width: 42px;
       height: 42px;
+      padding: 0 9px;
       border-radius: 12px;
       font-size: 0.9rem;
     }
@@ -4795,6 +4983,26 @@ function sharedCss(config) {
     .page-home .metrics-grid {
       grid-template-columns: repeat(var(--metric-count, 1), minmax(0, 1fr));
       gap: 10px;
+    }
+    .page-home .section--overview .section-note {
+      max-width: none;
+    }
+    .page-home .section--overview .card {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 0;
+    }
+    .page-home .section--overview .card h3,
+    .page-home .section--overview .card p,
+    .page-home .section--overview .card-link {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .page-home .section--overview .card-link {
+      margin-top: auto;
+      padding-top: 12px;
     }
     .page-home .metric-card {
       padding: 13px;
@@ -6347,6 +6555,18 @@ function sharedCss(config) {
       border-radius: 5px;
       object-fit: contain;
     }
+    @media (max-width: 1040px) {
+      .page-has-toc .page-shell {
+        width: min(1120px, 92vw);
+      }
+      .page-content-layout {
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      .page-toc {
+        position: static;
+      }
+    }
     @media (max-width: 860px) {
       .site-header,
       .hero,
@@ -6355,6 +6575,10 @@ function sharedCss(config) {
       }
       .site-header {
         align-items: flex-start;
+      }
+      .site-nav {
+        width: 100%;
+        justify-content: flex-start;
       }
       .meta-grid {
         grid-template-columns: 1fr;

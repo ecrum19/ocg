@@ -134,6 +134,10 @@ const DEFAULT_CONFIG = {
       title: "Published Artifacts",
       body: "Generated outputs from the configured ontology source package."
     },
+    toc: {
+      enabled: true,
+      title: "On this page"
+    },
     home: {
       actions: {
         reference: "Vocabulary Reference",

@@ -252,6 +252,14 @@
           },
           "additionalProperties": false
         },
+        "toc": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "title": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "home": {
           "type": "object",
           "properties": {

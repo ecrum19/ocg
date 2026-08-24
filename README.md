@@ -130,6 +130,23 @@ All editorial home-page copy and labels are configured in `site`. Use `site.hero
 
 Use `site.home.metadata` to rename the canonical-IRI, version, and maintainer labels and the namespace-copy messages. Use `site.home.artifacts` to change fallback labels and descriptions for the ontology, SHACL, ShEx, and specification source assets. Labels and descriptions supplied directly in `sources.examples` and `sources.artifacts` take precedence for those individual files.
 
+### Page Navigation
+
+OCG adds a compact, collapsible table of contents to Home, Reference, and individual term pages when they contain multiple sections. It remains a sticky side rail on wide displays and becomes an inline panel on narrower screens. The graph, Usage Guide, ReSpec source page, and single-section indexes are intentionally excluded to avoid duplicate or distracting controls.
+
+```json
+{
+  "site": {
+    "toc": {
+      "enabled": true,
+      "title": "On this page"
+    }
+  }
+}
+```
+
+Set `site.toc.enabled` to `false` to remove these page-level tables of contents.
+
 ### Optional Ontology Hierarchy
 
 Set `features.hierarchyOverview` to `true` to add a curated ontology-structure overview above the `Classes` section on the Reference page. OCG derives it from `subClassOf` and/or `broader` relationships; it does not display the entire ontology. Use the `hierarchy` block to choose term types, roots, depth, branch limits, leaf/external-term visibility, and a capped list of important domain/range links. The default package config leaves this feature off because the useful scope varies by ontology; the bundled example enables it.

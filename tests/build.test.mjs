@@ -86,6 +86,17 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /<h2>Repository Workflow<\/h2>/);
   assert.match(indexHtml, /These cards come directly from ocg\.config\.json/);
   assert.match(indexHtml, /<h2>Artifact Viewer<\/h2>/);
+  assert.match(indexHtml, /class="section section--overview"/);
+  assert.match(indexHtml, /\.page-home \.section--overview \.section-note \{\s*max-width: none;/);
+  assert.match(indexHtml, /\.page-home \.section--overview \.card p,[\s\S]*?overflow-wrap: anywhere;/);
+  assert.match(indexHtml, /\.site-header \{[\s\S]*?flex-wrap: wrap;/);
+  assert.match(indexHtml, /\.brand \{[\s\S]*?flex: 1 1 360px;/);
+  assert.match(indexHtml, /\.brand-copy strong,[\s\S]*?word-break: break-word;/);
+  assert.match(indexHtml, /<aside class="page-toc" aria-label="On this page">/);
+  assert.match(indexHtml, /href="#ontology-snapshot">Ontology Snapshot/);
+  assert.match(indexHtml, /href="#repository-workflow">Repository Workflow/);
+  assert.match(indexHtml, /href="#featured-terms">Featured Terms/);
+  assert.match(indexHtml, /class="page-content-layout"/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
   assert.match(referenceHtml, /id="ontology-hierarchy"/);
@@ -97,6 +108,17 @@ test("build-site produces the expected publish artifacts for the bundled example
     assert.match(referenceHtml, new RegExp(`<h2>${heading}<\\/h2>`));
   }
   assert.doesNotMatch(referenceHtml, /Classs|Propertys/);
+  assert.match(referenceHtml, /href="#reference-overview">Overview/);
+  assert.match(referenceHtml, /href="#ontology-hierarchy">Ontology Structure/);
+  assert.match(referenceHtml, /href="#reference-class">Classes/);
+  assert.match(referenceHtml, /id="reference-objectProperty"/);
+
+  const termHtml = fs.readFileSync(path.join(ROOT, "site/terms/Capability.html"), "utf8");
+  assert.match(termHtml, /href="#term-overview">ecv:Capability/);
+  assert.match(termHtml, /href="#outgoing-relationships">Outgoing Relationships/);
+  assert.match(termHtml, /href="#incoming-relationships">Incoming Relationships/);
+  const termsIndexHtml = fs.readFileSync(path.join(ROOT, "site/terms/index.html"), "utf8");
+  assert.doesNotMatch(termsIndexHtml, /<aside class="page-toc"/);
 
   const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
   const navOrder = [
@@ -264,6 +286,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(graphHtml, /class=\\"sigma-detail-metadata\\"/);
   assert.match(graphHtml, /\.graph-expand-btn--icon svg\[hidden\]/);
   assert.match(graphHtml, /href="usage-guide\.html#graph">How To</);
+  assert.doesNotMatch(graphHtml, /<aside class="page-toc"/);
 
   const specHtml = fs.readFileSync(path.join(ROOT, "site/spec/index.html"), "utf8");
   assert.match(specHtml, /Tools\/respec\/respec-w3c/);
@@ -302,7 +325,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-0"/);
   assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-1"/);
   assert.match(guideHtml, /href="#graph">.*Ontology Graph/);
-  assert.match(guideHtml, /href="#branding">.*Theme, Footer, and Generator Links/);
+  assert.match(guideHtml, /href="#branding">.*Theme, Page Navigation, Footer, and Generator Links/);
   assert.match(guideHtml, /id="components"/);
   assert.match(guideHtml, /id="configuration"/);
   for (const componentId of [
@@ -338,6 +361,8 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site.home.examples.linkText",
     "site.home.viewer.viewFileText",
     "site.home.artifacts",
+    "site.toc.enabled",
+    "site.toc.title",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
     "graph.custom.label",
@@ -515,6 +540,8 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(config.site.home.overview.title, "Repository Workflow");
     assert.equal(config.site.home.viewer.title, "Artifact Viewer");
     assert.equal(config.site.home.artifacts.ontologyLabel, "OWL Ontology");
+    assert.equal(config.site.toc.enabled, true);
+    assert.equal(config.site.toc.title, "On this page");
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
     const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
@@ -575,10 +602,13 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
         ontologyDescription: "Published primary vocabulary file."
       }
     };
+    config.project.title = "Example Capability Vocabulary for Distributed Research Infrastructure and Interoperable Services";
+    config.project.shortName = "Example Capability Vocabulary";
+    config.site.toc = { enabled: true, title: "Page map" };
     config.site.overviewCards = [
       {
         title: "Start Here",
-        body: "Read the project guidance before using the vocabulary."
+        body: "Read the project guidance before using the vocabulary. This deliberately long card description confirms that editorial content can wrap naturally across multiple lines without being clipped by its container."
       }
     ];
     config.sources.artifacts = [
@@ -599,9 +629,12 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.match(artifactIndexHtml, /Counts derived from this vocabulary source\./);
     assert.match(artifactIndexHtml, /<h2>Using This Vocabulary<\/h2>/);
     assert.match(artifactIndexHtml, /Project-specific onboarding guidance\./);
+    assert.match(artifactIndexHtml, /Example Capability Vocabulary for Distributed Research Infrastructure and Interoperable Services/);
+    assert.match(artifactIndexHtml, /This deliberately long card description confirms that editorial content can wrap naturally/);
     assert.match(artifactIndexHtml, /<h2>Key Terms<\/h2>/);
     assert.match(artifactIndexHtml, /<h2>Source Viewer<\/h2>/);
     assert.match(artifactIndexHtml, />View Source</);
+    assert.match(artifactIndexHtml, /<aside class="page-toc" aria-label="Page map">/);
     assert.doesNotMatch(artifactIndexHtml, /<h2>Repository Workflow<\/h2>/);
     assert.doesNotMatch(artifactIndexHtml, /These cards come directly from ocg\.config\.json/);
     assert.match(artifactIndexHtml, /data-label="Vocabulary Source"/);
