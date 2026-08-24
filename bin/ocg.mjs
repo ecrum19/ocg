@@ -125,6 +125,10 @@ const DEFAULT_CONFIG = {
   },
   site: {
     basePath: "/",
+    branding: {
+      headerImage: "",
+      favicon: ""
+    },
     hero: {
       kicker: "Ontology Companion",
       headline: "A companion site for your ontology.",
@@ -415,12 +419,17 @@ function serveSite(args) {
       }
       const contentTypes = {
         ".css": "text/css; charset=utf-8",
+        ".gif": "image/gif",
         ".html": "text/html; charset=utf-8",
         ".ico": "image/x-icon",
+        ".jpeg": "image/jpeg",
         ".js": "text/javascript; charset=utf-8",
+        ".jpg": "image/jpeg",
         ".json": "application/json; charset=utf-8",
         ".png": "image/png",
-        ".ttl": "text/turtle; charset=utf-8"
+        ".svg": "image/svg+xml",
+        ".ttl": "text/turtle; charset=utf-8",
+        ".webp": "image/webp"
       };
       response.writeHead(200, { "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream" });
       fs.createReadStream(filePath).pipe(response);

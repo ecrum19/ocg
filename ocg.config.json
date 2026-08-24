@@ -125,6 +125,10 @@
   },
   "site": {
     "basePath": "/",
+    "branding": {
+      "headerImage": "",
+      "favicon": ""
+    },
     "hero": {
       "kicker": "Config-First Ontology Companion",
       "headline": "A config-first companion site for your ontology.",

@@ -31,6 +31,12 @@ const FAVICON_PNG_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "source", "branding", 
 const FAVICON_ICO_TEMPLATE_PATH = path.join(PACKAGE_ROOT, "source", "branding", "favicon.ico");
 const FAVICON_PNG_PROJECT_PATH = path.join(PROJECT_ROOT, "source", "branding", "favicon.png");
 const FAVICON_ICO_PROJECT_PATH = path.join(PROJECT_ROOT, "source", "branding", "favicon.ico");
+const HEADER_IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"]);
+const FAVICON_MIME_TYPES = {
+  ".ico": "image/x-icon",
+  ".png": "image/png",
+  ".svg": "image/svg+xml"
+};
 const SITE_DIR = resolveProjectPath(getOptionValue(CLI_ARGS, "--output") || "site");
 const ASSETS_DIR = path.join(SITE_DIR, "assets");
 const VENDOR_ASSETS_DIR = path.join(ASSETS_DIR, "vendor");
@@ -171,6 +177,10 @@ const DEFAULT_THEME = {
 
 const DEFAULT_SITE = {
   basePath: "/",
+  branding: {
+    headerImage: "",
+    favicon: ""
+  },
   hero: {
     kicker: "",
     headline: "",
@@ -313,7 +323,7 @@ async function main() {
   const hierarchyTtl = buildHierarchyTtl(ontologyInfo);
 
   copyAssets(assets);
-  copyBrandingAssets();
+  copyBrandingAssets(config);
   copyGraphVendorAssets();
   writeText(path.join(ASSETS_DIR, "ontology_graph_data.json"), JSON.stringify(ontologyInfo, null, 2));
   writeText(
@@ -364,6 +374,7 @@ function loadConfig(configPath) {
     site: {
       ...DEFAULT_SITE,
       ...(raw.site || {}),
+      branding: { ...DEFAULT_SITE.branding, ...(raw.site?.branding || {}) },
       hero: { ...DEFAULT_SITE.hero, ...(raw.site?.hero || {}) },
       resourcePanel: { ...DEFAULT_SITE.resourcePanel, ...(raw.site?.resourcePanel || {}) },
       toc: { ...DEFAULT_SITE.toc, ...(raw.site?.toc || {}) },
@@ -448,6 +459,7 @@ function validateConfig(config) {
   }
 
   validateHierarchyConfig(config);
+  validateBrandingConfig(config);
 
   const requiredPaths = [config.sources.ontology];
   for (const value of [config.sources.shapes, config.sources.shex, config.sources.spec]) {
@@ -466,6 +478,11 @@ function validateConfig(config) {
       throw new Error("Each sources.artifacts entry requires key, label, and path");
     }
     requiredPaths.push(artifact.path);
+  }
+  for (const value of [config.site.branding.headerImage, config.site.branding.favicon]) {
+    if (value) {
+      requiredPaths.push(value);
+    }
   }
   if (!Number.isInteger(config.curation.featuredTermLimit) || config.curation.featuredTermLimit < 0) {
     throw new Error("curation.featuredTermLimit must be a non-negative integer");
@@ -600,6 +617,25 @@ function validateHierarchyConfig(config) {
   }
 }
 
+function validateBrandingConfig(config) {
+  const branding = config.site?.branding || {};
+  for (const [option, value, allowedExtensions] of [
+    ["headerImage", branding.headerImage, HEADER_IMAGE_EXTENSIONS],
+    ["favicon", branding.favicon, new Set(Object.keys(FAVICON_MIME_TYPES))]
+  ]) {
+    if (!value) continue;
+    if (typeof value !== "string") {
+      throw new Error(`site.branding.${option} must be a source path string`);
+    }
+    const extension = path.extname(value).toLowerCase();
+    if (!allowedExtensions.has(extension)) {
+      throw new Error(
+        `site.branding.${option} must use one of: ${Array.from(allowedExtensions).join(", ")}`
+      );
+    }
+  }
+}
+
 function buildAssetManifest(config) {
   const assets = [];
   const homeArtifacts = config.site.home.artifacts;
@@ -721,16 +757,28 @@ function copyAssets(assets) {
   }
 }
 
-function copyBrandingAssets() {
-  fs.copyFileSync(
-    getProjectOrPackageResource(FAVICON_PNG_PROJECT_PATH, FAVICON_PNG_TEMPLATE_PATH),
-    path.join(SITE_DIR, "favicon.png")
-  );
+function copyBrandingAssets(config) {
+  const headerImage = getBrandingAsset(config.site.branding.headerImage, "headerImage");
+  if (headerImage) {
+    const destination = path.join(SITE_DIR, headerImage.publicPath);
+    ensureDir(path.dirname(destination));
+    fs.copyFileSync(headerImage.sourcePath, destination);
+  }
+
+  const favicon = getBrandingAsset(config.site.branding.favicon, "favicon");
+  if (favicon) {
+    fs.copyFileSync(favicon.sourcePath, path.join(SITE_DIR, favicon.fileName));
+  } else {
+    fs.copyFileSync(
+      getProjectOrPackageResource(FAVICON_PNG_PROJECT_PATH, FAVICON_PNG_TEMPLATE_PATH),
+      path.join(SITE_DIR, "favicon.png")
+    );
+    fs.copyFileSync(
+      getProjectOrPackageResource(FAVICON_ICO_PROJECT_PATH, FAVICON_ICO_TEMPLATE_PATH),
+      path.join(SITE_DIR, "favicon.ico")
+    );
+  }
   fs.copyFileSync(FAVICON_PNG_TEMPLATE_PATH, path.join(SITE_DIR, "ocg-favicon.png"));
-  fs.copyFileSync(
-    getProjectOrPackageResource(FAVICON_ICO_PROJECT_PATH, FAVICON_ICO_TEMPLATE_PATH),
-    path.join(SITE_DIR, "favicon.ico")
-  );
 }
 
 function copyGraphVendorAssets() {
@@ -753,7 +801,7 @@ function writeSpecPage(config) {
     <div class="ocg-spec-nav-shell">
       <header class="ocg-spec-header">
         <a class="ocg-spec-brand" href="../index.html">
-          <span class="ocg-spec-brand-mark">${escapeHtml(config.project.shortName)}</span>
+          ${buildBrandMark(config, "../", "ocg-spec-brand-mark")}
           <span class="ocg-spec-brand-copy">
             <strong>${escapeHtml(config.project.title)}</strong>
             <span>${escapeHtml(config.project.namespace)}</span>
@@ -765,7 +813,7 @@ function writeSpecPage(config) {
   `;
   const styledSource = source.replace(
     /<\/head>/i,
-    `<link rel="icon" href="../favicon.ico" sizes="any" />\n  <link rel="icon" type="image/png" sizes="512x512" href="../favicon.png" />\n  ${specPageCss(config)}\n  </head>`
+    `${buildFaviconLinks(config, "../")}\n  ${specPageCss(config)}\n  </head>`
   );
   const generated = styledSource.replace(/<body([^>]*)>/i, (match, attributes) => {
     const classAttribute = attributes.match(/\bclass\s*=\s*(["'])(.*?)\1/i);
@@ -856,6 +904,15 @@ function specPageCss(config) {
         font-size: 0.9rem;
         font-weight: 700;
         letter-spacing: 0.04em;
+      }
+      .ocg-spec-brand-mark--image {
+        padding: 4px;
+      }
+      .ocg-spec-brand-mark--image img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
       .ocg-spec-brand-copy {
         display: grid;
@@ -2022,6 +2079,10 @@ function buildGuidePage(context) {
     },
     site: {
       basePath: "/",
+      branding: {
+        headerImage: "source/branding/vocabulary-logo.svg",
+        favicon: "source/branding/vocabulary-favicon.svg"
+      },
       hero: {
         kicker: "Forkable Vocabulary Template",
         headline: "Explore Your Vocabulary",
@@ -2372,9 +2433,11 @@ function buildGuidePage(context) {
       id: "branding",
       badge: "Shared Styling",
       title: "Theme, Page Navigation, Footer, and Generator Links",
-      description: "Applies site-wide fonts, colors, page table-of-contents behavior, footer copy, and OCG attribution links.",
+      description: "Applies site-wide branding images, fonts, colors, page table-of-contents behavior, footer copy, and OCG attribution links.",
       options: [
         ["site.basePath", "Deployment base-path setting retained for repository configuration; generated links are currently relative."],
+        ["site.branding.headerImage", "Optional repository-relative image shown in place of project.shortName inside the square header mark on every companion page and the ReSpec navigation. Supported: .png, .jpg, .jpeg, .webp, .gif, and .svg."],
+        ["site.branding.favicon", "Optional repository-relative browser favicon. Supported: .ico, .png, and .svg. When omitted, OCG keeps the source/branding/favicon.png and favicon.ico fallback behavior."],
         ["theme.fonts.heading", "Font family for headings and brand text."],
         ["theme.fonts.body", "Font family for body copy and interface text."],
         ["theme.fonts.mono", "Font family for code, IRIs, and source content."],
@@ -2399,6 +2462,7 @@ function buildGuidePage(context) {
       example: {
         site: {
           basePath: configExample.site.basePath,
+          branding: configExample.site.branding,
           toc: configExample.site.toc,
           footer: configExample.site.footer,
           generator: configExample.site.generator
@@ -4434,8 +4498,7 @@ function buildPageToc(config, items = []) {
         <div class="page-toc-head">
           <span class="page-toc-title">${title}</span>
           <button class="page-toc-toggle" type="button" data-page-toc-toggle aria-controls="page-toc-links" aria-expanded="true" aria-label="${collapseLabel}" title="${collapseLabel}">
-            <svg data-page-toc-icon="collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
-            <svg data-page-toc-icon="expand" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="m10 6 6 6-6 6"></path></svg>
+            <svg class="page-toc-toggle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg>
           </button>
         </div>
         <nav id="page-toc-links" aria-label="${title}">
@@ -4458,17 +4521,12 @@ function buildPageToc(config, items = []) {
 
         const collapseLabel = ${JSON.stringify(config.site.toc.collapseLabel)};
         const expandLabel = ${JSON.stringify(config.site.toc.expandLabel)};
-        const collapseIcon = pageTocToggle.querySelector('[data-page-toc-icon="collapse"]');
-        const expandIcon = pageTocToggle.querySelector('[data-page-toc-icon="expand"]');
-
         function setPageTocCollapsed(collapsed) {
           pageToc.classList.toggle("is-collapsed", collapsed);
           pageLayout.classList.toggle("page-content-layout--toc-collapsed", collapsed);
           pageTocToggle.setAttribute("aria-expanded", String(!collapsed));
           pageTocToggle.setAttribute("aria-label", collapsed ? expandLabel : collapseLabel);
           pageTocToggle.title = collapsed ? expandLabel : collapseLabel;
-          collapseIcon.hidden = collapsed;
-          expandIcon.hidden = !collapsed;
         }
 
         pageTocToggle.addEventListener("click", () => {
@@ -4496,8 +4554,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <title>${escapeHtml(title)}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="${escapeHtml(description)}" />
-  <link rel="icon" href="${pathPrefix}favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="512x512" href="${pathPrefix}favicon.png" />
+  ${buildFaviconLinks(config, pathPrefix)}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />
@@ -4507,7 +4564,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <div class="page-shell">
     <header class="site-header">
       <a class="brand" href="${pathPrefix}index.html">
-        <span class="brand-mark">${escapeHtml(config.project.shortName)}</span>
+        ${buildBrandMark(config, pathPrefix)}
         <span class="brand-copy">
           <strong>${escapeHtml(config.project.title)}</strong>
           <span>${escapeHtml(config.project.namespace)}</span>
@@ -4625,7 +4682,7 @@ function sharedCss(config) {
       grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
       align-items: start;
       gap: 22px;
-      transition: grid-template-columns 0.2s ease, gap 0.2s ease;
+      transition: grid-template-columns 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), gap 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-content-layout--toc-collapsed {
       grid-template-columns: 48px minmax(0, 1fr);
@@ -4639,9 +4696,13 @@ function sharedCss(config) {
       top: 22px;
       align-self: start;
       width: 100%;
-      transition: width 0.2s ease;
+      overflow: hidden;
+      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-toc-panel {
+      --page-toc-panel-width: 214px;
+      width: var(--page-toc-panel-width);
+      min-width: var(--page-toc-panel-width);
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -4650,12 +4711,12 @@ function sharedCss(config) {
       backdrop-filter: blur(10px);
     }
     .page-toc-head {
+      position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
       gap: 10px;
       min-height: 44px;
-      padding: 10px 12px;
+      padding: 10px 50px 10px 12px;
       color: var(--ink);
       font-family: var(--heading-font);
       font-size: 0.86rem;
@@ -4664,8 +4725,14 @@ function sharedCss(config) {
     .page-toc-title {
       min-width: 0;
       overflow-wrap: anywhere;
+      opacity: 1;
+      transform: translateX(0);
+      transition: opacity 0.14s ease 0.12s, transform 0.2s ease 0.12s, visibility 0s linear 0.12s;
     }
     .page-toc-toggle {
+      position: absolute;
+      top: 8px;
+      right: 10px;
       display: grid;
       place-items: center;
       flex: 0 0 auto;
@@ -4677,7 +4744,7 @@ function sharedCss(config) {
       background: #f6f8f8;
       color: #566972;
       cursor: pointer;
-      transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+      transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
     }
     .page-toc-toggle:hover,
     .page-toc-toggle:focus-visible {
@@ -4686,7 +4753,7 @@ function sharedCss(config) {
       color: var(--accent-strong);
       outline: none;
     }
-    .page-toc-toggle svg {
+    .page-toc-toggle-icon {
       display: block;
       width: 16px;
       height: 16px;
@@ -4695,29 +4762,37 @@ function sharedCss(config) {
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-width: 2;
-    }
-    .page-toc-toggle svg[hidden] {
-      display: none;
+      transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
     }
     .page-toc nav {
       border-top: 1px solid #e1e8ea;
       padding: 8px;
+      opacity: 1;
+      transform: translateX(0);
+      transition: opacity 0.14s ease 0.12s, transform 0.2s ease 0.12s, visibility 0s linear 0.12s;
     }
     .page-toc.is-collapsed {
       width: 44px;
     }
     .page-toc.is-collapsed .page-toc-panel {
-      padding: 4px;
       background: rgba(255, 255, 255, 0.72);
     }
     .page-toc.is-collapsed .page-toc-head {
-      justify-content: center;
-      min-height: 36px;
-      padding: 0;
+      min-height: 44px;
     }
     .page-toc.is-collapsed .page-toc-title,
     .page-toc.is-collapsed nav {
-      display: none;
+      visibility: hidden;
+      opacity: 0;
+      transform: translateX(-10px);
+      pointer-events: none;
+      transition: opacity 0.1s ease, transform 0.14s ease, visibility 0s linear 0.14s;
+    }
+    .page-toc.is-collapsed .page-toc-toggle {
+      transform: translateX(calc(-1 * (var(--page-toc-panel-width) - 44px)));
+    }
+    .page-toc.is-collapsed .page-toc-toggle-icon {
+      transform: rotate(180deg);
     }
     .page-toc ol {
       display: grid;
@@ -4792,6 +4867,18 @@ function sharedCss(config) {
       overflow-wrap: anywhere;
       text-align: center;
       flex: 0 0 auto;
+    }
+    .brand-mark--image {
+      width: 48px;
+      min-width: 48px;
+      max-width: 48px;
+      padding: 4px;
+    }
+    .brand-mark--image img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
     .brand-copy {
       display: grid;
@@ -4931,6 +5018,12 @@ function sharedCss(config) {
       padding: 0 9px;
       border-radius: 12px;
       font-size: 0.9rem;
+    }
+    .page-home .brand-mark--image {
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      padding: 4px;
     }
     .page-home .brand-copy strong {
       font-size: 0.92rem;
@@ -6637,8 +6730,23 @@ function sharedCss(config) {
       .page-toc {
         position: static;
       }
+      .page-toc-panel {
+        --page-toc-panel-width: 100%;
+        width: 100%;
+        min-width: 0;
+      }
+      .page-toc-head {
+        padding-right: 12px;
+      }
+      .page-toc-toggle {
+        position: static;
+        margin-left: auto;
+      }
       .page-toc.is-collapsed {
         width: 100%;
+      }
+      .page-toc.is-collapsed .page-toc-toggle {
+        transform: none;
       }
     }
     @media (max-width: 860px) {
@@ -6753,6 +6861,39 @@ function sortTerms(left, right) {
 
 function sanitizeFileName(value) {
   return value.replaceAll(/[^A-Za-z0-9._-]+/g, "_");
+}
+
+function getBrandingAsset(sourceFile, kind) {
+  if (!sourceFile) return null;
+  const extension = path.extname(sourceFile).toLowerCase();
+  const fileName = kind === "favicon"
+    ? `favicon${extension}`
+    : `header-image${extension}`;
+  return {
+    sourcePath: resolveProjectPath(sourceFile),
+    fileName,
+    publicPath: kind === "favicon" ? fileName : `assets/branding/${fileName}`,
+    extension
+  };
+}
+
+function buildBrandMark(config, pathPrefix = "", className = "brand-mark") {
+  const headerImage = getBrandingAsset(config.site.branding.headerImage, "headerImage");
+  if (!headerImage) {
+    return `<span class="${className}">${escapeHtml(config.project.shortName)}</span>`;
+  }
+  const alt = `${config.project.shortName} logo`;
+  return `<span class="${className} ${className}--image"><img src="${pathPrefix}${headerImage.publicPath}" alt="${escapeHtml(alt)}" /></span>`;
+}
+
+function buildFaviconLinks(config, pathPrefix = "") {
+  const favicon = getBrandingAsset(config.site.branding.favicon, "favicon");
+  if (!favicon) {
+    return `<link rel="icon" href="${pathPrefix}favicon.ico" sizes="any" />\n  <link rel="icon" type="image/png" sizes="512x512" href="${pathPrefix}favicon.png" />`;
+  }
+  const type = FAVICON_MIME_TYPES[favicon.extension];
+  const sizes = favicon.extension === ".png" ? ' sizes="512x512"' : favicon.extension === ".ico" ? ' sizes="any"' : "";
+  return `<link rel="icon" type="${type}"${sizes} href="${pathPrefix}${favicon.publicPath}" />`;
 }
 
 function getOptionValue(args, option) {

@@ -69,6 +69,23 @@ Source files can stay in their existing locations. Point to them with paths rela
 
 `ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
 
+### Branding Assets
+
+Use `site.branding` to replace the abbreviation square in the upper-left header and the browser favicon. Paths are relative to the repository root; OCG copies them into the generated site, so they work on GitHub Pages and in local previews.
+
+```json
+{
+  "site": {
+    "branding": {
+      "headerImage": "source/branding/vocabulary-logo.svg",
+      "favicon": "source/branding/vocabulary-favicon.svg"
+    }
+  }
+}
+```
+
+`headerImage` accepts `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, or `.svg`; it replaces `project.shortName` in the square header mark, including the ReSpec page. `favicon` accepts `.ico`, `.png`, or `.svg`. Leave either value empty to retain the default text mark or existing `source/branding/favicon.png` and `favicon.ico` fallback.
+
 Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
 
 - [Package and CLI](https://ecrum19.github.io/ocg/usage-guide.html#package-cli)

@@ -235,6 +235,14 @@
       "type": "object",
       "properties": {
         "basePath": { "type": "string" },
+        "branding": {
+          "type": "object",
+          "properties": {
+            "headerImage": { "type": "string" },
+            "favicon": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "hero": {
           "type": "object",
           "properties": {

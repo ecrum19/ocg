@@ -100,6 +100,9 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /data-page-toc-toggle/);
   assert.match(indexHtml, /function setPageTocCollapsed/);
   assert.match(indexHtml, /page-content-layout--toc-collapsed/);
+  assert.match(indexHtml, /class="page-toc-toggle-icon"/);
+  assert.match(indexHtml, /page-toc\.is-collapsed \.page-toc-toggle-icon \{\s*transform: rotate\(180deg\);/);
+  assert.doesNotMatch(indexHtml, /data-page-toc-icon=/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
   assert.match(referenceHtml, /id="ontology-hierarchy"/);
@@ -368,6 +371,8 @@ test("build-site produces the expected publish artifacts for the bundled example
     "site.toc.title",
     "site.toc.collapseLabel",
     "site.toc.expandLabel",
+    "site.branding.headerImage",
+    "site.branding.favicon",
     "site.customSections[].items",
     "graph.custom.modes.predicateEdges",
     "graph.custom.label",
@@ -549,6 +554,8 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(config.site.toc.title, "On this page");
     assert.equal(config.site.toc.collapseLabel, "Collapse page contents");
     assert.equal(config.site.toc.expandLabel, "Expand page contents");
+    assert.equal(config.site.branding.headerImage, "");
+    assert.equal(config.site.branding.favicon, "");
     assert.equal(fs.existsSync(path.join(tempDir, "ocg.config.schema.json")), true);
     assert.equal(fs.existsSync(path.join(tempDir, ".github", "workflows", "publish-pages.yml")), true);
     const projectPackage = JSON.parse(fs.readFileSync(path.join(tempDir, "package.json"), "utf8"));
@@ -567,6 +574,16 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.doesNotMatch(indexHtml, /data-label="Config Schema"/);
 
     fs.writeFileSync(path.join(tempDir, "context.json"), "{\"example\":true}\n");
+    fs.mkdirSync(path.join(tempDir, "branding"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tempDir, "branding", "header.svg"),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" fill="#13535a"/></svg>'
+    );
+    fs.writeFileSync(
+      path.join(tempDir, "branding", "favicon.svg"),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#1f6f78"/></svg>'
+    );
+    fs.writeFileSync(path.join(tempDir, "spec.html"), "<!doctype html><html><head><title>Spec</title></head><body><h1>Spec</h1></body></html>");
     config.site.home = {
       ...config.site.home,
       actions: {
@@ -617,6 +634,12 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
       collapseLabel: "Hide page map",
       expandLabel: "Show page map"
     };
+    config.site.branding = {
+      headerImage: "branding/header.svg",
+      favicon: "branding/favicon.svg"
+    };
+    config.sources.spec = "spec.html";
+    config.features.specPage = true;
     config.site.overviewCards = [
       {
         title: "Start Here",
@@ -648,12 +671,19 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.match(artifactIndexHtml, />View Source</);
     assert.match(artifactIndexHtml, /<aside class="page-toc" aria-label="Page map">/);
     assert.match(artifactIndexHtml, /aria-label="Hide page map"/);
+    assert.match(artifactIndexHtml, /class="brand-mark brand-mark--image"><img src="assets\/branding\/header-image\.svg"/);
+    assert.match(artifactIndexHtml, /rel="icon" type="image\/svg\+xml" href="favicon\.svg"/);
     assert.doesNotMatch(artifactIndexHtml, /<h2>Repository Workflow<\/h2>/);
     assert.doesNotMatch(artifactIndexHtml, /These cards come directly from ocg\.config\.json/);
     assert.match(artifactIndexHtml, /data-label="Vocabulary Source"/);
     assert.match(artifactIndexHtml, /data-file="assets\/context\.json"/);
     assert.match(artifactIndexHtml, /data-label="Context JSON"/);
     assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "context.json")), true);
+    assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "branding", "header-image.svg")), true);
+    assert.equal(fs.existsSync(path.join(tempDir, "site", "favicon.svg")), true);
+    const specHtml = fs.readFileSync(path.join(tempDir, "site", "spec", "index.html"), "utf8");
+    assert.match(specHtml, /class="ocg-spec-brand-mark ocg-spec-brand-mark--image"><img src="\.\.\/assets\/branding\/header-image\.svg"/);
+    assert.match(specHtml, /rel="icon" type="image\/svg\+xml" href="\.\.\/favicon\.svg"/);
     const graphData = JSON.parse(
       fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_graph_data.json"), "utf8")
     );
