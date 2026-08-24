@@ -4813,6 +4813,7 @@ function sharedCss(config) {
       --page-toc-panel-width: 214px;
       width: var(--page-toc-panel-width);
       min-width: var(--page-toc-panel-width);
+      height: auto;
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -4878,10 +4879,9 @@ function sharedCss(config) {
     .page-toc nav {
       border-top: 1px solid var(--border-soft);
       padding: 8px;
-      max-height: 640px;
-      overflow-y: auto;
+      overflow: hidden;
       opacity: 1;
-      transition: max-height 0.2s ease, opacity 0.16s ease, padding 0.2s ease, border-color 0.16s ease;
+      transition: opacity 0.16s ease;
     }
     .page-toc.is-collapsed {
       width: 44px;
@@ -4890,6 +4890,7 @@ function sharedCss(config) {
       width: 44px;
       min-width: 44px;
       height: 44px;
+      max-height: 44px;
       border-radius: 12px;
       background: var(--white-72);
     }
@@ -4906,10 +4907,7 @@ function sharedCss(config) {
       pointer-events: none;
     }
     .page-toc.is-collapsed nav {
-      max-height: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-      border-top-color: transparent;
+      opacity: 0;
     }
     .page-toc.is-collapsed .page-toc-toggle {
       transform: none;
