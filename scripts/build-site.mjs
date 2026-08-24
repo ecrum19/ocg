@@ -4580,29 +4580,17 @@ function buildPageToc(config, items = []) {
         const pageToc = document.querySelector(".page-toc");
         const pageTocToggle = pageToc?.querySelector("[data-page-toc-toggle]");
         const pageLayout = pageToc?.closest(".page-content-layout");
-        const pageTocPanel = pageToc?.querySelector(".page-toc-panel");
-        if (!pageTocToggle || !pageLayout || !pageTocPanel) return;
+        if (!pageTocToggle || !pageLayout) return;
 
         const collapseLabel = ${JSON.stringify(config.site.toc.collapseLabel)};
         const expandLabel = ${JSON.stringify(config.site.toc.expandLabel)};
         function setPageTocCollapsed(collapsed) {
-          const expandedHeight = Math.ceil(pageTocPanel.scrollHeight);
-          pageToc.style.setProperty("--page-toc-expanded-height", expandedHeight + "px");
-          pageTocPanel.style.setProperty("--page-toc-panel-expanded-height", expandedHeight + "px");
-          void pageToc.offsetHeight;
           pageToc.classList.toggle("is-collapsed", collapsed);
           pageLayout.classList.toggle("page-content-layout--toc-collapsed", collapsed);
           pageTocToggle.setAttribute("aria-expanded", String(!collapsed));
           pageTocToggle.setAttribute("aria-label", collapsed ? expandLabel : collapseLabel);
           pageTocToggle.title = collapsed ? expandLabel : collapseLabel;
         }
-
-        pageToc.addEventListener("transitionend", (event) => {
-          if (event.target === pageToc && event.propertyName === "height" && !pageToc.classList.contains("is-collapsed")) {
-            pageToc.style.removeProperty("--page-toc-expanded-height");
-            pageTocPanel.style.removeProperty("--page-toc-panel-expanded-height");
-          }
-        });
 
         pageTocToggle.addEventListener("click", () => {
           setPageTocCollapsed(!pageToc.classList.contains("is-collapsed"));
@@ -4804,7 +4792,7 @@ function sharedCss(config) {
       grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
       align-items: start;
       gap: 22px;
-      transition: grid-template-columns 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), gap 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
+      transition: grid-template-columns 0.2s ease, gap 0.2s ease;
     }
     .page-content-layout--toc-collapsed {
       grid-template-columns: 44px minmax(0, 1fr);
@@ -4818,22 +4806,20 @@ function sharedCss(config) {
       top: 22px;
       align-self: start;
       width: 100%;
-      height: var(--page-toc-expanded-height, auto);
       overflow: hidden;
-      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), height 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
+      transition: width 0.2s ease;
     }
     .page-toc-panel {
       --page-toc-panel-width: 214px;
       width: var(--page-toc-panel-width);
       min-width: var(--page-toc-panel-width);
-      height: var(--page-toc-panel-expanded-height, auto);
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
       background: var(--white-84);
       box-shadow: 0 12px 28px var(--shadow-soft);
       backdrop-filter: blur(10px);
-      transition: width 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), height 0.28s cubic-bezier(0.2, 0.75, 0.25, 1);
+      transition: width 0.2s ease;
     }
     .page-toc-head {
       position: relative;
@@ -4852,7 +4838,7 @@ function sharedCss(config) {
       overflow-wrap: anywhere;
       opacity: 1;
       transform: translateX(0);
-      transition: opacity 0.14s ease 0.12s, transform 0.2s ease 0.12s, visibility 0s linear 0.12s;
+      transition: opacity 0.16s ease, transform 0.16s ease;
     }
     .page-toc-toggle {
       position: absolute;
@@ -4869,7 +4855,7 @@ function sharedCss(config) {
       background: var(--surface-muted);
       color: var(--muted-strong);
       cursor: pointer;
-      transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1), background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+      transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
     }
     .page-toc-toggle:hover,
     .page-toc-toggle:focus-visible {
@@ -4887,18 +4873,18 @@ function sharedCss(config) {
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-width: 2;
-      transition: transform 0.32s cubic-bezier(0.2, 0.75, 0.25, 1);
+      transition: transform 0.2s ease;
     }
     .page-toc nav {
       border-top: 1px solid var(--border-soft);
       padding: 8px;
+      max-height: 640px;
+      overflow-y: auto;
       opacity: 1;
-      transform: translateX(0);
-      transition: opacity 0.14s ease 0.12s, transform 0.2s ease 0.12s, visibility 0s linear 0.12s;
+      transition: max-height 0.2s ease, opacity 0.16s ease, padding 0.2s ease, border-color 0.16s ease;
     }
     .page-toc.is-collapsed {
       width: 44px;
-      height: 44px;
     }
     .page-toc.is-collapsed .page-toc-panel {
       width: 44px;
@@ -4917,9 +4903,13 @@ function sharedCss(config) {
     .page-toc.is-collapsed nav {
       visibility: hidden;
       opacity: 0;
-      transform: translateX(-10px);
       pointer-events: none;
-      transition: opacity 0.1s ease, transform 0.14s ease, visibility 0s linear 0.14s;
+    }
+    .page-toc.is-collapsed nav {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top-color: transparent;
     }
     .page-toc.is-collapsed .page-toc-toggle {
       transform: none;

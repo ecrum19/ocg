@@ -102,6 +102,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /page-content-layout--toc-collapsed/);
   assert.match(indexHtml, /class="page-toc-toggle-icon"/);
   assert.match(indexHtml, /page-toc\.is-collapsed \.page-toc-toggle-icon \{\s*transform: rotate\(180deg\);/);
+  assert.match(indexHtml, /\.page-toc\.is-collapsed nav \{[\s\S]*?max-height: 0;/);
+  assert.doesNotMatch(indexHtml, /page-toc-expanded-height|page-toc-panel-expanded-height|pageTocPanel\.scrollHeight/);
   assert.doesNotMatch(indexHtml, /data-page-toc-icon=/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
@@ -128,7 +130,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(termsIndexHtml, /href="#terms-index">Overview/);
   assert.match(termsIndexHtml, /href="#terms-class">Classes/);
   assert.match(termsIndexHtml, /id="terms-objectProperty"/);
-  assert.match(termsIndexHtml, /\.page-toc\.is-collapsed \{\s*width: 44px;\s*height: 44px;/);
+  assert.match(termsIndexHtml, /\.page-toc\.is-collapsed \{\s*width: 44px;/);
+  assert.match(termsIndexHtml, /\.page-toc\.is-collapsed \.page-toc-panel \{[\s\S]*?height: 44px;/);
 
   const navHtml = indexHtml.match(/<nav class="site-nav">([\s\S]*?)<\/nav>/)?.[1] || "";
   const navOrder = [
