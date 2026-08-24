@@ -4792,7 +4792,9 @@ function sharedCss(config) {
       grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
       align-items: start;
       gap: 22px;
-      transition: grid-template-columns 0.2s ease, gap 0.2s ease;
+      --toc-motion: 0.24s;
+      --toc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      transition: grid-template-columns var(--toc-motion) var(--toc-ease), gap var(--toc-motion) var(--toc-ease);
     }
     .page-content-layout--toc-collapsed {
       grid-template-columns: 44px minmax(0, 1fr);
@@ -4817,10 +4819,8 @@ function sharedCss(config) {
       overflow: hidden;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: var(--white-84);
-      box-shadow: 0 12px 28px var(--shadow-soft);
-      backdrop-filter: blur(10px);
-      transition: width 0.2s ease;
+      background: var(--panel);
+      transition: width var(--toc-motion) var(--toc-ease);
     }
     .page-toc-head {
       position: relative;
@@ -4839,7 +4839,7 @@ function sharedCss(config) {
       overflow-wrap: anywhere;
       opacity: 1;
       transform: translateX(0);
-      transition: opacity 0.16s ease, transform 0.16s ease;
+      transition: opacity 0.18s ease-out, transform var(--toc-motion) var(--toc-ease);
     }
     .page-toc-toggle {
       position: absolute;
@@ -4874,14 +4874,14 @@ function sharedCss(config) {
       stroke-linecap: round;
       stroke-linejoin: round;
       stroke-width: 2;
-      transition: transform 0.2s ease;
+      transition: transform var(--toc-motion) var(--toc-ease);
     }
     .page-toc nav {
       border-top: 1px solid var(--border-soft);
       padding: 8px;
       overflow: hidden;
       opacity: 1;
-      transition: opacity 0.16s ease;
+      transition: opacity 0.18s ease-out;
     }
     .page-toc.is-collapsed {
       width: 44px;
@@ -4892,7 +4892,6 @@ function sharedCss(config) {
       height: 44px;
       max-height: 44px;
       border-radius: 12px;
-      background: var(--white-72);
     }
     .page-toc.is-collapsed .page-toc-head {
       width: 44px;

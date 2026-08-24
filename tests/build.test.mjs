@@ -105,6 +105,10 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, /\.page-toc\.is-collapsed \.page-toc-panel \{[\s\S]*?height: 44px;[\s\S]*?max-height: 44px;/);
   assert.match(indexHtml, /\.page-toc\.is-collapsed nav \{[\s\S]*?opacity: 0;/);
   assert.doesNotMatch(indexHtml, /page-toc-expanded-height|page-toc-panel-expanded-height|pageTocPanel\.scrollHeight|max-height: 0/);
+  assert.match(indexHtml, /\.page-toc-panel \{[^}]*background: var\(--panel\);/);
+  assert.doesNotMatch(indexHtml, /\.page-toc-panel \{[^}]*backdrop-filter: blur/);
+  assert.match(indexHtml, /--toc-motion: 0\.24s;/);
+  assert.match(indexHtml, /--toc-ease: cubic-bezier\(0\.22, 1, 0\.36, 1\);/);
   assert.doesNotMatch(indexHtml, /data-page-toc-icon=/);
 
   const referenceHtml = fs.readFileSync(path.join(ROOT, "site/ontology-reference.html"), "utf8");
