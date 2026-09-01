@@ -1,6 +1,6 @@
 {
   "name": "ontology-companion-generator",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Generate customizable GitHub Pages companion sites for semantic ontologies.",
   "keywords": [
     "ontology",
