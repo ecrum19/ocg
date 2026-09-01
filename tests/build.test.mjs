@@ -45,6 +45,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   for (const relative of requiredFiles) {
     assert.equal(fs.existsSync(path.join(ROOT, relative)), true, `${relative} should exist`);
   }
+  assert.equal(fs.existsSync(path.join(ROOT, "site/iri-resolver.html")), false, "the optional persistent IRI resolver should stay disabled by default");
+  assert.equal(fs.existsSync(path.join(ROOT, "site/persistent-iri")), false, "the optional w3id deployment bundle should stay disabled by default");
 
   const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
   assert.match(indexHtml, /Example Capability Vocabulary/);
@@ -333,6 +335,21 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(guideHtml, /id="getting-started"/);
   assert.match(guideHtml, /id="accepted-input-formats"/);
   assert.match(guideHtml, /<h2>Accepted Input Formats<\/h2>/);
+  assert.match(guideHtml, /id="persistent-iri-workflow"/);
+  assert.match(guideHtml, /<h2>Persistent IRI Deployment<\/h2>/);
+  assert.match(guideHtml, /id="persistent-iri"/);
+  assert.match(guideHtml, /<h2>Persistent IRI and Content Negotiation<\/h2>/);
+  assert.match(guideHtml, /https:\/\/github\.com\/lambdamusic\/Ontospy/);
+  assert.match(guideHtml, /site\/persistent-iri\/README\.md/);
+  assert.match(guideHtml, /class="section guide-section persistent-iri-section"/);
+  assert.match(guideHtml, /class="iri-example">https:\/\/w3id\.org\/your-project\/vocab#ExampleTerm/);
+  assert.match(guideHtml, /w3id persistent-identifier publishing guide/);
+  assert.match(guideHtml, /class="guide-callout guide-callout--instruction"/);
+  assert.match(guideHtml, /npm run ocg:build/);
+  assert.match(guideHtml, /w3id explanation of identifier redirects/);
+  assert.match(guideHtml, /<code>\.htaccess<\/code> examples/);
+  assert.match(guideHtml, /\.persistent-iri-section \.section-head \.section-note \{\s*max-width: none;/);
+  assert.match(guideHtml, /\.persistent-iri-section > \.guide-steps \{[\s\S]*?gap: 17px;[\s\S]*?margin: 22px 0 24px;/);
   assert.match(guideHtml, /OWL\/XML/);
   assert.match(guideHtml, /source\/ontology\/my-vocabulary\.jsonld/);
   assert.match(guideHtml, /<section class="guide-hero section">\s*<details class="guide-toc" open>/);
@@ -350,6 +367,7 @@ test("build-site produces the expected publish artifacts for the bundled example
     "project",
     "home",
     "artifacts",
+    "persistent-iri",
     "reference",
     "graph",
     "terms",
@@ -363,6 +381,11 @@ test("build-site produces the expected publish artifacts for the bundled example
     "$schema",
     "project.maintainer",
     "sources.examples[].description",
+    "persistentIri.enabled",
+    "persistentIri.documentIri",
+    "persistentIri.siteUrl",
+    "persistentIri.representations[].mediaType",
+    "persistentIri.representations[].destinationName",
     "features.hierarchyAsset",
     "features.hierarchyOverview",
     "hierarchy.rootTerms",
@@ -588,6 +611,95 @@ ecv:FormatClass a owl:Class ; rdfs:label "Format Class" .`
   }
 });
 
+test("persistent IRI support emits static RDF targets, a browser resolver, and w3id rules", () => {
+  const configPath = path.join(ROOT, "ocg.config.json");
+  const originalConfigText = fs.readFileSync(configPath, "utf8");
+  const originalConfig = JSON.parse(originalConfigText);
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-persistent-iri-test-"));
+  const ontologyPath = path.join(tempDir, "vocabulary.ttl");
+  const jsonldPath = path.join(tempDir, "vocabulary.jsonld");
+
+  try {
+    fs.writeFileSync(
+      ontologyPath,
+      `@prefix ex: <https://w3id.org/example/vocab#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+ex:ExampleTerm a owl:Class ; rdfs:label "Example Term" .\n`
+    );
+    fs.writeFileSync(
+      jsonldPath,
+      JSON.stringify({
+        "@context": { ex: "https://w3id.org/example/vocab#", owl: "http://www.w3.org/2002/07/owl#" },
+        "@id": "ex:ExampleTerm",
+        "@type": "owl:Class"
+      })
+    );
+    const testConfig = {
+      ...originalConfig,
+      project: {
+        ...originalConfig.project,
+        namespace: "https://w3id.org/example/vocab#",
+        canonicalUri: "https://w3id.org/example/vocab"
+      },
+      sources: {
+        ...originalConfig.sources,
+        ontology: ontologyPath,
+        ontologyFormat: "turtle"
+      },
+      persistentIri: {
+        enabled: true,
+        documentIri: "https://w3id.org/example/vocab",
+        siteUrl: "https://example.github.io/example-ontology/",
+        representations: [
+          {
+            mediaType: "application/ld+json",
+            path: jsonldPath,
+            destinationName: "vocabulary.jsonld"
+          }
+        ]
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
+    execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+
+    for (const relative of [
+      "site/iri-resolver.html",
+      "site/linked-data/ontology.ttl",
+      "site/linked-data/vocabulary.jsonld",
+      "site/persistent-iri/README.md",
+      "site/persistent-iri/w3id-htaccess.txt",
+      "site/persistent-iri/w3id/example/.htaccess"
+    ]) {
+      assert.equal(fs.existsSync(path.join(ROOT, relative)), true, `${relative} should exist`);
+    }
+
+    const resolverHtml = fs.readFileSync(path.join(ROOT, "site/iri-resolver.html"), "utf8");
+    assert.match(resolverHtml, /const TERM_TARGETS = \{"ExampleTerm":"terms\/ExampleTerm\.html"\}/);
+    assert.match(resolverHtml, /window\.location\.replace\(target\)/);
+    assert.match(resolverHtml, /decodeURIComponent\(fragment\)/);
+
+    const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
+    assert.match(indexHtml, /rel="alternate" type="text\/turtle" href="https:\/\/example\.github\.io\/example-ontology\/linked-data\/ontology\.ttl"/);
+    assert.match(indexHtml, /rel="alternate" type="application\/ld\+json" href="https:\/\/example\.github\.io\/example-ontology\/linked-data\/vocabulary\.jsonld"/);
+
+    const htaccess = fs.readFileSync(path.join(ROOT, "site/persistent-iri/w3id-htaccess.txt"), "utf8");
+    assert.match(htaccess, /RewriteCond %\{HTTP:Accept\} \(\^\|,\|\\s\)text\/turtle/);
+    assert.match(htaccess, /RewriteCond %\{HTTP:Accept\} \(\^\|,\|\\s\)application\/ld\\\+json/);
+    assert.match(htaccess, /https:\/\/example\.github\.io\/example-ontology\/linked-data\/ontology\.ttl/);
+    assert.match(htaccess, /https:\/\/example\.github\.io\/example-ontology\/iri-resolver\.html/);
+    assert.match(htaccess, /Header append Vary Accept/);
+
+    const deploymentReadme = fs.readFileSync(path.join(ROOT, "site/persistent-iri/README.md"), "utf8");
+    assert.match(deploymentReadme, /full ontology/);
+    assert.match(deploymentReadme, /curl -L -H "Accept: text\/turtle"/);
+  } finally {
+    fs.writeFileSync(configPath, originalConfigText);
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    execFileSync("node", ["scripts/build-site.mjs"], { cwd: ROOT, stdio: "pipe" });
+  }
+});
+
 test("ocg CLI initializes and builds an external ontology repository", () => {
   const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-cli-test-"));
   const sourcePath = path.join(ROOT, "source", "ontology", "example-capability.ttl");
@@ -606,6 +718,10 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     assert.equal(config.curation.featuredTermLimit, 6);
     assert.deepEqual(config.curation.viewerTabs, []);
     assert.equal(config.features.hierarchyOverview, false);
+    assert.equal(config.persistentIri.enabled, false);
+    assert.equal(config.persistentIri.documentIri, "");
+    assert.equal(config.persistentIri.siteUrl, "");
+    assert.deepEqual(config.persistentIri.representations, []);
     assert.equal(config.hierarchy.maxNodes, 36);
     assert.equal(config.project.namespace, "https://example.org/ecv#");
     assert.equal(config.site.home.overview.title, "Repository Workflow");

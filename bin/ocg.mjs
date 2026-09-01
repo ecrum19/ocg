@@ -105,6 +105,12 @@ const DEFAULT_CONFIG = {
       broader: "#7b5ca7"
     }
   },
+  persistentIri: {
+    enabled: false,
+    documentIri: "",
+    siteUrl: "",
+    representations: []
+  },
   theme: {
     fonts: {
       heading: "Space Grotesk",
@@ -429,7 +435,13 @@ function serveSite(args) {
         ".js": "text/javascript; charset=utf-8",
         ".jpg": "image/jpeg",
         ".json": "application/json; charset=utf-8",
+        ".jsonld": "application/ld+json; charset=utf-8",
+        ".nt": "application/n-triples; charset=utf-8",
+        ".ntriples": "application/n-triples; charset=utf-8",
         ".png": "image/png",
+        ".rdf": "application/rdf+xml; charset=utf-8",
+        ".rdfxml": "application/rdf+xml; charset=utf-8",
+        ".owl": "application/rdf+xml; charset=utf-8",
         ".svg": "image/svg+xml",
         ".ttl": "text/turtle; charset=utf-8",
         ".webp": "image/webp"

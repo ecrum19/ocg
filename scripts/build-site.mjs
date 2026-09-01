@@ -41,6 +41,8 @@ const SITE_DIR = resolveProjectPath(getOptionValue(CLI_ARGS, "--output") || "sit
 const ASSETS_DIR = path.join(SITE_DIR, "assets");
 const VENDOR_ASSETS_DIR = path.join(ASSETS_DIR, "vendor");
 const TERMS_DIR = path.join(SITE_DIR, "terms");
+const LINKED_DATA_DIR = path.join(SITE_DIR, "linked-data");
+const PERSISTENT_IRI_DIR = path.join(SITE_DIR, "persistent-iri");
 const OCG_VERSION = JSON.parse(fs.readFileSync(PACKAGE_PATH, "utf8")).version || "development";
 const GRAPH_VENDOR_ASSETS = [
   {
@@ -154,7 +156,17 @@ const SUPPORTED_ONTOLOGY_FORMATS = {
   ntriples: { contentType: "application/n-triples", extensions: [".nt", ".ntriples"] }
 };
 const SUPPORTED_ONTOLOGY_FORMAT_NAMES = Object.keys(SUPPORTED_ONTOLOGY_FORMATS);
+const RDF_MEDIA_TYPES = Object.fromEntries(
+  Object.entries(SUPPORTED_ONTOLOGY_FORMATS).map(([format, details]) => [details.contentType, format])
+);
 const VIEWER_ASSET_KINDS = new Set(["ontology", "shapes", "shex", "spec", "example", "artifact"]);
+
+const DEFAULT_PERSISTENT_IRI = {
+  enabled: false,
+  documentIri: "",
+  siteUrl: "",
+  representations: []
+};
 
 const DEFAULT_THEME = {
   fonts: {
@@ -309,10 +321,12 @@ async function main() {
   validateConfig(config);
 
   const assets = buildAssetManifest(config);
+  const ontologyInfo = await parseOntology(config, assets);
+  const persistentIri = buildPersistentIriContext(config, assets, ontologyInfo);
+  config._persistentIri = persistentIri;
   if (args.has("--check")) {
-    const ontologyInfo = await parseOntology(config, assets);
     console.log(
-      `Configuration valid: parsed ${ontologyInfo.stats.declaredTerms} declared terms and ${ontologyInfo.edges.length} relationships.`
+      `Configuration valid: parsed ${ontologyInfo.stats.declaredTerms} declared terms and ${ontologyInfo.edges.length} relationships${persistentIri.enabled ? "; persistent IRI deployment files are ready" : ""}.`
     );
     return;
   }
@@ -321,11 +335,11 @@ async function main() {
   ensureDir(ASSETS_DIR);
   ensureDir(TERMS_DIR);
 
-  const ontologyInfo = await parseOntology(config, assets);
   const relationshipSummary = buildRelationshipSummary(ontologyInfo);
   const hierarchyTtl = buildHierarchyTtl(ontologyInfo);
 
   copyAssets(assets);
+  copyPersistentIriRepresentations(persistentIri);
   copyBrandingAssets(config);
   copyGraphVendorAssets();
   writeText(path.join(ASSETS_DIR, "ontology_graph_data.json"), JSON.stringify(ontologyInfo, null, 2));
@@ -341,10 +355,15 @@ async function main() {
     config,
     assets,
     ontologyInfo,
-    relationshipSummary
+    relationshipSummary,
+    persistentIri
   };
 
   writeText(path.join(SITE_DIR, "index.html"), buildIndexPage(context));
+  if (persistentIri.enabled) {
+    writeText(path.join(SITE_DIR, "iri-resolver.html"), buildPersistentIriResolverPage(context));
+    writePersistentIriDeploymentFiles(persistentIri);
+  }
   if (config.features.referencePage) {
     writeText(path.join(SITE_DIR, "ontology-reference.html"), buildReferencePage(context));
   }
@@ -417,6 +436,11 @@ function loadConfig(configPath) {
       webvowl: { ...DEFAULT_GRAPH.webvowl, ...(raw.graph?.webvowl || {}) },
       colors: { ...DEFAULT_GRAPH.colors, ...(raw.graph?.colors || {}) }
     },
+    persistentIri: {
+      ...DEFAULT_PERSISTENT_IRI,
+      ...(raw.persistentIri || {}),
+      representations: raw.persistentIri?.representations || []
+    },
     sources: {
       ...(raw.sources || {}),
       examples: raw.sources?.examples || [],
@@ -463,6 +487,7 @@ function validateConfig(config) {
 
   validateHierarchyConfig(config);
   validateBrandingConfig(config);
+  validatePersistentIriConfig(config);
 
   const requiredPaths = [config.sources.ontology];
   for (const value of [config.sources.shapes, config.sources.shex, config.sources.spec]) {
@@ -481,6 +506,9 @@ function validateConfig(config) {
       throw new Error("Each sources.artifacts entry requires key, label, and path");
     }
     requiredPaths.push(artifact.path);
+  }
+  for (const representation of config.persistentIri.representations || []) {
+    requiredPaths.push(representation.path);
   }
   for (const value of [config.site.branding.headerImage, config.site.branding.favicon]) {
     if (value) {
@@ -639,6 +667,92 @@ function validateBrandingConfig(config) {
   }
 }
 
+function validatePersistentIriConfig(config) {
+  const persistentIri = config.persistentIri;
+  if (!persistentIri || typeof persistentIri !== "object" || Array.isArray(persistentIri)) {
+    throw new Error("persistentIri must be an object");
+  }
+  if (typeof persistentIri.enabled !== "boolean") {
+    throw new Error("persistentIri.enabled must be a boolean");
+  }
+  if (!persistentIri.enabled) {
+    return;
+  }
+  if (!config.features.termPages) {
+    throw new Error("persistentIri.enabled requires features.termPages so browser requests can resolve to term pages");
+  }
+
+  const documentIri = parsePersistentIriUrl(persistentIri.documentIri, "persistentIri.documentIri");
+  const siteUrl = parsePersistentIriUrl(persistentIri.siteUrl, "persistentIri.siteUrl");
+  if (documentIri.hostname !== "w3id.org") {
+    throw new Error("persistentIri.documentIri must use https://w3id.org/ so OCG can generate a w3id deployment bundle");
+  }
+  if (documentIri.pathname.endsWith("/")) {
+    throw new Error("persistentIri.documentIri must identify a document without a trailing slash");
+  }
+  if (documentIri.search || documentIri.hash || siteUrl.search || siteUrl.hash) {
+    throw new Error("persistentIri.documentIri and persistentIri.siteUrl must not include a query string or fragment");
+  }
+  const namespaceDocumentIri = config.project.namespace.slice(0, -1);
+  if (config.project.namespace.endsWith("/") || namespaceDocumentIri !== documentIri.href) {
+    throw new Error("persistentIri.documentIri must equal project.namespace without its trailing '#'; persistent IRI support currently requires a hash namespace");
+  }
+  const pathSegments = documentIri.pathname.split("/").filter(Boolean);
+  if (pathSegments.length < 2 || pathSegments.some((segment) => !/^[A-Za-z0-9._-]+$/.test(segment))) {
+    throw new Error("persistentIri.documentIri must use at least two simple w3id path segments, such as https://w3id.org/project/vocab");
+  }
+  if (!Array.isArray(persistentIri.representations)) {
+    throw new Error("persistentIri.representations must be an array");
+  }
+  const mediaTypes = new Set();
+  const destinationNames = new Set();
+  for (const representation of persistentIri.representations) {
+    if (!representation || typeof representation !== "object" || Array.isArray(representation)) {
+      throw new Error("Each persistentIri.representations entry must be an object");
+    }
+    if (!RDF_MEDIA_TYPES[representation.mediaType]) {
+      throw new Error(`persistentIri.representations mediaType must be one of: ${Object.keys(RDF_MEDIA_TYPES).join(", ")}`);
+    }
+    if (!representation.path || typeof representation.path !== "string") {
+      throw new Error("Each persistentIri.representations entry requires a source path");
+    }
+    if (!representation.destinationName || typeof representation.destinationName !== "string") {
+      throw new Error("Each persistentIri.representations entry requires destinationName");
+    }
+    const format = RDF_MEDIA_TYPES[representation.mediaType];
+    const extension = path.extname(representation.destinationName).toLowerCase();
+    if (!SUPPORTED_ONTOLOGY_FORMATS[format].extensions.includes(extension)) {
+      throw new Error(`persistentIri.representations destinationName must use a ${format} extension`);
+    }
+    if (path.basename(representation.destinationName) !== representation.destinationName || sanitizeFileName(representation.destinationName) !== representation.destinationName) {
+      throw new Error("persistentIri.representations destinationName must be a simple filename");
+    }
+    if (mediaTypes.has(representation.mediaType)) {
+      throw new Error(`persistentIri.representations duplicates ${representation.mediaType}`);
+    }
+    if (destinationNames.has(representation.destinationName)) {
+      throw new Error(`persistentIri.representations duplicates destinationName '${representation.destinationName}'`);
+    }
+    mediaTypes.add(representation.mediaType);
+    destinationNames.add(representation.destinationName);
+  }
+}
+
+function parsePersistentIriUrl(value, optionName) {
+  if (!value || typeof value !== "string") {
+    throw new Error(`${optionName} is required when persistentIri.enabled is true`);
+  }
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") {
+      throw new Error("not https");
+    }
+    return url;
+  } catch {
+    throw new Error(`${optionName} must be an absolute https URL`);
+  }
+}
+
 function buildAssetManifest(config) {
   const assets = [];
   const homeArtifacts = config.site.home.artifacts;
@@ -760,6 +874,158 @@ function copyAssets(assets) {
   }
 }
 
+function buildPersistentIriContext(config, assets, ontologyInfo) {
+  if (!config.persistentIri.enabled) {
+    return { enabled: false, representations: [] };
+  }
+
+  const ontologyAsset = getAsset(assets, "ontology");
+  const primaryFormat = ontologyInfo.sourceFormat;
+  const primaryMediaType = SUPPORTED_ONTOLOGY_FORMATS[primaryFormat].contentType;
+  const primaryExtension = SUPPORTED_ONTOLOGY_FORMATS[primaryFormat].extensions[0];
+  const representations = [
+    {
+      mediaType: primaryMediaType,
+      sourcePath: ontologyAsset.sourcePath,
+      destinationName: `ontology${primaryExtension}`,
+      publicPath: `linked-data/ontology${primaryExtension}`,
+      primary: true
+    }
+  ];
+
+  for (const representation of config.persistentIri.representations) {
+    if (representation.mediaType === primaryMediaType) {
+      throw new Error(`persistentIri.representations duplicates the primary ontology media type ${primaryMediaType}`);
+    }
+    representations.push({
+      mediaType: representation.mediaType,
+      sourcePath: resolveProjectPath(representation.path),
+      destinationName: representation.destinationName,
+      publicPath: `linked-data/${representation.destinationName}`,
+      primary: false
+    });
+  }
+
+  const siteUrl = new URL(config.persistentIri.siteUrl);
+  if (!siteUrl.pathname.endsWith("/")) {
+    siteUrl.pathname = `${siteUrl.pathname}/`;
+  }
+  const documentUrl = new URL(config.persistentIri.documentIri);
+  const documentSegments = documentUrl.pathname.split("/").filter(Boolean);
+  const w3idDirectorySegments = documentSegments.slice(0, -1);
+  const documentName = documentSegments.at(-1);
+
+  for (const representation of representations) {
+    representation.url = new URL(representation.publicPath, siteUrl).href;
+  }
+
+  return {
+    enabled: true,
+    documentIri: documentUrl.href,
+    siteUrl: siteUrl.href,
+    resolverPath: "iri-resolver.html",
+    resolverUrl: new URL("iri-resolver.html", siteUrl).href,
+    referenceTarget: config.features.referencePage ? "ontology-reference.html" : "index.html",
+    documentName,
+    w3idDirectorySegments,
+    w3idDirectory: w3idDirectorySegments.join("/"),
+    representations
+  };
+}
+
+function copyPersistentIriRepresentations(persistentIri) {
+  if (!persistentIri.enabled) {
+    return;
+  }
+  ensureDir(LINKED_DATA_DIR);
+  for (const representation of persistentIri.representations) {
+    fs.copyFileSync(representation.sourcePath, path.join(SITE_DIR, representation.publicPath));
+  }
+}
+
+function writePersistentIriDeploymentFiles(persistentIri) {
+  const w3idDirectory = path.join(PERSISTENT_IRI_DIR, "w3id", ...persistentIri.w3idDirectorySegments);
+  const htaccess = buildW3idHtaccess(persistentIri);
+  writeText(path.join(PERSISTENT_IRI_DIR, "w3id-htaccess.txt"), htaccess);
+  writeText(path.join(w3idDirectory, ".htaccess"), htaccess);
+  writeText(path.join(PERSISTENT_IRI_DIR, "README.md"), buildPersistentIriReadme(persistentIri));
+}
+
+function buildW3idHtaccess(persistentIri) {
+  const pattern = `^${escapeApacheRegex(persistentIri.documentName)}/?$`;
+  const representationRules = persistentIri.representations
+    .map(
+      (representation) => `  RewriteCond %{HTTP:Accept} ${mediaTypeAcceptPattern(representation.mediaType)} [NC]\n  RewriteRule ${pattern} ${representation.url} [R=303,L,NE]`
+    )
+    .join("\n\n");
+  return `# Generated by Ontology Companion Generator v${OCG_VERSION}.
+# Place this file in w3id.org/${persistentIri.w3idDirectory}/.htaccess.
+# It redirects RDF requests to static GitHub Pages assets and browser requests
+# to the fragment-aware resolver page. Do not add a fragment to any target URL.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+${representationRules}
+
+  # A browser fragment such as #Term is not sent in HTTP. The resolver reads it
+  # after this redirect and routes to the generated per-term HTML page.
+  RewriteRule ${pattern} ${persistentIri.resolverUrl} [R=303,L,NE]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header append Vary Accept
+</IfModule>
+`;
+}
+
+function mediaTypeAcceptPattern(mediaType) {
+  return `(^|,|\\s)${escapeApacheRegex(mediaType)}($|,|;|\\s)`;
+}
+
+function escapeApacheRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildPersistentIriReadme(persistentIri) {
+  const representationList = persistentIri.representations
+    .map((representation) => `- \`${representation.mediaType}\` -> ${representation.url}`)
+    .join("\n");
+  return `# Persistent IRI deployment bundle
+
+Generated by OCG v${OCG_VERSION} for \`${persistentIri.documentIri}\`.
+
+## What this bundle does
+
+- Browsers are redirected to ${persistentIri.resolverUrl}. A fragment such as \`#Term\` remains in the browser and the resolver sends visitors to the matching generated term page.
+- RDF clients that send a supported \`Accept\` media type are redirected to a static RDF representation of the full ontology.
+- The server never receives a URI fragment, so this hash-IRI workflow cannot select a per-term RDF document. OCG intentionally returns the full ontology representation.
+
+## Published representations
+
+${representationList}
+
+## Install on w3id.org
+
+1. Copy \`w3id/${persistentIri.w3idDirectory}/.htaccess\` into the matching directory of the [w3id.org repository](https://github.com/perma-id/w3id.org).
+2. Add the required w3id README for that directory and open a pull request following the w3id contribution guidance.
+3. Deploy this repository's GitHub Pages site before merging the w3id redirect, so every redirect target exists.
+4. Verify the deployed endpoint with the commands below.
+
+## Verify
+
+\`\`\`bash
+# Browser: ${persistentIri.documentIri}#ExampleTerm
+# should land on the generated terms/ExampleTerm.html page.
+
+curl -L -H "Accept: ${persistentIri.representations[0].mediaType}" ${persistentIri.documentIri}
+curl -I -L -H "Accept: ${persistentIri.representations[0].mediaType}" ${persistentIri.documentIri}
+\`\`\`
+
+The request sent by curl has no fragment because fragments are client-side only. The final response should point to the expected static RDF asset and expose the matching content type.
+`;
+}
+
 function copyBrandingAssets(config) {
   const headerImage = getBrandingAsset(config.site.branding.headerImage, "headerImage");
   if (headerImage) {
@@ -816,7 +1082,7 @@ function writeSpecPage(config) {
   `;
   const styledSource = source.replace(
     /<\/head>/i,
-    `${buildFaviconLinks(config, "../")}\n  ${specPageCss(config)}\n  </head>`
+    `${buildFaviconLinks(config, "../")}\n  ${buildPersistentIriLinkTags(config)}\n  ${specPageCss(config)}\n  </head>`
   );
   const generated = styledSource.replace(/<body([^>]*)>/i, (match, attributes) => {
     const classAttribute = attributes.match(/\bclass\s*=\s*(["'])(.*?)\1/i);
@@ -2079,6 +2345,12 @@ function buildGuidePage(context) {
         broader: "#7b5ca7"
       }
     },
+    persistentIri: {
+      enabled: false,
+      documentIri: "",
+      siteUrl: "",
+      representations: []
+    },
     theme: {
       fonts: {
         heading: "Space Grotesk",
@@ -2352,6 +2624,40 @@ function buildGuidePage(context) {
       }
     },
     {
+      id: "persistent-iri",
+      badge: "Linked Data Deployment",
+      title: "Persistent IRI and Content Negotiation",
+      description: "Optionally turns a hash-based w3id.org namespace into a browser-friendly term resolver plus a generated w3id Apache configuration for RDF content negotiation. GitHub Pages remains a static host; w3id performs the Accept-header redirect.",
+      options: [
+        ["persistentIri.enabled", "Set to true to generate iri-resolver.html, stable linked-data RDF copies, and a site/persistent-iri/ w3id deployment bundle. Requires features.termPages and a hash namespace."],
+        ["persistentIri.documentIri", "No-fragment persistent document IRI at w3id.org, for example https://w3id.org/your-project/vocab. It must equal project.namespace without its trailing #."],
+        ["persistentIri.siteUrl", "Public HTTPS GitHub Pages base URL for the deployed site, including the repository path and trailing slash. OCG uses it to write absolute redirect targets."],
+        ["persistentIri.representations", "Optional extra full-ontology RDF serializations. The configured primary ontology file is always published automatically under linked-data/ with its detected media type."],
+        ["persistentIri.representations[].mediaType", "One of text/turtle, application/rdf+xml, application/ld+json, or application/n-triples. Each media type can appear once."],
+        ["persistentIri.representations[].path", "Repository-relative path to an already serialized full ontology in the declared media type. OCG copies it; it does not convert RDF formats."],
+        ["persistentIri.representations[].destinationName", "Simple filename with the matching extension, such as vocabulary.jsonld. It is written under site/linked-data/."],
+        ["Generated site/persistent-iri/", "Contains README.md, a copyable w3id-htaccess.txt, and the same .htaccess under its intended w3id directory path. Copy it to the w3id.org repository and submit the required w3id pull request."],
+        ["Generated HTML alternate links", "When enabled, generated HTML pages include rel=alternate links to the published RDF representations as a static-host fallback for clients that first retrieve HTML."]
+      ],
+      example: {
+        project: {
+          namespace: "https://w3id.org/your-project/vocab#"
+        },
+        persistentIri: {
+          enabled: true,
+          documentIri: "https://w3id.org/your-project/vocab",
+          siteUrl: "https://your-account.github.io/your-ontology-repository/",
+          representations: [
+            {
+              mediaType: "application/ld+json",
+              path: "source/ontology/your-vocabulary.jsonld",
+              destinationName: "your-vocabulary.jsonld"
+            }
+          ]
+        }
+      }
+    },
+    {
       id: "reference",
       badge: "Generated Page",
       title: "Vocabulary Reference",
@@ -2503,11 +2809,12 @@ function buildGuidePage(context) {
     { id: "getting-started", label: "Getting Started", level: 0, marker: "02" },
     { id: "repository-layout", label: "Repository Layout", level: 0, marker: "03" },
     { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "04" },
-    { id: "components", label: "Component Overview", level: 0, marker: "05" },
+    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0, marker: "05" },
+    { id: "components", label: "Component Overview", level: 0, marker: "06" },
     ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1, marker: "" })),
-    { id: "configuration", label: "Complete Configuration", level: 0, marker: "06" },
-    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "07" },
-    { id: "commands", label: "Useful Commands", level: 0, marker: "08" }
+    { id: "configuration", label: "Complete Configuration", level: 0, marker: "07" },
+    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "08" },
+    { id: "commands", label: "Useful Commands", level: 0, marker: "09" }
   ];
   const guideToc = `
     <details class="guide-toc" open>
@@ -2626,12 +2933,49 @@ function buildGuidePage(context) {
         })}
       </section>
 
+      <section id="persistent-iri-workflow" class="section guide-section persistent-iri-section">
+        <div class="section-head"><h2>Persistent IRI Deployment</h2><p class="section-note">OCG can prepare static GitHub Pages output for linked-data dereferencing, with w3id.org providing the HTTP behavior that static hosting cannot.</p></div>
+        <p>A term IRI such as <code class="iri-example">https://w3id.org/your-project/vocab#ExampleTerm</code> has two jobs. In a browser, visitors should reach the generated <code>terms/ExampleTerm.html</code> page. In an RDF client, a request for the no-fragment document IRI with <code>Accept: text/turtle</code> should receive an RDF representation. GitHub Pages can serve both static files, but it cannot inspect the <code>Accept</code> header and choose between them.</p>
+        <div class="guide-callout guide-callout--instruction"><strong>How to generate the w3id configuration:</strong> set <code>persistentIri.enabled</code> to <code>true</code>, provide the matching w3id document IRI and deployed GitHub Pages URL, then run <code>npm run ocg:build</code>. Copy <code>site/persistent-iri/w3id/&lt;project&gt;/.htaccess</code> and the generated <code>README.md</code> into the corresponding identifier directory in your <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id persistent-identifier publishing guide</a> pull request.</div>
+        <ol class="guide-steps">
+          <li><strong>Use a hash namespace.</strong> Set <code>project.namespace</code> to a w3id document IRI plus <code>#</code>, for example <code>https://w3id.org/your-project/vocab#</code>.</li>
+          <li><strong>Publish static targets.</strong> OCG copies the primary ontology and any additional serializations into <code>site/linked-data/</code>. It does not convert RDF: provide each representation you intend to offer.</li>
+          <li><strong>Let w3id negotiate.</strong> The generated <code>.htaccess</code> checks <code>Accept</code>, issues a <code>303</code> redirect to an RDF file when a supported media type is requested, and otherwise redirects to <code>iri-resolver.html</code>.</li>
+          <li><strong>Resolve the browser fragment client-side.</strong> URI fragments are never sent in an HTTP request. The resolver receives the preserved <code>#ExampleTerm</code> fragment in the browser and routes to the generated term page.</li>
+        </ol>
+        <div class="guide-callout"><strong>Important limitation:</strong> because a server never receives <code>#ExampleTerm</code>, hash-based IRIs cannot negotiate RDF for one selected term. OCG returns a representation of the full ontology. Per-term RDF requires a different IRI design, such as slash IRIs, and server-side routing. See the <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id explanation of identifier redirects</a> and its <a href="https://github.com/perma-id/w3id.org/tree/master/examples" target="_blank" rel="noreferrer"><code>.htaccess</code> examples</a> for more context.</div>
+        <h3>Configuration example</h3>
+        ${guideCode({
+          project: { namespace: "https://w3id.org/your-project/vocab#" },
+          persistentIri: {
+            enabled: true,
+            documentIri: "https://w3id.org/your-project/vocab",
+            siteUrl: "https://your-account.github.io/your-ontology-repository/",
+            representations: [
+              {
+                mediaType: "application/ld+json",
+                path: "source/ontology/your-vocabulary.jsonld",
+                destinationName: "your-vocabulary.jsonld"
+              }
+            ]
+          }
+        })}
+        <h3>Deploy and verify</h3>
+        <ol class="guide-steps">
+          <li>Build and deploy the GitHub Pages site first.</li>
+          <li>Copy <code>site/persistent-iri/w3id/&lt;project&gt;/.htaccess</code> and follow the required contribution process in the <a href="https://github.com/perma-id/w3id.org" target="_blank" rel="noreferrer">w3id.org repository</a>.</li>
+          <li>Use the generated <code>site/persistent-iri/README.md</code> for the exact redirect targets and curl commands.</li>
+        </ol>
+        <p>For a Python-first local ontology exploration workflow, see <a href="https://github.com/lambdamusic/Ontospy" target="_blank" rel="noreferrer">Ontospy</a>. OCG addresses a complementary use case: Node-based generation, configurable companion pages, and GitHub Pages deployment from the ontology repository.</p>
+      </section>
+
       <section id="components" class="section guide-section">
         <div class="section-head"><h2>Companion Site Components</h2><p class="section-note">Use the component-level How To links throughout the site to return directly to these explanations. Each detailed section includes an option table and a complete example.</p></div>
         <div class="guide-grid">
           <article id="package-cli-summary" class="guide-card"><div class="term-badge">Developer Workflow</div><h3><a href="#package-cli">Package and CLI</a></h3><p>Install OCG as a development dependency and use the CLI to initialize, validate, build, preview, and clean the companion site.</p><p><strong>Customize:</strong> CLI paths, output directory, local preview host, and the full <code>ocg.config.json</code> surface.</p></article>
           <article id="home-summary" class="guide-card"><div class="term-badge">Landing Page</div><h3><a href="#home">Home</a></h3><p>The home page presents your project identity, navigation, source artifacts, ontology snapshot, configurable overview cards, featured terms, examples, and the raw artifact viewer.</p><p><strong>Customize:</strong> <code>site.hero</code>, <code>site.resourcePanel</code>, <code>site.overviewCards</code>, <code>site.customSections</code>, and <code>curation.featuredTerms</code>.</p></article>
           <article id="artifacts-summary" class="guide-card"><div class="term-badge">Source Package</div><h3><a href="#artifacts">Artifacts and Viewer</a></h3><p>OWL Ontology, SHACL, ShEx, specification, examples, and additional configured source files are copied into <code>site/assets/</code>. Config, schema, workflow, and guide files are available as generated links but are not raw-viewer tabs.</p><p><strong>Customize:</strong> <code>sources</code>, <code>features.rawViewer</code>, and <code>curation.viewerTabs</code>.</p></article>
+          <article id="persistent-iri-summary" class="guide-card"><div class="term-badge">Linked Data Deployment</div><h3><a href="#persistent-iri">Persistent IRI</a></h3><p>Use w3id.org redirects plus static GitHub Pages assets to resolve browser term IRIs and content-negotiate full ontology representations.</p><p><strong>Customize:</strong> <code>persistentIri</code>.</p></article>
           <article id="reference-summary" class="guide-card"><div class="term-badge">Generated Page</div><h3><a href="#reference">Vocabulary Reference</a></h3><p>The reference page extracts declared terms from the configured ontology and groups them by class, property, concept, and declared-term type.</p><p><strong>Enable or disable:</strong> <code>features.referencePage</code>.</p></article>
           <article id="graph-summary" class="guide-card"><div class="term-badge">Interactive Page</div><h3><a href="#graph">Ontology Graph</a></h3><p>The Ontology Network supports <strong>Predicates as Nodes</strong> or <strong>Predicates as Edges</strong>, plus filters, search, selection, layout, and external-term visibility. Its full-screen view gives the network the full viewport and provides a collapsible controls drawer. WebVOWL can be enabled alongside it and expanded the same way.</p><p><strong>Customize:</strong> <code>graph.custom</code>, <code>graph.webvowl</code>, and <code>graph.colors</code>.</p></article>
           <article id="terms-summary" class="guide-card"><div class="term-badge">Generated Pages</div><h3><a href="#terms">Term Pages</a></h3><p>Every declared ontology term can receive an individual page with its IRI, labels, types, source links, and incoming/outgoing relationships.</p><p><strong>Enable or disable:</strong> <code>features.termPages</code>.</p></article>
@@ -4599,6 +4943,84 @@ function buildPageToc(config, items = []) {
     </script>`;
 }
 
+function buildPersistentIriResolverPage(context) {
+  const { config, ontologyInfo, persistentIri } = context;
+  const termTargets = Object.fromEntries(
+    ontologyInfo.nodes
+      .filter((node) => !node.isExternal && node.localName)
+      .map((node) => [node.localName, `terms/${encodeURIComponent(node.localName)}.html`])
+  );
+  const serializedTargets = JSON.stringify(termTargets).replaceAll("<", "\\u003c");
+  const fallbackTarget = persistentIri.referenceTarget;
+
+  return renderPage({
+    config,
+    title: `${config.project.shortName} IRI Resolver`,
+    description: `Resolves persistent term IRIs for ${config.project.title}.`,
+    currentNav: "",
+    content: `
+      <section class="section resolver-section">
+        <div class="section-head">
+          <div class="eyebrow">Persistent IRI</div>
+          <h1>Resolving ontology IRI</h1>
+          <p id="iri-resolver-status" class="section-note" role="status">Routing this persistent IRI to its companion-site page.</p>
+        </div>
+        <div id="iri-resolver-error" class="guide-callout" hidden>
+          <strong>Term page not found.</strong>
+          <span id="iri-resolver-error-copy"></span>
+          <a href="${escapeHtml(fallbackTarget)}">Browse the ontology reference</a>.
+        </div>
+        <noscript><div class="guide-callout"><strong>JavaScript is required for hash-based term IRIs.</strong> Open the ontology reference to browse generated term pages.</div></noscript>
+      </section>
+      <script>
+        (() => {
+          const TERM_TARGETS = ${serializedTargets};
+          const FALLBACK_TARGET = ${JSON.stringify(fallbackTarget)};
+          const status = document.getElementById("iri-resolver-status");
+          const error = document.getElementById("iri-resolver-error");
+          const errorCopy = document.getElementById("iri-resolver-error-copy");
+          const fragment = window.location.hash.slice(1);
+
+          if (!fragment) {
+            window.location.replace(FALLBACK_TARGET);
+            return;
+          }
+
+          let localName;
+          try {
+            localName = decodeURIComponent(fragment);
+          } catch {
+            localName = "";
+          }
+          const target = TERM_TARGETS[localName];
+          if (target) {
+            window.location.replace(target);
+            return;
+          }
+
+          status.textContent = "No generated term page matches this IRI fragment.";
+          error.hidden = false;
+          errorCopy.textContent = localName
+            ? " No generated term page is available for '" + localName + "'."
+            : " The IRI fragment could not be read.";
+        })();
+      </script>
+    `
+  });
+}
+
+function buildPersistentIriLinkTags(config) {
+  const persistentIri = config._persistentIri;
+  if (!persistentIri?.enabled) {
+    return "";
+  }
+  return persistentIri.representations
+    .map(
+      (representation) => `<link rel="alternate" type="${escapeHtml(representation.mediaType)}" href="${escapeHtml(representation.url)}" />`
+    )
+    .join("\n  ");
+}
+
 function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [] }) {
   const nav = buildNav(config, currentNav, pathPrefix);
   const pageTocMarkup = buildPageToc(config, pageToc);
@@ -4618,6 +5040,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="${escapeHtml(description)}" />
   ${buildFaviconLinks(config, pathPrefix)}
+  ${buildPersistentIriLinkTags(config)}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />
@@ -5812,6 +6235,49 @@ function sharedCss(config) {
     .guide-component h3 {
       margin-top: 22px;
       margin-bottom: 8px;
+    }
+    .persistent-iri-section .section-head .section-note {
+      max-width: none;
+    }
+    .persistent-iri-section > p {
+      margin-bottom: 20px;
+    }
+    .persistent-iri-section > .guide-steps {
+      gap: 17px;
+      margin: 22px 0 24px;
+    }
+    .persistent-iri-section > .guide-callout {
+      margin: 22px 0 26px;
+    }
+    .persistent-iri-section > h3 {
+      margin-top: 26px;
+    }
+    .persistent-iri-section > .guide-code {
+      margin-top: 10px;
+      margin-bottom: 28px;
+    }
+    .guide-callout--instruction {
+      border-left-color: var(--accent-strong);
+      background: var(--surface-accent);
+    }
+    .guide-callout a {
+      color: var(--accent-strong);
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+    .iri-example {
+      display: inline-block;
+      max-width: 100%;
+      padding: 2px 7px;
+      border: 1px solid var(--accent-outline);
+      border-radius: 6px;
+      background: var(--accent-tint);
+      color: var(--accent-strong);
+      font-weight: 600;
+      overflow-wrap: anywhere;
+      vertical-align: baseline;
     }
     .guide-example-note {
       margin-bottom: 12px;

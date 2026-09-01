@@ -120,6 +120,7 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 - [Artifacts](https://ecrum19.github.io/ocg/usage-guide.html#artifacts)
 - [Reference](https://ecrum19.github.io/ocg/usage-guide.html#reference)
 - [Graph](https://ecrum19.github.io/ocg/usage-guide.html#graph)
+- [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ocg/usage-guide.html#persistent-iri)
 - [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
 - [Specification](https://ecrum19.github.io/ocg/usage-guide.html#specification)
 - [Branding and Footer](https://ecrum19.github.io/ocg/usage-guide.html#branding)
@@ -259,6 +260,42 @@ Use `sources.ontologyFormat: "auto"` to select a parser from the extension, or s
 
 OCG does not infer TriG, N-Quads, Notation3, OWL Functional or Manchester syntax, OWL/XML, OBO, arbitrary XML/JSON/YAML, CSV, UML/XMI, JSON Schema, OpenAPI, or Protobuf. SHACL and ShEx are published as artifacts but are not currently parsed into the generated graph.
 
+### Persistent IRIs And Linked Data
+
+`persistentIri` optionally prepares a hash-based `w3id.org` namespace for proper linked-data dereferencing while keeping the companion site on static GitHub Pages. It generates three pieces together:
+
+- `site/linked-data/`: stable copies of the primary ontology and any extra RDF serializations you provide.
+- `site/iri-resolver.html`: reads a browser fragment such as `#VCFFile` and forwards visitors to `terms/VCFFile.html`.
+- `site/persistent-iri/`: a generated README and w3id-ready `.htaccess` rules that redirect requests according to the `Accept` header.
+
+```json
+{
+  "project": {
+    "namespace": "https://w3id.org/your-project/vocab#"
+  },
+  "persistentIri": {
+    "enabled": true,
+    "documentIri": "https://w3id.org/your-project/vocab",
+    "siteUrl": "https://your-account.github.io/your-ontology-repository/",
+    "representations": [
+      {
+        "mediaType": "application/ld+json",
+        "path": "source/ontology/your-vocabulary.jsonld",
+        "destinationName": "your-vocabulary.jsonld"
+      }
+    ]
+  }
+}
+```
+
+`documentIri` must equal `project.namespace` without its trailing `#`, and the generated browser route requires `features.termPages: true`. The primary ontology file is included automatically in its detected media type; use `representations` only for additional serializations. OCG copies these files and does **not** convert RDF between formats.
+
+This uses two complementary layers because GitHub Pages is static. A client sends `https://w3id.org/your-project/vocab` with `Accept: text/turtle`; the generated w3id Apache rule issues a `303` redirect to the static Turtle file. A browser visits `https://w3id.org/your-project/vocab#VCFFile`; the fragment is not part of the HTTP request, so w3id redirects to the resolver and browser-side code routes to the term page. `site/persistent-iri/README.md` includes the exact files and curl commands to verify after deployment.
+
+Hash IRIs cannot return RDF for one selected term: servers never receive the `#VCFFile` fragment. OCG therefore returns a representation of the full ontology. Per-term RDF needs a different IRI design, such as slash IRIs and server-side routing. The generated rules also add HTML `rel="alternate"` links as a static-host fallback, but header-based content negotiation remains the primary route.
+
+Deploy the GitHub Pages site first, then copy the generated `.htaccess` into the corresponding directory of [w3id.org](https://github.com/perma-id/w3id.org) and follow its pull-request process. This is based on the standard HTTP content-negotiation model; GitHub Pages itself cannot execute server-side logic or customize MIME behavior per file. For a Python-oriented local ontology exploration alternative, see [Ontospy](https://github.com/lambdamusic/Ontospy). OCG is complementary: it is Node-based and focuses on configurable static companion sites and GitHub Pages deployment.
+
 ## Graphs
 
 The Graph page can expose:
@@ -303,6 +340,7 @@ The bundled example demonstrates ontology parsing, term pages, graph and hierarc
 - SHACL and ShEx are not used to infer graph structure.
 - Output is a static site; there is no backend, live synchronization, editing, or server-side reasoning.
 - WebVOWL depends on an external service and a fetchable ontology URL.
+- Persistent IRI support requires a `w3id.org` contribution and supports full-ontology RDF representations; it does not create a server or per-term RDF responses for hash IRIs.
 - Very large ontologies may need filtering or a specialized visualization strategy for good browser performance.
 
 ## Contributing

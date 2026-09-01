@@ -201,6 +201,40 @@
       },
       "additionalProperties": false
     },
+    "persistentIri": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "documentIri": {
+          "type": "string",
+          "format": "uri",
+          "description": "The no-fragment w3id.org document IRI. It must equal project.namespace without the trailing #."
+        },
+        "siteUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Public GitHub Pages base URL that serves the generated site."
+        },
+        "representations": {
+          "type": "array",
+          "description": "Optional additional full-ontology RDF serializations to publish for Accept-header negotiation. The primary ontology format is always included automatically.",
+          "items": {
+            "type": "object",
+            "required": ["mediaType", "path", "destinationName"],
+            "properties": {
+              "mediaType": {
+                "type": "string",
+                "enum": ["text/turtle", "application/rdf+xml", "application/ld+json", "application/n-triples"]
+              },
+              "path": { "type": "string" },
+              "destinationName": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "theme": {
       "type": "object",
       "properties": {

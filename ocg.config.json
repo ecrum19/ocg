@@ -105,6 +105,12 @@
       "broader": "#7b5ca7"
     }
   },
+  "persistentIri": {
+    "enabled": false,
+    "documentIri": "",
+    "siteUrl": "",
+    "representations": []
+  },
   "theme": {
     "fonts": {
       "heading": "Space Grotesk",
