@@ -28,6 +28,7 @@
     "ocg": "bin/ocg.mjs"
   },
   "files": [
+    "CITATION.cff",
     "bin/",
     "scripts/",
     "templates/",

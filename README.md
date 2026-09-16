@@ -63,11 +63,25 @@ Source files can stay in their existing locations. Point to them with paths rela
 
 - Home, Reference, Graph, Terms, and Usage Guide pages
 - An optional ReSpec Specification page
+- An optional Pitfalls page with the OOPS! report
 - Copied ontology, SHACL, ShEx, specification, example, and configured additional artifacts
 
 ## Configuration And Guides
 
 `ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
+
+### End-to-End w3id Publication
+
+For the complete beginner workflow from an existing ontology repository to a working GitHub Pages site with w3id content negotiation, follow the generated [End-to-End w3id Publication guide](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication). The short version is:
+
+1. Install OCG and run `npx ocg init --ontology path/to/ontology.ttl`.
+2. Review the generated config and update the project metadata, source paths, and supported input format.
+3. Choose an available w3id document IRI, update the ontology namespace consistently, and enable `persistentIri` with the final GitHub Pages URL.
+4. Run `npm run ocg:check` and `npm run ocg:build`, then deploy `main` through GitHub Pages.
+5. Copy the generated w3id `.htaccess` and README into a fork of [w3id.org](https://github.com/perma-id/w3id.org) and submit a pull request.
+6. Verify browser term resolution and RDF requests with the generated curl commands.
+
+The w3id identifier is a redirect maintained separately from the ontology repository; the ontology and its static representations remain hosted by GitHub Pages.
 
 ### Branding Assets
 
@@ -120,6 +134,8 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 - [Artifacts](https://ecrum19.github.io/ocg/usage-guide.html#artifacts)
 - [Reference](https://ecrum19.github.io/ocg/usage-guide.html#reference)
 - [Graph](https://ecrum19.github.io/ocg/usage-guide.html#graph)
+- [Ontology Pitfall Report](https://ecrum19.github.io/ocg/usage-guide.html#pitfalls)
+- [End-to-End w3id Publication](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication)
 - [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ocg/usage-guide.html#persistent-iri)
 - [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
 - [Specification](https://ecrum19.github.io/ocg/usage-guide.html#specification)
@@ -173,7 +189,18 @@ All editorial home-page copy and labels are configured in `site`. Use `site.hero
 }
 ```
 
-Use `site.home.metadata` to rename the canonical-IRI, version, and maintainer labels and the namespace-copy messages. Use `site.home.artifacts` to change fallback labels and descriptions for the ontology, SHACL, ShEx, and specification source assets. Labels and descriptions supplied directly in `sources.examples` and `sources.artifacts` take precedence for those individual files.
+The home page shows a **Preferred Prefix** row under **Canonical URI** whenever the ontology header carries [`vann:preferredNamespacePrefix`](https://vocab.org/vann/), for example:
+
+```turtle
+<https://example.org/ecv>
+  a owl:Ontology ;
+  vann:preferredNamespacePrefix "ecv" ;
+  vann:preferredNamespaceUri "https://example.org/ecv#" .
+```
+
+OCG reads the annotation from the ontology itself, so no configuration is required. Set `project.preferredNamespacePrefix` to override it, or omit both to hide the row. Use `site.home.metadata.preferredNamespacePrefix` to rename the label.
+
+Use `site.home.metadata` to rename the canonical-IRI, preferred-prefix, version, and maintainer labels and the namespace-copy messages. Use `site.home.artifacts` to change fallback labels and descriptions for the ontology, SHACL, ShEx, and specification source assets. Labels and descriptions supplied directly in `sources.examples` and `sources.artifacts` take precedence for those individual files.
 
 ### Page Navigation
 
@@ -265,7 +292,7 @@ OCG does not infer TriG, N-Quads, Notation3, OWL Functional or Manchester syntax
 `persistentIri` optionally prepares a hash-based `w3id.org` namespace for proper linked-data dereferencing while keeping the companion site on static GitHub Pages. It generates three pieces together:
 
 - `site/linked-data/`: stable copies of the primary ontology and any extra RDF serializations you provide.
-- `site/iri-resolver.html`: reads a browser fragment such as `#VCFFile` and forwards visitors to `terms/VCFFile.html`.
+- `site/iri-resolver.html`: reads a browser fragment such as `#Capability` and forwards visitors to `terms/Capability.html`.
 - `site/persistent-iri/`: a generated README and w3id-ready `.htaccess` rules that redirect requests according to the `Accept` header.
 
 ```json
@@ -290,11 +317,38 @@ OCG does not infer TriG, N-Quads, Notation3, OWL Functional or Manchester syntax
 
 `documentIri` must equal `project.namespace` without its trailing `#`, and the generated browser route requires `features.termPages: true`. The primary ontology file is included automatically in its detected media type; use `representations` only for additional serializations. OCG copies these files and does **not** convert RDF between formats.
 
-This uses two complementary layers because GitHub Pages is static. A client sends `https://w3id.org/your-project/vocab` with `Accept: text/turtle`; the generated w3id Apache rule issues a `303` redirect to the static Turtle file. A browser visits `https://w3id.org/your-project/vocab#VCFFile`; the fragment is not part of the HTTP request, so w3id redirects to the resolver and browser-side code routes to the term page. `site/persistent-iri/README.md` includes the exact files and curl commands to verify after deployment.
+This uses two complementary layers because GitHub Pages is static. A client sends `https://w3id.org/your-project/vocab` with `Accept: text/turtle`; the generated w3id Apache rule issues a `303` redirect to the static Turtle file. A browser visits `https://w3id.org/your-project/vocab#Capability`; the fragment is not part of the HTTP request, so w3id redirects to the resolver and browser-side code routes to the term page. `site/persistent-iri/README.md` includes the exact files and curl commands to verify after deployment.
 
-Hash IRIs cannot return RDF for one selected term: servers never receive the `#VCFFile` fragment. OCG therefore returns a representation of the full ontology. Per-term RDF needs a different IRI design, such as slash IRIs and server-side routing. The generated rules also add HTML `rel="alternate"` links as a static-host fallback, but header-based content negotiation remains the primary route.
+Hash IRIs cannot return RDF for one selected term: servers never receive the `#Capability` fragment. OCG therefore returns a representation of the full ontology. Per-term RDF needs a different IRI design, such as slash IRIs and server-side routing. The generated rules also add HTML `rel="alternate"` links as a static-host fallback, but header-based content negotiation remains the primary route.
 
 Deploy the GitHub Pages site first, then copy the generated `.htaccess` into the corresponding directory of [w3id.org](https://github.com/perma-id/w3id.org) and follow its pull-request process. This is based on the standard HTTP content-negotiation model; GitHub Pages itself cannot execute server-side logic or customize MIME behavior per file. For a Python-oriented local ontology exploration alternative, see [Ontospy](https://github.com/lambdamusic/Ontospy). OCG is complementary: it is Node-based and focuses on configurable static companion sites and GitHub Pages deployment.
+
+### Ontology Pitfall Report
+
+Set `pitfallScanner.enabled` to `true` to submit the configured ontology to [OOPS! (OntOlogy Pitfall Scanner!)](https://oops.linkeddata.es) during the build and publish the returned report as `site/ontology-pitfalls.html` with its own **Pitfalls** navigation link. Detected pitfalls are grouped by OOPS! importance level, and affected elements link back to their generated term pages.
+
+```json
+{
+  "pitfallScanner": {
+    "enabled": true,
+    "serviceUrl": "https://oops.linkeddata.es/rest",
+    "pitfalls": [],
+    "timeoutMs": 60000,
+    "failOnError": false,
+    "cache": true
+  }
+}
+```
+
+This is the only OCG feature that contacts a remote service at build time, so it is off by default. Notes:
+
+- OOPS! only accepts RDF/XML content, so OCG serializes Turtle, JSON-LD, and N-Triples inputs to RDF/XML for the request. The ontology source itself is never rewritten.
+- Leave `pitfalls` empty to request the full catalogue, or list codes such as `["P04", "P11"]` to narrow the scan.
+- With `cache` enabled, the report is stored under `.ocg-cache/` keyed by the submitted ontology, so unchanged sources do not re-contact the service. Pass `--refresh-pitfalls` to force a new request or `--skip-pitfall-scan` to build from the cache alone.
+- When the service is unreachable, OCG warns and publishes the page with an unavailable notice. Set `failOnError` to `true` to fail the build instead.
+- Point `serviceUrl` at a self-hosted OOPS! instance to keep ontology content inside your own infrastructure.
+
+Pitfalls are advisory design observations, not validation errors; use SHACL or ShEx for constraint checking.
 
 ## Graphs
 
@@ -302,6 +356,8 @@ The Graph page can expose:
 
 - A local Sigma.js graph with `predicate-nodes` and `predicate-edges` modes
 - An optional WebVOWL view
+
+In **Predicates as Edges** mode, each edge carries its prefixed predicate IRI (`ecv:hasRequirement`) drawn along the edge, so relationships can be read without hovering. **Predicates as Nodes** mode labels its edges with the structural predicate (`rdfs:subClassOf`). A label wider than the edge it annotates is omitted rather than truncated, so it reappears as you zoom in; the hover tooltip always carries the full value. Use the **Show predicate labels on edges** control to turn them off, `graph.custom.labels.edgeLabels` to change the initial state, and `graph.custom.labels.edgeLabelSize` to change the font size.
 
 The generated **Ontology Network** uses a deterministic ForceAtlas2 layout, label-aware Noverlap post-processing, and separate packing for disconnected components. Sigma.js provides hover details, click selection and highlighting, repeated-click deselection, forgiving edge hit areas, and draggable nodes. Manageable graphs show every label; larger graphs prioritize important labels while always revealing selected neighborhoods. Configure these behaviors under `graph.custom.layout` and `graph.custom.labels` in `ocg.config.json`. Both graph representations include an expand control. In the Ontology Network, full screen gives the graph the entire viewport and starts with the controls drawer collapsed; use **Show controls** to open it without shrinking the graph, and use the exit icon or `Esc` to leave full screen. WebVOWL requires a public URL for the serialized ontology document that its service can fetch. Do not set `graph.webvowl.ontologyUrl` to `project.namespace` such as `https://w3id.org/vord#`; a namespace identifies terms, while WebVOWL needs the actual `.ttl`, `.rdf`, or other ontology file URL. It may not work in a local `file://` preview.
 
@@ -341,6 +397,7 @@ The bundled example demonstrates ontology parsing, term pages, graph and hierarc
 - Output is a static site; there is no backend, live synchronization, editing, or server-side reasoning.
 - WebVOWL depends on an external service and a fetchable ontology URL.
 - Persistent IRI support requires a `w3id.org` contribution and supports full-ontology RDF representations; it does not create a server or per-term RDF responses for hash IRIs.
+- The optional pitfall report depends on the external OOPS! service being reachable at build time.
 - Very large ontologies may need filtering or a specialized visualization strategy for good browser performance.
 
 ## Contributing
@@ -357,6 +414,25 @@ git diff --check
 ```
 
 Update the README and generated Usage Guide when changing configuration, CLI behavior, supported inputs, workflows, or user-facing features. Include regression coverage for fixes where practical, and keep generated output out of source changes unless required.
+
+## Citing OCG
+
+If OCG supports published work, please cite it. The repository ships a [`CITATION.cff`](CITATION.cff) file, so GitHub's **Cite this repository** button produces APA and BibTeX entries automatically, and citation managers can import it directly.
+
+```bibtex
+@software{crum_ocg,
+  author  = {Crum, Elias},
+  title   = {{Ontology Companion Generator (OCG)}},
+  url     = {https://github.com/ecrum19/ocg},
+  license = {MIT},
+  version = {1.4.0},
+  year    = {2026}
+}
+```
+
+> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.4.0) [Computer software]. https://github.com/ecrum19/ocg
+
+Update the `version` and `date-released` fields in `CITATION.cff` alongside `package.json` when cutting a release.
 
 ## License
 
