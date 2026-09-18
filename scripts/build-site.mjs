@@ -89,7 +89,8 @@ const DEFAULT_FEATURES = {
   hierarchyAsset: true,
   hierarchyOverview: false,
   specPage: false,
-  usageGuidePage: true
+  usageGuidePage: true,
+  embeddedJsonLd: true
 };
 
 const DEFAULT_HIERARCHY = {
@@ -321,6 +322,15 @@ const TERM_TYPE_ORDER = [
   "declaredTerm",
   "external"
 ];
+
+const JSON_LD_BASE_CONTEXT = {
+  owl: "http://www.w3.org/2002/07/owl#",
+  rdf: RDF_NAMESPACE,
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+  skos: "http://www.w3.org/2004/02/skos/core#",
+  vann: "http://purl.org/vocab/vann/",
+  xsd: "http://www.w3.org/2001/XMLSchema#"
+};
 
 // File names that the generated terms/ directory already uses for itself.
 const RESERVED_TERM_PAGE_NAMES = new Set(["index"]);
@@ -1724,7 +1734,8 @@ async function parseOntology(config, assets) {
     subjectUri: quad.subject.termType === "NamedNode" ? quad.subject.value : null,
     predicateUri: quad.predicate.termType === "NamedNode" ? quad.predicate.value : null,
     objectUri: quad.object.termType === "NamedNode" ? quad.object.value : null,
-    objectLiteral: quad.object.termType === "Literal" ? quad.object.value : null
+    objectLiteral: quad.object.termType === "Literal" ? quad.object.value : null,
+    objectLanguage: quad.object.termType === "Literal" ? quad.object.language || "" : ""
   }));
   const namespace = config.project.namespace;
   if (!prefixes.some((entry) => entry.base === namespace)) {
@@ -1756,11 +1767,15 @@ async function parseOntology(config, assets) {
       triple.objectLiteral
     ) {
       term.label = triple.objectLiteral;
+      term.labelPredicate = triple.predicateUri;
+      term.labelLanguage = triple.objectLanguage;
     } else if (
       (triple.predicateUri === RDFS_COMMENT || triple.predicateUri === SKOS_DEFINITION) &&
       triple.objectLiteral
     ) {
       term.comment = triple.objectLiteral;
+      term.commentPredicate = triple.predicateUri;
+      term.commentLanguage = triple.objectLanguage;
     } else if (
       [RDFS_SUBCLASS_OF, RDFS_DOMAIN, RDFS_RANGE, SKOS_BROADER].includes(triple.predicateUri) &&
       triple.objectUri
@@ -1876,8 +1891,19 @@ function extractOntologyMetadata(triples, config) {
     return (scoped || fallback)?.objectLiteral || "";
   };
 
+  const literal = (predicateUris) => {
+    const match = triples.find(
+      (triple) => predicateUris.includes(triple.predicateUri) && triple.subjectUri === iri && triple.objectLiteral
+    );
+    return match
+      ? { value: match.objectLiteral, predicate: match.predicateUri, language: match.objectLanguage }
+      : null;
+  };
+
   return {
     iri,
+    label: literal([RDFS_LABEL, SKOS_PREF_LABEL]),
+    comment: literal([RDFS_COMMENT, SKOS_DEFINITION]),
     preferredNamespacePrefix:
       config.project.preferredNamespacePrefix || annotation(VANN_PREFERRED_NAMESPACE_PREFIX),
     preferredNamespaceUri:
@@ -1894,7 +1920,11 @@ function ensureTerm(termMap, uri, orderedPrefixes, namespace, isExternal) {
       qname,
       localName: toLocalName(uri, namespace),
       label: qname,
+      labelPredicate: "",
+      labelLanguage: "",
       comment: "",
+      commentPredicate: "",
+      commentLanguage: "",
       termType: isExternal ? "external" : "declaredTerm",
       types: new Set(),
       isExternal
@@ -1937,6 +1967,15 @@ function relationFromPredicate(predicateUri) {
     return "broader";
   }
   return "relatedTo";
+}
+
+function predicateIriForRelation(relation) {
+  return {
+    subClassOf: RDFS_SUBCLASS_OF,
+    domain: RDFS_DOMAIN,
+    range: RDFS_RANGE,
+    broader: SKOS_BROADER
+  }[relation] || "";
 }
 
 function predicateQnameForRelation(relation) {
@@ -2684,7 +2723,8 @@ function buildGuidePage(context) {
       hierarchyAsset: true,
       hierarchyOverview: true,
       specPage: true,
-      usageGuidePage: true
+      usageGuidePage: true,
+      embeddedJsonLd: true
     },
     hierarchy: {
       title: "Ontology Structure",
@@ -3168,6 +3208,19 @@ function buildGuidePage(context) {
       description: "Creates one HTML page for each declared ontology term, with relationships and source links.",
       options: [["features.termPages", "Set to false to omit the terms directory and its navigation link."]],
       example: { features: { termPages: true } }
+    },
+    {
+      id: "embedded-json-ld",
+      badge: "Machine Readable",
+      title: "Embedded JSON-LD",
+      description: "Publishes the parsed RDF inside the generated HTML, so an agent that fetches a page gets machine-readable data without content negotiation. The home page carries the ontology header, the Reference page carries the whole vocabulary as an @graph, and each term page carries that term.",
+      options: [
+        ["features.embeddedJsonLd", "Set to false to omit every JSON-LD script block."],
+        ["Fidelity", "The emitted graph is a subset of the parsed ontology: the predicate that actually supplied a label or comment is re-used (rdfs:label or skos:prefLabel) and language tags are preserved."],
+        ["rdfs:isDefinedBy", "The one statement OCG adds itself, linking each term to the ontology IRI it was declared in."],
+        ["Hash namespaces", "Embedded data is reached by agents that fetch the term page directly. A client dereferencing a hash IRI such as vocab#Term still requests the no-fragment document, so this complements persistentIri rather than replacing it."]
+      ],
+      example: { features: { embeddedJsonLd: true } }
     },
     {
       id: "specification",
@@ -3749,6 +3802,7 @@ function buildIndexPage(context) {
 
   return renderPage({
     config,
+    jsonLd: buildOntologyJsonLd(context),
     title: `${config.project.title} Companion Site`,
     description: config.project.description,
     bodyClass: "page-home",
@@ -3903,6 +3957,7 @@ function buildReferencePage(context) {
 
   return renderPage({
     config,
+    jsonLd: buildVocabularyJsonLd(context),
     title: `${config.project.title} Reference`,
     description: `Reference documentation for ${config.project.title}.`,
     currentNav: "reference",
@@ -5241,6 +5296,145 @@ function buildSigmaGraphScript(config) {
     `;
 }
 
+// ---------------------------------------------------------------------------
+// Embedded JSON-LD
+//
+// Term pages carry the triples OCG parsed for that term, so a crawler that
+// fetches the HTML gets machine-readable RDF without content negotiation. The
+// emitted graph is a faithful subset of the source: the predicate that actually
+// produced a label or comment is re-used, and language tags are preserved. The
+// one statement OCG adds of its own is rdfs:isDefinedBy, linking a term to the
+// ontology IRI it was declared in.
+// ---------------------------------------------------------------------------
+
+function jsonLdContext(ontologyInfo) {
+  const context = { ...JSON_LD_BASE_CONTEXT };
+  for (const { prefix, base } of ontologyInfo.prefixes || []) {
+    // A prefix from the ontology must not silently redefine a well-known one.
+    if (!context[prefix]) {
+      context[prefix] = base;
+    }
+  }
+  return context;
+}
+
+function jsonLdLiteral(entry) {
+  if (!entry?.value) {
+    return null;
+  }
+  return entry.language ? { "@value": entry.value, "@language": entry.language } : entry.value;
+}
+
+function jsonLdScript(document) {
+  // "</script>" inside the payload would close the element early; escaping "<"
+  // keeps the JSON equivalent and the element intact.
+  const serialized = JSON.stringify(document, null, 2).replaceAll("<", "\\u003C");
+  return `<script type="application/ld+json">${serialized}</script>`;
+}
+
+function buildTermJsonLdNode(context, node) {
+  const { ontologyInfo } = context;
+  const document = { "@id": node.uri };
+  if (node.types?.length) {
+    document["@type"] = node.types.length === 1 ? node.types[0] : [...node.types];
+  }
+
+  const label = jsonLdLiteral(
+    node.labelPredicate ? { value: node.label, language: node.labelLanguage } : null
+  );
+  if (label) {
+    document[uriToQnameOrIri(node.labelPredicate, ontologyInfo.prefixes)] = label;
+  }
+  const comment = jsonLdLiteral(
+    node.commentPredicate ? { value: node.comment, language: node.commentLanguage } : null
+  );
+  if (comment) {
+    document[uriToQnameOrIri(node.commentPredicate, ontologyInfo.prefixes)] = comment;
+  }
+
+  for (const edge of ontologyInfo.edges.filter((entry) => entry.source === node.id)) {
+    const predicateIri = predicateIriForRelation(edge.relation);
+    if (!predicateIri) {
+      continue;
+    }
+    const key = uriToQnameOrIri(predicateIri, ontologyInfo.prefixes);
+    const value = { "@id": edge.target };
+    if (!document[key]) {
+      document[key] = value;
+    } else if (Array.isArray(document[key])) {
+      document[key].push(value);
+    } else {
+      document[key] = [document[key], value];
+    }
+  }
+
+  if (ontologyInfo.ontology?.iri) {
+    document["rdfs:isDefinedBy"] = { "@id": ontologyInfo.ontology.iri };
+  }
+  return document;
+}
+
+function buildOntologyJsonLdNode(context) {
+  const { ontologyInfo } = context;
+  const ontology = ontologyInfo.ontology || {};
+  if (!ontology.iri) {
+    return null;
+  }
+  const document = { "@id": ontology.iri, "@type": "owl:Ontology" };
+  const label = jsonLdLiteral(ontology.label);
+  if (label) {
+    document[uriToQnameOrIri(ontology.label.predicate, ontologyInfo.prefixes)] = label;
+  }
+  const comment = jsonLdLiteral(ontology.comment);
+  if (comment) {
+    document[uriToQnameOrIri(ontology.comment.predicate, ontologyInfo.prefixes)] = comment;
+  }
+  if (ontology.preferredNamespacePrefix) {
+    document["vann:preferredNamespacePrefix"] = ontology.preferredNamespacePrefix;
+  }
+  if (ontology.preferredNamespaceUri) {
+    document["vann:preferredNamespaceUri"] = ontology.preferredNamespaceUri;
+  }
+  return document;
+}
+
+function buildTermJsonLd(context, node) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  return jsonLdScript({
+    "@context": jsonLdContext(context.ontologyInfo),
+    ...buildTermJsonLdNode(context, node)
+  });
+}
+
+function buildOntologyJsonLd(context) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  const ontology = buildOntologyJsonLdNode(context);
+  return ontology ? jsonLdScript({ "@context": jsonLdContext(context.ontologyInfo), ...ontology }) : "";
+}
+
+// The reference page shows the whole vocabulary, so it carries the whole graph:
+// one fetch gives a crawler every declared term.
+function buildVocabularyJsonLd(context) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  const { ontologyInfo } = context;
+  const graph = [
+    buildOntologyJsonLdNode(context),
+    ...ontologyInfo.nodes
+      .filter((node) => !node.isExternal)
+      .map((node) => buildTermJsonLdNode(context, node))
+  ].filter(Boolean);
+  if (!graph.length) {
+    return "";
+  }
+  return jsonLdScript({ "@context": jsonLdContext(ontologyInfo), "@graph": graph });
+}
+
 function buildPitfallPage(context) {
   const { config, ontologyInfo, pitfallReport } = context;
   const nodeByUri = new Map(ontologyInfo.nodes.map((node) => [node.uri, node]));
@@ -5442,6 +5636,7 @@ function buildTermPage(context, node) {
 
   return renderPage({
     config,
+    jsonLd: buildTermJsonLd(context, node),
     title: `${node.qname} · ${config.project.shortName}`,
     description: node.comment || node.label,
     currentNav: "terms",
@@ -5662,7 +5857,7 @@ function buildPersistentIriLinkTags(config) {
     .join("\n  ");
 }
 
-function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [] }) {
+function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [], jsonLd = "" }) {
   const nav = buildNav(config, currentNav, pathPrefix);
   const pageTocMarkup = buildPageToc(config, pageToc);
   const pageBodyClass = [bodyClass, pageTocMarkup ? "page-has-toc" : ""].filter(Boolean).join(" ");
@@ -5682,6 +5877,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <meta name="description" content="${escapeHtml(description)}" />
   ${buildFaviconLinks(config, pathPrefix)}
   ${buildPersistentIriLinkTags(config)}
+  ${jsonLd}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />

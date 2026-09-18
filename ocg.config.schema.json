@@ -87,7 +87,11 @@
         "hierarchyAsset": { "type": "boolean" },
         "hierarchyOverview": { "type": "boolean" },
         "specPage": { "type": "boolean" },
-        "usageGuidePage": { "type": "boolean" }
+        "usageGuidePage": { "type": "boolean" },
+        "embeddedJsonLd": {
+          "type": "boolean",
+          "description": "Embed the parsed RDF as JSON-LD in the generated HTML: the ontology header on the home page, the whole vocabulary on the Reference page, and each term on its term page."
+        }
       },
       "additionalProperties": false
     },

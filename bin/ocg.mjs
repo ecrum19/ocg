@@ -43,7 +43,8 @@ const DEFAULT_CONFIG = {
     hierarchyAsset: true,
     hierarchyOverview: false,
     specPage: false,
-    usageGuidePage: true
+    usageGuidePage: true,
+    embeddedJsonLd: true
   },
   hierarchy: {
     title: "Ontology Structure",

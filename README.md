@@ -64,6 +64,7 @@ Source files can stay in their existing locations. Point to them with paths rela
 - Home, Reference, Graph, Terms, and Usage Guide pages
 - An optional ReSpec Specification page
 - An optional Pitfalls page with the OOPS! report
+- JSON-LD embedded in the generated HTML
 - Copied ontology, SHACL, ShEx, specification, example, and configured additional artifacts
 
 ## Configuration And Guides
@@ -135,6 +136,7 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 - [Reference](https://ecrum19.github.io/ocg/usage-guide.html#reference)
 - [Graph](https://ecrum19.github.io/ocg/usage-guide.html#graph)
 - [Ontology Pitfall Report](https://ecrum19.github.io/ocg/usage-guide.html#pitfalls)
+- [Embedded JSON-LD](https://ecrum19.github.io/ocg/usage-guide.html#embedded-json-ld)
 - [End-to-End w3id Publication](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication)
 - [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ocg/usage-guide.html#persistent-iri)
 - [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
@@ -323,6 +325,28 @@ Hash IRIs cannot return RDF for one selected term: servers never receive the `#C
 
 Deploy the GitHub Pages site first, then copy the generated `.htaccess` into the corresponding directory of [w3id.org](https://github.com/perma-id/w3id.org) and follow its pull-request process. This is based on the standard HTTP content-negotiation model; GitHub Pages itself cannot execute server-side logic or customize MIME behavior per file. For a Python-oriented local ontology exploration alternative, see [Ontospy](https://github.com/lambdamusic/Ontospy). OCG is complementary: it is Node-based and focuses on configurable static companion sites and GitHub Pages deployment.
 
+### Embedded JSON-LD
+
+Generated pages carry their RDF inline, so an agent that fetches the HTML gets machine-readable data without content negotiation:
+
+- **Home page** — the ontology header (`owl:Ontology`, label, comment, `vann:` annotations).
+- **Reference page** — the whole vocabulary as a single `@graph`, so one fetch yields every declared term.
+- **Term pages** — that term's types, label, comment, and `subClassOf`/`domain`/`range`/`broader` relationships.
+
+The emitted graph is a faithful subset of the parsed ontology. The predicate that actually supplied a label or comment is re-used, so a `skos:prefLabel` is republished as `skos:prefLabel` rather than normalized to `rdfs:label`, and language tags are preserved. The one statement OCG adds of its own is `rdfs:isDefinedBy`, linking each term to the ontology IRI it was declared in.
+
+```json
+{
+  "features": {
+    "embeddedJsonLd": true
+  }
+}
+```
+
+This complements `persistentIri` rather than replacing it. A client dereferencing a hash IRI such as `https://w3id.org/your-project/vocab#Capability` strips the fragment and requests the no-fragment document, so it never reaches the term page; the embedded data serves agents that fetch a page directly, such as search engines and RDF-aware crawlers. GitHub Pages ignores the `Accept` header, so w3id content negotiation remains the route that hands Turtle to an RDF client.
+
+Set `features.embeddedJsonLd` to `false` to omit every JSON-LD block.
+
 ### Ontology Pitfall Report
 
 Set `pitfallScanner.enabled` to `true` to submit the configured ontology to [OOPS! (OntOlogy Pitfall Scanner!)](https://oops.linkeddata.es) during the build and publish the returned report as `site/ontology-pitfalls.html` with its own **Pitfalls** navigation link. Detected pitfalls are grouped by OOPS! importance level, and affected elements link back to their generated term pages.
@@ -398,6 +422,7 @@ The bundled example demonstrates ontology parsing, term pages, graph and hierarc
 - WebVOWL depends on an external service and a fetchable ontology URL.
 - Persistent IRI support requires a `w3id.org` contribution and supports full-ontology RDF representations; it does not create a server or per-term RDF responses for hash IRIs.
 - The optional pitfall report depends on the external OOPS! service being reachable at build time.
+- Embedded JSON-LD covers the term model OCG parses (types, labels, comments, and subclass/domain/range/broader relationships); it is not a complete serialization of an arbitrary OWL ontology.
 - Very large ontologies may need filtering or a specialized visualization strategy for good browser performance.
 
 ## Contributing
@@ -425,12 +450,12 @@ If OCG supports published work, please cite it. The repository ships a [`CITATIO
   title   = {{Ontology Companion Generator (OCG)}},
   url     = {https://github.com/ecrum19/ocg},
   license = {MIT},
-  version = {1.4.0},
+  version = {1.5.0},
   year    = {2026}
 }
 ```
 
-> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.4.0) [Computer software]. https://github.com/ecrum19/ocg
+> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.5.0) [Computer software]. https://github.com/ecrum19/ocg
 
 Update the `version` and `date-released` fields in `CITATION.cff` alongside `package.json` when cutting a release.
 

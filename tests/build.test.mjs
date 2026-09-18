@@ -1101,3 +1101,129 @@ test("a failing pitfall scan degrades instead of breaking the build", async () =
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("embedded JSON-LD is a faithful subset of the parsed ontology", async () => {
+  const { rdfParser } = await import("rdf-parse");
+  const { Readable } = await import("node:stream");
+
+  const parse = (content, contentType, baseIRI) =>
+    new Promise((resolve, reject) => {
+      const quads = [];
+      rdfParser
+        .parse(Readable.from([content]), { contentType, baseIRI })
+        .on("data", (quad) => quads.push(quad))
+        .on("error", reject)
+        .on("end", () => resolve(quads));
+    });
+  const asTriple = (quad) =>
+    [
+      quad.subject.value,
+      quad.predicate.value,
+      quad.object.termType === "Literal"
+        ? `"${quad.object.value}"@${quad.object.language}^^${quad.object.datatype?.value ?? ""}`
+        : quad.object.value
+    ].join(" | ");
+
+  const sourceQuads = await parse(
+    fs.readFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), "utf8"),
+    "text/turtle",
+    "https://example.org/ecv"
+  );
+  const sourceTriples = new Set(sourceQuads.map(asTriple));
+  const ONTOLOGY_IRI = "https://example.org/ecv";
+  const IS_DEFINED_BY = "http://www.w3.org/2000/01/rdf-schema#isDefinedBy";
+
+  // rdf-parse handles text/html, so the generated pages can be read back exactly
+  // the way a crawler would read them.
+  const triplesFromPage = async (relativePath) =>
+    parse(fs.readFileSync(path.join(ROOT, relativePath), "utf8"), "text/html", "https://example.org/page");
+
+  const termQuads = await triplesFromPage("site/terms/Capability.html");
+  assert.ok(termQuads.length > 0, "the term page should expose parseable RDF");
+
+  // Every page in the site must only assert triples the ontology already contains,
+  // apart from the rdfs:isDefinedBy statement OCG adds itself.
+  for (const relativePath of [
+    "site/index.html",
+    "site/ontology-reference.html",
+    "site/terms/Capability.html",
+    "site/terms/OnlineCapability.html",
+    "site/terms/PublisherAudience.html",
+    "site/terms/hasRequirement.html"
+  ]) {
+    const quads = await triplesFromPage(relativePath);
+    assert.ok(quads.length > 0, `${relativePath} should embed JSON-LD`);
+    for (const quad of quads) {
+      if (quad.predicate.value === IS_DEFINED_BY) {
+        assert.equal(quad.object.value, ONTOLOGY_IRI, `${relativePath} should link terms to the ontology IRI`);
+        continue;
+      }
+      assert.ok(
+        sourceTriples.has(asTriple(quad)),
+        `${relativePath} asserts a triple that is not in the source ontology: ${asTriple(quad)}`
+      );
+    }
+  }
+
+  const termTriples = new Set(termQuads.map(asTriple));
+  assert.ok(termTriples.has("https://example.org/ecv#Capability | http://www.w3.org/1999/02/22-rdf-syntax-ns#type | http://www.w3.org/2002/07/owl#Class"));
+  assert.ok(termTriples.has('https://example.org/ecv#Capability | http://www.w3.org/2000/01/rdf-schema#label | "Capability"@en^^http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'));
+
+  // The normalized node model collapses skos:prefLabel into `label`; republishing
+  // it as rdfs:label would invent a triple the ontology never had.
+  const conceptTriples = new Set((await triplesFromPage("site/terms/PublisherAudience.html")).map(asTriple));
+  assert.ok(
+    conceptTriples.has('https://example.org/ecv#PublisherAudience | http://www.w3.org/2004/02/skos/core#prefLabel | "Publisher Audience"@en^^http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'),
+    "a skos:prefLabel must be republished as skos:prefLabel"
+  );
+
+  // Relationships OCG models as graph edges come back as real predicates.
+  const propertyTriples = new Set((await triplesFromPage("site/terms/hasRequirement.html")).map(asTriple));
+  for (const expected of [
+    "https://example.org/ecv#hasRequirement | http://www.w3.org/2000/01/rdf-schema#domain | https://example.org/ecv#Capability",
+    "https://example.org/ecv#hasRequirement | http://www.w3.org/2000/01/rdf-schema#range | https://example.org/ecv#Requirement"
+  ]) {
+    assert.ok(propertyTriples.has(expected), `hasRequirement should embed ${expected}`);
+  }
+  const subClassTriples = new Set((await triplesFromPage("site/terms/OnlineCapability.html")).map(asTriple));
+  assert.ok(subClassTriples.has("https://example.org/ecv#OnlineCapability | http://www.w3.org/2000/01/rdf-schema#subClassOf | https://example.org/ecv#Capability"));
+
+  // The home page carries the ontology header; the reference page the whole vocabulary.
+  const homeTriples = new Set((await triplesFromPage("site/index.html")).map(asTriple));
+  assert.ok(homeTriples.has(`${ONTOLOGY_IRI} | http://www.w3.org/1999/02/22-rdf-syntax-ns#type | http://www.w3.org/2002/07/owl#Ontology`));
+  assert.ok(homeTriples.has(`${ONTOLOGY_IRI} | http://purl.org/vocab/vann/preferredNamespacePrefix | "ecv"@^^http://www.w3.org/2001/XMLSchema#string`));
+
+  const referenceQuads = await triplesFromPage("site/ontology-reference.html");
+  const referenceSubjects = new Set(referenceQuads.map((quad) => quad.subject.value));
+  const graphData = JSON.parse(fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8"));
+  for (const node of graphData.nodes.filter((entry) => !entry.isExternal)) {
+    assert.ok(referenceSubjects.has(node.uri), `the reference page graph should describe ${node.qname}`);
+  }
+  assert.ok(referenceSubjects.has(ONTOLOGY_IRI));
+});
+
+test("features.embeddedJsonLd can be switched off", () => {
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-jsonld-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+
+    const configPath = path.join(tempDir, "ocg.config.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    assert.equal(config.features.embeddedJsonLd, true, "new projects should embed JSON-LD by default");
+    config.features.embeddedJsonLd = false;
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+
+    for (const relative of ["site/index.html", "site/ontology-reference.html", "site/terms/Capability.html"]) {
+      assert.doesNotMatch(
+        fs.readFileSync(path.join(tempDir, relative), "utf8"),
+        /application\/ld\+json/,
+        `${relative} should not embed JSON-LD when the feature is off`
+      );
+    }
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});

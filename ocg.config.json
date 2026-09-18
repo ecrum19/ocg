@@ -40,7 +40,8 @@
     "hierarchyAsset": true,
     "hierarchyOverview": true,
     "specPage": true,
-    "usageGuidePage": true
+    "usageGuidePage": true,
+    "embeddedJsonLd": true
   },
   "hierarchy": {
     "title": "Ontology Structure",
