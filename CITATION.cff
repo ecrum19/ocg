@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: If you use the Ontology Companion Generator in your research, please cite it as below.
+title: "Ontology Companion Generator (OCG)"
+abstract: >-
+  A config-first Node.js package that generates a GitHub Pages companion site for an
+  ontology or vocabulary, including reference, terms, graph, artifact, optional ReSpec
+  specification, and usage guide pages with embedded JSON-LD, plus optional w3id.org
+  content negotiation and OOPS! ontology pitfall reporting.
+type: software
+authors:
+  - given-names: Elias
+    family-names: Crum
+    affiliation: "IDLab, Ghent University - imec"
+    email: elias.crum@ugent.be
+repository-code: "https://github.com/ecrum19/ocg"
+url: "https://ecrum19.github.io/ocg/"
+license: MIT
+version: 1.5.0
+date-released: "2026-09-18"
+keywords:
+  - ontology
+  - vocabulary
+  - rdf
+  - semantic web
+  - linked data
+  - documentation
+  - github-pages
+  - shacl
+  - shex

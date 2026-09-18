@@ -18,6 +18,15 @@
         "description": { "type": "string" },
         "namespace": { "type": "string", "format": "uri" },
         "canonicalUri": { "type": "string", "format": "uri" },
+        "preferredNamespacePrefix": {
+          "type": "string",
+          "description": "Optional override for the prefix shown under Canonical URI. Defaults to vann:preferredNamespacePrefix read from the ontology header."
+        },
+        "preferredNamespaceUri": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional override for vann:preferredNamespaceUri. Defaults to the ontology annotation, then to project.namespace."
+        },
         "version": { "type": "string" },
         "maintainer": { "type": "string" }
       },
@@ -78,7 +87,11 @@
         "hierarchyAsset": { "type": "boolean" },
         "hierarchyOverview": { "type": "boolean" },
         "specPage": { "type": "boolean" },
-        "usageGuidePage": { "type": "boolean" }
+        "usageGuidePage": { "type": "boolean" },
+        "embeddedJsonLd": {
+          "type": "boolean",
+          "description": "Embed the parsed RDF as JSON-LD in the generated HTML: the ontology header on the home page, the whole vocabulary on the Reference page, and each term on its term page."
+        }
       },
       "additionalProperties": false
     },
@@ -164,7 +177,12 @@
                 "density": { "type": "number", "minimum": 0.1, "maximum": 10 },
                 "gridCellSize": { "type": "integer", "minimum": 20, "maximum": 300 },
                 "renderedSizeThreshold": { "type": "number", "minimum": 0, "maximum": 20 },
-                "forceAllUnder": { "type": "integer", "minimum": 0, "maximum": 2000 }
+                "forceAllUnder": { "type": "integer", "minimum": 0, "maximum": 2000 },
+                "edgeLabels": {
+                  "type": "boolean",
+                  "description": "Initial state of the 'Show predicate labels on edges' toggle in the generated graph."
+                },
+                "edgeLabelSize": { "type": "integer", "minimum": 6, "maximum": 24 }
               },
               "additionalProperties": false
             }
@@ -231,6 +249,33 @@
             },
             "additionalProperties": false
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "pitfallScanner": {
+      "type": "object",
+      "description": "Optional OOPS! (OntOlogy Pitfall Scanner!) integration. When enabled, the build submits the configured ontology to the OOPS! REST service and publishes ontology-pitfalls.html.",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "serviceUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "OOPS! REST endpoint. Point it at a self-hosted instance to keep ontology content inside your own infrastructure."
+        },
+        "pitfalls": {
+          "type": "array",
+          "description": "Optional OOPS! pitfall codes to request, such as [\"P04\", \"P11\"]. Leave empty for the full catalogue.",
+          "items": { "type": "string", "pattern": "^P\\d{2,3}$" }
+        },
+        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 600000 },
+        "failOnError": {
+          "type": "boolean",
+          "description": "Fail the build when the scan cannot complete instead of publishing an unavailable notice."
+        },
+        "cache": {
+          "type": "boolean",
+          "description": "Cache the report under .ocg-cache/ keyed by the submitted ontology content."
         }
       },
       "additionalProperties": false
@@ -327,6 +372,7 @@
               "type": "object",
               "properties": {
                 "canonicalUri": { "type": "string" },
+                "preferredNamespacePrefix": { "type": "string" },
                 "version": { "type": "string" },
                 "maintainer": { "type": "string" },
                 "unspecified": { "type": "string" },

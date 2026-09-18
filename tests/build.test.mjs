@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
+import { createServer } from "node:http";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PACKAGE_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
 const PACKAGE_VERSION = PACKAGE_JSON.version;
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// The stub OOPS! server below runs in this process, so builds that call it must not
+// block the event loop the way execFileSync does.
+const execFileAsync = promisify(execFile);
 
 test("build-site produces the expected publish artifacts for the bundled example", () => {
   assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
@@ -46,6 +51,8 @@ test("build-site produces the expected publish artifacts for the bundled example
     assert.equal(fs.existsSync(path.join(ROOT, relative)), true, `${relative} should exist`);
   }
   assert.equal(fs.existsSync(path.join(ROOT, "site/iri-resolver.html")), false, "the optional persistent IRI resolver should stay disabled by default");
+  assert.equal(fs.existsSync(path.join(ROOT, "site/ontology-pitfalls.html")), false, "the optional OOPS! pitfall report should stay disabled by default");
+  assert.equal(fs.existsSync(path.join(ROOT, "site/assets/ontology_pitfalls.json")), false);
   assert.equal(fs.existsSync(path.join(ROOT, "site/persistent-iri")), false, "the optional w3id deployment bundle should stay disabled by default");
 
   const indexHtml = fs.readFileSync(path.join(ROOT, "site/index.html"), "utf8");
@@ -74,6 +81,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.doesNotMatch(indexHtml, /Ontology Companion Generator template example\./);
   assert.doesNotMatch(indexHtml, /Edit ocg\.config\.json and the source\//);
   assert.match(indexHtml, /href="usage-guide\.html#home">How To</);
+  assert.match(indexHtml, /<dt>Preferred Prefix<\/dt>\s*<dd><code>ecv<\/code><\/dd>/, "vann:preferredNamespacePrefix should render under the canonical URI");
+  assert.doesNotMatch(indexHtml, /href="ontology-pitfalls\.html"/);
   assert.match(indexHtml, /href="usage-guide\.html#artifacts">How To</);
   assert.match(indexHtml, />View File</);
   for (const label of ["Specification Source", "Basic Capability Example", "Advanced Capability Example"]) {
@@ -298,6 +307,12 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.doesNotMatch(graphHtml, /renderer\.on\("enterNode"/);
   assert.doesNotMatch(graphHtml, /renderer\.on\("enterEdge"/);
   assert.match(graphHtml, /setupRendererInteractions\(\);/);
+  assert.match(graphHtml, /id="sigma-toggle-edge-labels" type="checkbox" checked/);
+  assert.match(graphHtml, /renderEdgeLabels: true/);
+  assert.match(graphHtml, /edgeLabelRenderer: drawReadableEdgeLabel/);
+  assert.match(graphHtml, /edgeLabelSize: LABEL_SETTINGS\.edgeLabelSize/);
+  assert.match(graphHtml, /const edgeLabel = edge\.predicateQname \|\| edge\.label \|\| edge\.relation;/);
+  assert.match(graphHtml, /label: showEdgeLabels \? attrs\.baseLabel : ""/);
   assert.match(graphHtml, /mouseCaptor\.on\("mousedown"/);
   assert.match(graphHtml, /mouseCaptor\.on\("mousemovebody"/);
   assert.match(graphHtml, /\.sigma-panel \{[\s\S]*?grid-auto-rows: max-content;/);
@@ -335,6 +350,11 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(guideHtml, /id="getting-started"/);
   assert.match(guideHtml, /id="accepted-input-formats"/);
   assert.match(guideHtml, /<h2>Accepted Input Formats<\/h2>/);
+  assert.match(guideHtml, /id="w3id-publication"/);
+  assert.match(guideHtml, /<h2>End-to-End w3id Publication<\/h2>/);
+  assert.match(guideHtml, /site\/persistent-iri\/w3id\/ocg\/\.htaccess/);
+  assert.match(guideHtml, /Settings → Pages/);
+  assert.match(guideHtml, /Accept: text\/turtle/);
   assert.match(guideHtml, /id="persistent-iri-workflow"/);
   assert.match(guideHtml, /<h2>Persistent IRI Deployment<\/h2>/);
   assert.match(guideHtml, /id="persistent-iri"/);
@@ -342,7 +362,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(guideHtml, /https:\/\/github\.com\/lambdamusic\/Ontospy/);
   assert.match(guideHtml, /site\/persistent-iri\/README\.md/);
   assert.match(guideHtml, /class="section guide-section persistent-iri-section"/);
-  assert.match(guideHtml, /class="iri-example">https:\/\/w3id\.org\/your-project\/vocab#ExampleTerm/);
+  assert.match(guideHtml, /class="iri-example">https:\/\/w3id\.org\/your-project\/vocab#Capability/);
   assert.match(guideHtml, /w3id persistent-identifier publishing guide/);
   assert.match(guideHtml, /class="guide-callout guide-callout--instruction"/);
   assert.match(guideHtml, /npm run ocg:build/);
@@ -866,6 +886,343 @@ test("ocg CLI initializes and builds an external ontology repository", () => {
     );
     assert.ok(graphData.nodes.length > 0);
     assert.equal(fs.existsSync(path.join(tempDir, "site", "assets", "vendor", "sigma.min.js")), true);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("term pages never overwrite the generated terms listing", () => {
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-term-conflict-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "tests", "fixtures", "conflicting-terms.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+    execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+
+    const termsDir = path.join(tempDir, "site", "terms");
+    const listingHtml = fs.readFileSync(path.join(termsDir, "index.html"), "utf8");
+    assert.match(listingHtml, /<h1>Term Pages<\/h1>/, "terms/index.html should still be the generated listing");
+
+    const graphData = JSON.parse(fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_graph_data.json"), "utf8"));
+    const declared = graphData.nodes.filter((node) => !node.isExternal);
+    const pageNameFor = (qname) => declared.find((node) => node.qname === qname)?.pageName;
+    assert.ok(declared.every((node) => node.pageName), "every declared term should receive a page name");
+    assert.equal(
+      declared.some((node) => node.pageName.toLowerCase() === "index"),
+      false,
+      "no term page may claim the reserved 'index' name"
+    );
+
+    // cft:index would have overwritten the listing; cft:Index would have collided
+    // with it on a case-insensitive file system.
+    const indexTermPage = pageNameFor("cft:index");
+    assert.match(listingHtml, new RegExp(`href="${escapeRegExp(indexTermPage)}\\.html"`));
+    assert.match(fs.readFileSync(path.join(termsDir, `${indexTermPage}.html`), "utf8"), /cft:index/);
+    assert.notEqual(pageNameFor("cft:Index").toLowerCase(), indexTermPage.toLowerCase());
+    assert.equal(pageNameFor("cft:Record"), "Record");
+
+    const generated = fs.readdirSync(termsDir).filter((entry) => entry.endsWith(".html"));
+    const lowercased = generated.map((entry) => entry.toLowerCase());
+    assert.equal(new Set(lowercased).size, lowercased.length, "generated term pages must be unique case-insensitively");
+
+    const indexHtml = fs.readFileSync(path.join(tempDir, "site", "index.html"), "utf8");
+    assert.match(indexHtml, /<dt>Preferred Prefix<\/dt>\s*<dd><code>cft<\/code><\/dd>/);
+    assert.equal(graphData.ontology.preferredNamespacePrefix, "cft");
+    assert.equal(graphData.ontology.preferredNamespaceUri, "https://example.org/cft#");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("the optional OOPS! pitfall scanner renders the returned report", async () => {
+  const oopsResponse = `<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:oops="http://oops.linkeddata.es/def#" >
+  <rdf:Description rdf:about="http://oops.linkeddata.es/data/pitfall-1">
+    <oops:hasCode rdf:datatype="http://www.w3.org/2001/XMLSchema#string">P04</oops:hasCode>
+    <oops:hasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Creating unconnected ontology elements</oops:hasName>
+    <oops:hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Ontology elements are created isolated.</oops:hasDescription>
+    <oops:hasImportanceLevel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Minor</oops:hasImportanceLevel>
+    <oops:hasNumberAffectedElements rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</oops:hasNumberAffectedElements>
+    <oops:hasAffectedElement rdf:datatype="http://www.w3.org/2001/XMLSchema#anyURI">https://example.org/ecv#Capability</oops:hasAffectedElement>
+    <rdf:type rdf:resource="http://oops.linkeddata.es/def#pitfall"/>
+  </rdf:Description>
+  <rdf:Description rdf:about="http://oops.linkeddata.es/data/pitfall-2">
+    <oops:hasCode rdf:datatype="http://www.w3.org/2001/XMLSchema#string">P10</oops:hasCode>
+    <oops:hasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Missing disjointness</oops:hasName>
+    <oops:hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">The ontology lacks disjoint axioms.</oops:hasDescription>
+    <oops:hasImportanceLevel rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Important</oops:hasImportanceLevel>
+    <oops:hasNumberAffectedElements rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">0</oops:hasNumberAffectedElements>
+    <rdf:type rdf:resource="http://oops.linkeddata.es/def#pitfall"/>
+  </rdf:Description>
+</rdf:RDF>`;
+
+  const requests = [];
+  const server = createServer((request, response) => {
+    const chunks = [];
+    request.on("data", (chunk) => chunks.push(chunk));
+    request.on("end", () => {
+      requests.push({ method: request.method, body: Buffer.concat(chunks).toString("utf8") });
+      response.writeHead(200, { "Content-Type": "application/rdf+xml" });
+      response.end(oopsResponse);
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const serviceUrl = `http://127.0.0.1:${server.address().port}/rest`;
+
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-pitfall-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+
+    const configPath = path.join(tempDir, "ocg.config.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    assert.equal(config.pitfallScanner.enabled, false, "the scanner must stay opt-in for new projects");
+    config.pitfallScanner = { ...config.pitfallScanner, enabled: true, serviceUrl, timeoutMs: 15000, failOnError: true, cache: false };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    await execFileAsync(process.execPath, [cliPath, "build"], { cwd: tempDir });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].method, "POST");
+    // Turtle input has to reach OOPS! as RDF/XML.
+    assert.match(requests[0].body, /<OOPSRequest>/);
+    assert.match(requests[0].body, /<OutputFormat>RDF\/XML<\/OutputFormat>/);
+    assert.match(requests[0].body, /<!\[CDATA\[<\?xml version="1\.0" encoding="UTF-8"\?>\s*<rdf:RDF/);
+    assert.match(requests[0].body, /rdf:about="https:\/\/example\.org\/ecv#Capability"/);
+
+    const pitfallHtml = fs.readFileSync(path.join(tempDir, "site", "ontology-pitfalls.html"), "utf8");
+    assert.match(pitfallHtml, /<h2>Ontology Pitfalls<\/h2>/);
+    assert.match(pitfallHtml, />P04</);
+    assert.match(pitfallHtml, />P10</);
+    assert.match(pitfallHtml, /Creating unconnected ontology elements/);
+    assert.match(pitfallHtml, /href="terms\/Capability\.html"/);
+    assert.match(pitfallHtml, /Reported for the ontology as a whole\./);
+    assert.match(pitfallHtml, /href="ontology-pitfalls\.html">Pitfalls</);
+    // Important pitfalls sort ahead of minor ones.
+    assert.ok(pitfallHtml.indexOf(">P10<") < pitfallHtml.indexOf(">P04<"));
+
+    const report = JSON.parse(fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_pitfalls.json"), "utf8"));
+    assert.equal(report.available, true);
+    assert.equal(report.summary.total, 2);
+    assert.deepEqual(report.summary.byImportance, { Important: 1, Minor: 1 });
+    assert.deepEqual(report.pitfalls.map((pitfall) => pitfall.code), ["P10", "P04"]);
+
+    const homeHtml = fs.readFileSync(path.join(tempDir, "site", "index.html"), "utf8");
+    assert.match(homeHtml, /href="ontology-pitfalls\.html">Pitfalls</);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("an OOPS! error document is surfaced instead of an empty pitfall report", async () => {
+  // Shape captured from the live service when it cannot read the submitted ontology.
+  // Note the older oeg-upm.net vocabulary namespace, which OCG must still recognize.
+  const errorResponse = `<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:oops="http://www.oeg-upm.net/oops#" >
+  <rdf:Description rdf:about="http://www.oeg-upm.net/oops/unexpected_error">
+    <oops:hasTitle rdf:datatype="http://www.w3.org/2001/XMLSchema#string">OOPS! something went wrong.</oops:hasTitle>
+    <oops:hasMessage rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Make sure that your ontology RDF or OWL code is correct.</oops:hasMessage>
+    <rdf:type rdf:resource="http://www.oeg-upm.net/oops#response"/>
+  </rdf:Description>
+</rdf:RDF>`;
+
+  const server = createServer((request, response) => {
+    request.resume();
+    request.on("end", () => {
+      response.writeHead(200, { "Content-Type": "application/rdf+xml" });
+      response.end(errorResponse);
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const serviceUrl = `http://127.0.0.1:${server.address().port}/rest`;
+
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-pitfall-error-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+
+    const configPath = path.join(tempDir, "ocg.config.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.pitfallScanner = { ...config.pitfallScanner, enabled: true, serviceUrl, timeoutMs: 15000, failOnError: false, cache: false };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    await execFileAsync(process.execPath, [cliPath, "build"], { cwd: tempDir });
+
+    const report = JSON.parse(fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_pitfalls.json"), "utf8"));
+    assert.equal(report.available, false);
+    assert.equal(report.pitfalls.length, 0);
+    assert.match(report.error, /OOPS! rejected the ontology/);
+    assert.match(report.error, /something went wrong/);
+    const pitfallHtml = fs.readFileSync(path.join(tempDir, "site", "ontology-pitfalls.html"), "utf8");
+    assert.match(pitfallHtml, /Report unavailable\./);
+    assert.doesNotMatch(pitfallHtml, /<h2>Detected Pitfalls<\/h2>/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("a failing pitfall scan degrades instead of breaking the build", async () => {
+  const server = createServer((request, response) => {
+    // The request body has to be drained before responding, otherwise the client
+    // is still uploading when the response is written and the exchange stalls.
+    request.resume();
+    request.on("end", () => {
+      response.writeHead(503, { "Content-Type": "text/plain" });
+      response.end("unavailable");
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const serviceUrl = `http://127.0.0.1:${server.address().port}/rest`;
+
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-pitfall-failure-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+
+    const configPath = path.join(tempDir, "ocg.config.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    config.pitfallScanner = { ...config.pitfallScanner, enabled: true, serviceUrl, timeoutMs: 15000, failOnError: false, cache: false };
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    await execFileAsync(process.execPath, [cliPath, "build"], { cwd: tempDir });
+
+    const pitfallHtml = fs.readFileSync(path.join(tempDir, "site", "ontology-pitfalls.html"), "utf8");
+    assert.match(pitfallHtml, /Report unavailable\./);
+    assert.match(pitfallHtml, /HTTP 503/);
+    const report = JSON.parse(fs.readFileSync(path.join(tempDir, "site", "assets", "ontology_pitfalls.json"), "utf8"));
+    assert.equal(report.available, false);
+    assert.match(report.error, /HTTP 503/);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("embedded JSON-LD is a faithful subset of the parsed ontology", async () => {
+  const { rdfParser } = await import("rdf-parse");
+  const { Readable } = await import("node:stream");
+
+  const parse = (content, contentType, baseIRI) =>
+    new Promise((resolve, reject) => {
+      const quads = [];
+      rdfParser
+        .parse(Readable.from([content]), { contentType, baseIRI })
+        .on("data", (quad) => quads.push(quad))
+        .on("error", reject)
+        .on("end", () => resolve(quads));
+    });
+  const asTriple = (quad) =>
+    [
+      quad.subject.value,
+      quad.predicate.value,
+      quad.object.termType === "Literal"
+        ? `"${quad.object.value}"@${quad.object.language}^^${quad.object.datatype?.value ?? ""}`
+        : quad.object.value
+    ].join(" | ");
+
+  const sourceQuads = await parse(
+    fs.readFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), "utf8"),
+    "text/turtle",
+    "https://example.org/ecv"
+  );
+  const sourceTriples = new Set(sourceQuads.map(asTriple));
+  const ONTOLOGY_IRI = "https://example.org/ecv";
+  const IS_DEFINED_BY = "http://www.w3.org/2000/01/rdf-schema#isDefinedBy";
+
+  // rdf-parse handles text/html, so the generated pages can be read back exactly
+  // the way a crawler would read them.
+  const triplesFromPage = async (relativePath) =>
+    parse(fs.readFileSync(path.join(ROOT, relativePath), "utf8"), "text/html", "https://example.org/page");
+
+  const termQuads = await triplesFromPage("site/terms/Capability.html");
+  assert.ok(termQuads.length > 0, "the term page should expose parseable RDF");
+
+  // Every page in the site must only assert triples the ontology already contains,
+  // apart from the rdfs:isDefinedBy statement OCG adds itself.
+  for (const relativePath of [
+    "site/index.html",
+    "site/ontology-reference.html",
+    "site/terms/Capability.html",
+    "site/terms/OnlineCapability.html",
+    "site/terms/PublisherAudience.html",
+    "site/terms/hasRequirement.html"
+  ]) {
+    const quads = await triplesFromPage(relativePath);
+    assert.ok(quads.length > 0, `${relativePath} should embed JSON-LD`);
+    for (const quad of quads) {
+      if (quad.predicate.value === IS_DEFINED_BY) {
+        assert.equal(quad.object.value, ONTOLOGY_IRI, `${relativePath} should link terms to the ontology IRI`);
+        continue;
+      }
+      assert.ok(
+        sourceTriples.has(asTriple(quad)),
+        `${relativePath} asserts a triple that is not in the source ontology: ${asTriple(quad)}`
+      );
+    }
+  }
+
+  const termTriples = new Set(termQuads.map(asTriple));
+  assert.ok(termTriples.has("https://example.org/ecv#Capability | http://www.w3.org/1999/02/22-rdf-syntax-ns#type | http://www.w3.org/2002/07/owl#Class"));
+  assert.ok(termTriples.has('https://example.org/ecv#Capability | http://www.w3.org/2000/01/rdf-schema#label | "Capability"@en^^http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'));
+
+  // The normalized node model collapses skos:prefLabel into `label`; republishing
+  // it as rdfs:label would invent a triple the ontology never had.
+  const conceptTriples = new Set((await triplesFromPage("site/terms/PublisherAudience.html")).map(asTriple));
+  assert.ok(
+    conceptTriples.has('https://example.org/ecv#PublisherAudience | http://www.w3.org/2004/02/skos/core#prefLabel | "Publisher Audience"@en^^http://www.w3.org/1999/02/22-rdf-syntax-ns#langString'),
+    "a skos:prefLabel must be republished as skos:prefLabel"
+  );
+
+  // Relationships OCG models as graph edges come back as real predicates.
+  const propertyTriples = new Set((await triplesFromPage("site/terms/hasRequirement.html")).map(asTriple));
+  for (const expected of [
+    "https://example.org/ecv#hasRequirement | http://www.w3.org/2000/01/rdf-schema#domain | https://example.org/ecv#Capability",
+    "https://example.org/ecv#hasRequirement | http://www.w3.org/2000/01/rdf-schema#range | https://example.org/ecv#Requirement"
+  ]) {
+    assert.ok(propertyTriples.has(expected), `hasRequirement should embed ${expected}`);
+  }
+  const subClassTriples = new Set((await triplesFromPage("site/terms/OnlineCapability.html")).map(asTriple));
+  assert.ok(subClassTriples.has("https://example.org/ecv#OnlineCapability | http://www.w3.org/2000/01/rdf-schema#subClassOf | https://example.org/ecv#Capability"));
+
+  // The home page carries the ontology header; the reference page the whole vocabulary.
+  const homeTriples = new Set((await triplesFromPage("site/index.html")).map(asTriple));
+  assert.ok(homeTriples.has(`${ONTOLOGY_IRI} | http://www.w3.org/1999/02/22-rdf-syntax-ns#type | http://www.w3.org/2002/07/owl#Ontology`));
+  assert.ok(homeTriples.has(`${ONTOLOGY_IRI} | http://purl.org/vocab/vann/preferredNamespacePrefix | "ecv"@^^http://www.w3.org/2001/XMLSchema#string`));
+
+  const referenceQuads = await triplesFromPage("site/ontology-reference.html");
+  const referenceSubjects = new Set(referenceQuads.map((quad) => quad.subject.value));
+  const graphData = JSON.parse(fs.readFileSync(path.join(ROOT, "site/assets/ontology_graph_data.json"), "utf8"));
+  for (const node of graphData.nodes.filter((entry) => !entry.isExternal)) {
+    assert.ok(referenceSubjects.has(node.uri), `the reference page graph should describe ${node.qname}`);
+  }
+  assert.ok(referenceSubjects.has(ONTOLOGY_IRI));
+});
+
+test("features.embeddedJsonLd can be switched off", () => {
+  const tempDir = fs.mkdtempSync(path.join(ROOT, ".ocg-jsonld-test-"));
+  try {
+    const cliPath = path.join(ROOT, "bin", "ocg.mjs");
+    fs.copyFileSync(path.join(ROOT, "source", "ontology", "example-capability.ttl"), path.join(tempDir, "ontology.ttl"));
+    execFileSync(process.execPath, [cliPath, "init", "--ontology", "ontology.ttl"], { cwd: tempDir, stdio: "pipe" });
+
+    const configPath = path.join(tempDir, "ocg.config.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    assert.equal(config.features.embeddedJsonLd, true, "new projects should embed JSON-LD by default");
+    config.features.embeddedJsonLd = false;
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    execFileSync(process.execPath, [cliPath, "build"], { cwd: tempDir, stdio: "pipe" });
+
+    for (const relative of ["site/index.html", "site/ontology-reference.html", "site/terms/Capability.html"]) {
+      assert.doesNotMatch(
+        fs.readFileSync(path.join(tempDir, relative), "utf8"),
+        /application\/ld\+json/,
+        `${relative} should not embed JSON-LD when the feature is off`
+      );
+    }
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }

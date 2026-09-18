@@ -3,12 +3,15 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix vann: <http://purl.org/vocab/vann/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <https://example.org/ecv>
   a owl:Ontology ;
   rdfs:label "Example Capability Vocabulary"@en ;
-  rdfs:comment "A compact ontology used to demonstrate the Ontology Companion Generator template."@en .
+  rdfs:comment "A compact ontology used to demonstrate the Ontology Companion Generator template."@en ;
+  vann:preferredNamespacePrefix "ecv" ;
+  vann:preferredNamespaceUri "https://example.org/ecv#" .
 
 ecv:Capability
   a owl:Class ;

@@ -40,7 +40,8 @@
     "hierarchyAsset": true,
     "hierarchyOverview": true,
     "specPage": true,
-    "usageGuidePage": true
+    "usageGuidePage": true,
+    "embeddedJsonLd": true
   },
   "hierarchy": {
     "title": "Ontology Structure",
@@ -82,7 +83,9 @@
         "density": 1.5,
         "gridCellSize": 90,
         "renderedSizeThreshold": 2,
-        "forceAllUnder": 80
+        "forceAllUnder": 80,
+        "edgeLabels": true,
+        "edgeLabelSize": 11
       }
     },
     "webvowl": {
@@ -110,6 +113,14 @@
     "documentIri": "",
     "siteUrl": "",
     "representations": []
+  },
+  "pitfallScanner": {
+    "enabled": false,
+    "serviceUrl": "https://oops.linkeddata.es/rest",
+    "pitfalls": [],
+    "timeoutMs": 60000,
+    "failOnError": false,
+    "cache": true
   },
   "theme": {
     "fonts": {
@@ -165,6 +176,7 @@
       },
       "metadata": {
         "canonicalUri": "Canonical URI",
+        "preferredNamespacePrefix": "Preferred Prefix",
         "version": "Version",
         "maintainer": "Maintainer",
         "unspecified": "Unspecified",

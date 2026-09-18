@@ -1,0 +1,29 @@
+@prefix cft: <https://example.org/cft#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix vann: <http://purl.org/vocab/vann/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/cft>
+  a owl:Ontology ;
+  rdfs:label "Conflicting Term Fixture"@en ;
+  rdfs:comment "Fixture covering term names that collide with generated page names."@en ;
+  vann:preferredNamespacePrefix "cft" ;
+  vann:preferredNamespaceUri "https://example.org/cft#" .
+
+cft:Record
+  a owl:Class ;
+  rdfs:label "Record"@en ;
+  rdfs:comment "A record described by the fixture vocabulary."@en .
+
+cft:index
+  a owl:DatatypeProperty ;
+  rdfs:domain cft:Record ;
+  rdfs:range xsd:integer ;
+  rdfs:label "index"@en ;
+  rdfs:comment "Collides with the generated terms/index.html listing page."@en .
+
+cft:Index
+  a owl:Class ;
+  rdfs:label "Index"@en ;
+  rdfs:comment "Collides with cft:index on case-insensitive file systems."@en .

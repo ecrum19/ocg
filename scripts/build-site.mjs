@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Graph from "graphology";
@@ -43,6 +45,8 @@ const VENDOR_ASSETS_DIR = path.join(ASSETS_DIR, "vendor");
 const TERMS_DIR = path.join(SITE_DIR, "terms");
 const LINKED_DATA_DIR = path.join(SITE_DIR, "linked-data");
 const PERSISTENT_IRI_DIR = path.join(SITE_DIR, "persistent-iri");
+const CACHE_DIR = resolveProjectPath(".ocg-cache");
+const PITFALL_CACHE_PATH = path.join(CACHE_DIR, "oops-report.json");
 const OCG_VERSION = JSON.parse(fs.readFileSync(PACKAGE_PATH, "utf8")).version || "development";
 const GRAPH_VENDOR_ASSETS = [
   {
@@ -55,7 +59,8 @@ const GRAPH_VENDOR_ASSETS = [
   }
 ];
 
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+const RDF_NAMESPACE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
+const RDF_TYPE = `${RDF_NAMESPACE}type`;
 const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
 const RDFS_COMMENT = "http://www.w3.org/2000/01/rdf-schema#comment";
 const RDFS_SUBCLASS_OF = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
@@ -69,6 +74,9 @@ const OWL_OBJECT_PROPERTY = "http://www.w3.org/2002/07/owl#ObjectProperty";
 const OWL_DATATYPE_PROPERTY = "http://www.w3.org/2002/07/owl#DatatypeProperty";
 const OWL_ANNOTATION_PROPERTY = "http://www.w3.org/2002/07/owl#AnnotationProperty";
 const SKOS_CONCEPT = "http://www.w3.org/2004/02/skos/core#Concept";
+const OWL_ONTOLOGY = "http://www.w3.org/2002/07/owl#Ontology";
+const VANN_PREFERRED_NAMESPACE_PREFIX = "http://purl.org/vocab/vann/preferredNamespacePrefix";
+const VANN_PREFERRED_NAMESPACE_URI = "http://purl.org/vocab/vann/preferredNamespaceUri";
 
 const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
 
@@ -81,7 +89,8 @@ const DEFAULT_FEATURES = {
   hierarchyAsset: true,
   hierarchyOverview: false,
   specPage: false,
-  usageGuidePage: true
+  usageGuidePage: true,
+  embeddedJsonLd: true
 };
 
 const DEFAULT_HIERARCHY = {
@@ -125,7 +134,9 @@ const DEFAULT_GRAPH = {
       density: 1.5,
       gridCellSize: 90,
       renderedSizeThreshold: 2,
-      forceAllUnder: 80
+      forceAllUnder: 80,
+      edgeLabels: true,
+      edgeLabelSize: 11
     }
   },
   webvowl: {
@@ -160,6 +171,18 @@ const RDF_MEDIA_TYPES = Object.fromEntries(
   Object.entries(SUPPORTED_ONTOLOGY_FORMATS).map(([format, details]) => [details.contentType, format])
 );
 const VIEWER_ASSET_KINDS = new Set(["ontology", "shapes", "shex", "spec", "example", "artifact"]);
+
+const OOPS_NAMESPACE = "http://oops.linkeddata.es/def#";
+const OOPS_IMPORTANCE_ORDER = ["Critical", "Important", "Minor"];
+
+const DEFAULT_PITFALL_SCANNER = {
+  enabled: false,
+  serviceUrl: "https://oops.linkeddata.es/rest",
+  pitfalls: [],
+  timeoutMs: 60000,
+  failOnError: false,
+  cache: true
+};
 
 const DEFAULT_PERSISTENT_IRI = {
   enabled: false,
@@ -223,6 +246,7 @@ const DEFAULT_SITE = {
     },
     metadata: {
       canonicalUri: "Canonical URI",
+      preferredNamespacePrefix: "Preferred Prefix",
       version: "Version",
       maintainer: "Maintainer",
       unspecified: "Unspecified",
@@ -299,6 +323,18 @@ const TERM_TYPE_ORDER = [
   "external"
 ];
 
+const JSON_LD_BASE_CONTEXT = {
+  owl: "http://www.w3.org/2002/07/owl#",
+  rdf: RDF_NAMESPACE,
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+  skos: "http://www.w3.org/2004/02/skos/core#",
+  vann: "http://purl.org/vocab/vann/",
+  xsd: "http://www.w3.org/2001/XMLSchema#"
+};
+
+// File names that the generated terms/ directory already uses for itself.
+const RESERVED_TERM_PAGE_NAMES = new Set(["index"]);
+
 const RELATION_INFO = {
   subClassOf: "Subclass Of",
   domain: "Domain",
@@ -326,10 +362,15 @@ async function main() {
   config._persistentIri = persistentIri;
   if (args.has("--check")) {
     console.log(
-      `Configuration valid: parsed ${ontologyInfo.stats.declaredTerms} declared terms and ${ontologyInfo.edges.length} relationships${persistentIri.enabled ? "; persistent IRI deployment files are ready" : ""}.`
+      `Configuration valid: parsed ${ontologyInfo.stats.declaredTerms} declared terms and ${ontologyInfo.edges.length} relationships${persistentIri.enabled ? "; persistent IRI deployment files are ready" : ""}${config.pitfallScanner.enabled ? "; the OOPS! pitfall scan runs on build" : ""}.`
     );
     return;
   }
+
+  const pitfallReport = await runPitfallScan(config, assets, {
+    refresh: args.has("--refresh-pitfalls"),
+    skip: args.has("--skip-pitfall-scan")
+  });
 
   fs.rmSync(SITE_DIR, { recursive: true, force: true });
   ensureDir(ASSETS_DIR);
@@ -356,7 +397,8 @@ async function main() {
     assets,
     ontologyInfo,
     relationshipSummary,
-    persistentIri
+    persistentIri,
+    pitfallReport
   };
 
   writeText(path.join(SITE_DIR, "index.html"), buildIndexPage(context));
@@ -378,6 +420,10 @@ async function main() {
   }
   if (config.features.termPages) {
     writeTermPages(context);
+  }
+  if (config.pitfallScanner.enabled) {
+    writeText(path.join(ASSETS_DIR, "ontology_pitfalls.json"), JSON.stringify(pitfallReport, null, 2));
+    writeText(path.join(SITE_DIR, "ontology-pitfalls.html"), buildPitfallPage(context));
   }
 
   writeText(path.join(SITE_DIR, ".nojekyll"), "");
@@ -441,6 +487,11 @@ function loadConfig(configPath) {
       ...(raw.persistentIri || {}),
       representations: raw.persistentIri?.representations || []
     },
+    pitfallScanner: {
+      ...DEFAULT_PITFALL_SCANNER,
+      ...(raw.pitfallScanner || {}),
+      pitfalls: raw.pitfallScanner?.pitfalls || []
+    },
     sources: {
       ...(raw.sources || {}),
       examples: raw.sources?.examples || [],
@@ -488,6 +539,7 @@ function validateConfig(config) {
   validateHierarchyConfig(config);
   validateBrandingConfig(config);
   validatePersistentIriConfig(config);
+  validatePitfallScannerConfig(config);
 
   const requiredPaths = [config.sources.ontology];
   for (const value of [config.sources.shapes, config.sources.shex, config.sources.spec]) {
@@ -582,6 +634,12 @@ function validateConfig(config) {
     if (typeof layout.linLogMode !== "boolean" || typeof layout.preventOverlap !== "boolean") {
       throw new Error("graph.custom.layout.linLogMode and graph.custom.layout.preventOverlap must be booleans");
     }
+    if (typeof labels.edgeLabels !== "boolean") {
+      throw new Error("graph.custom.labels.edgeLabels must be a boolean");
+    }
+    if (!Number.isInteger(labels.edgeLabelSize) || labels.edgeLabelSize < 6 || labels.edgeLabelSize > 24) {
+      throw new Error("graph.custom.labels.edgeLabelSize must be an integer between 6 and 24");
+    }
   }
   if (!["custom", "webvowl"].includes(config.graph.defaultView)) {
     throw new Error("graph.defaultView must be 'custom' or 'webvowl'");
@@ -604,6 +662,29 @@ function validateConfig(config) {
       } catch {
         throw new Error("graph.webvowl.ontologyUrl must be a public ontology document URL without a fragment; do not use project.namespace");
       }
+    }
+  }
+}
+
+function validatePitfallScannerConfig(config) {
+  const scanner = config.pitfallScanner;
+  if (!scanner.enabled) {
+    return;
+  }
+  try {
+    new URL(scanner.serviceUrl);
+  } catch {
+    throw new Error("pitfallScanner.serviceUrl must be a valid URL");
+  }
+  if (!Array.isArray(scanner.pitfalls) || scanner.pitfalls.some((code) => !/^P\d{2,3}$/.test(String(code)))) {
+    throw new Error("pitfallScanner.pitfalls must be an array of OOPS! pitfall codes such as 'P04'");
+  }
+  if (!Number.isInteger(scanner.timeoutMs) || scanner.timeoutMs < 1000 || scanner.timeoutMs > 600000) {
+    throw new Error("pitfallScanner.timeoutMs must be an integer between 1000 and 600000");
+  }
+  for (const option of ["failOnError", "cache"]) {
+    if (typeof scanner[option] !== "boolean") {
+      throw new Error(`pitfallScanner.${option} must be a boolean`);
     }
   }
 }
@@ -1015,8 +1096,8 @@ ${representationList}
 ## Verify
 
 \`\`\`bash
-# Browser: ${persistentIri.documentIri}#ExampleTerm
-# should land on the generated terms/ExampleTerm.html page.
+# Browser: ${persistentIri.documentIri}#Capability
+# should land on the generated terms/Capability.html page.
 
 curl -L -H "Accept: ${persistentIri.representations[0].mediaType}" ${persistentIri.documentIri}
 curl -I -L -H "Accept: ${persistentIri.representations[0].mediaType}" ${persistentIri.documentIri}
@@ -1024,6 +1105,304 @@ curl -I -L -H "Accept: ${persistentIri.representations[0].mediaType}" ${persiste
 
 The request sent by curl has no fragment because fragments are client-side only. The final response should point to the expected static RDF asset and expose the matching content type.
 `;
+}
+
+// ---------------------------------------------------------------------------
+// OOPS! (OntOlogy Pitfall Scanner!) integration
+// ---------------------------------------------------------------------------
+
+async function runPitfallScan(config, assets, options = {}) {
+  const scanner = config.pitfallScanner;
+  const report = {
+    enabled: scanner.enabled,
+    available: false,
+    fromCache: false,
+    error: "",
+    serviceUrl: scanner.serviceUrl,
+    requestedPitfalls: [...scanner.pitfalls],
+    scannedAt: "",
+    pitfalls: [],
+    summary: { total: 0, byImportance: {} }
+  };
+  if (!scanner.enabled) {
+    return report;
+  }
+
+  let rdfXml;
+  try {
+    rdfXml = await buildOntologyRdfXml(config, assets);
+  } catch (error) {
+    return failPitfallScan(report, scanner, `Could not prepare RDF/XML for the pitfall scan: ${error.message}`);
+  }
+
+  const cacheKey = crypto
+    .createHash("sha256")
+    .update([scanner.serviceUrl, scanner.pitfalls.join(","), rdfXml].join("\n"))
+    .digest("hex");
+  const cached = scanner.cache && !options.refresh ? readPitfallCache(cacheKey) : null;
+  if (cached) {
+    return { ...cached, fromCache: true };
+  }
+  if (options.skip) {
+    return failPitfallScan(report, scanner, "Pitfall scan skipped (--skip-pitfall-scan) and no cached report was available.");
+  }
+
+  let responseBody;
+  try {
+    const response = await fetch(scanner.serviceUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/xml", Accept: "application/rdf+xml" },
+      body: buildOopsRequest(rdfXml, scanner.pitfalls),
+      signal: AbortSignal.timeout(scanner.timeoutMs)
+    });
+    if (!response.ok) {
+      throw new Error(`the service responded with HTTP ${response.status}`);
+    }
+    responseBody = await response.text();
+  } catch (error) {
+    const reason = error.name === "TimeoutError" ? `no response within ${scanner.timeoutMs} ms` : error.message;
+    return failPitfallScan(report, scanner, `Could not reach ${scanner.serviceUrl}: ${reason}`);
+  }
+
+  let parsed;
+  try {
+    parsed = await parseOopsResponse(responseBody);
+  } catch (error) {
+    return failPitfallScan(report, scanner, `Could not parse the OOPS! response: ${error.message}`);
+  }
+  if (parsed.error) {
+    return failPitfallScan(report, scanner, `OOPS! rejected the ontology: ${parsed.error}`);
+  }
+
+  const completed = {
+    ...report,
+    available: true,
+    scannedAt: new Date().toISOString(),
+    pitfalls: parsed.pitfalls,
+    summary: summarizePitfalls(parsed.pitfalls)
+  };
+  if (scanner.cache) {
+    writePitfallCache(cacheKey, completed);
+  }
+  return completed;
+}
+
+function failPitfallScan(report, scanner, message) {
+  if (scanner.failOnError) {
+    throw new Error(message);
+  }
+  console.warn(`Warning: ${message}`);
+  return { ...report, available: false, error: message, scannedAt: new Date().toISOString() };
+}
+
+function readPitfallCache(cacheKey) {
+  try {
+    const cached = JSON.parse(fs.readFileSync(PITFALL_CACHE_PATH, "utf8"));
+    return cached.key === cacheKey ? cached.report : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePitfallCache(cacheKey, report) {
+  try {
+    ensureDir(CACHE_DIR);
+    fs.writeFileSync(PITFALL_CACHE_PATH, `${JSON.stringify({ key: cacheKey, report }, null, 2)}\n`);
+  } catch (error) {
+    console.warn(`Warning: could not cache the pitfall report: ${error.message}`);
+  }
+}
+
+// OOPS! only accepts RDF/XML ontology content, so any other configured input
+// format is re-serialized from the quads OCG already knows how to parse.
+async function buildOntologyRdfXml(config, assets) {
+  const ontologyAsset = assets.find((asset) => asset.key === "ontology");
+  const format = resolveOntologyFormat(config.sources.ontology, config.sources.ontologyFormat || "auto");
+  if (format === "rdfxml") {
+    return fs.readFileSync(ontologyAsset.sourcePath, "utf8");
+  }
+  const parsed = await parseOntologySource(ontologyAsset.sourcePath, format);
+  return serializeQuadsToRdfXml(parsed.quads, parsed.prefixes);
+}
+
+function buildOopsRequest(rdfXml, pitfalls) {
+  const content = rdfXml.replaceAll("]]>", "]]]]><![CDATA[>");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<OOPSRequest>
+<OntologyURI></OntologyURI>
+<OntologyContent><![CDATA[${content}]]></OntologyContent>
+<Pitfalls>${escapeHtml(pitfalls.join(","))}</Pitfalls>
+<OutputFormat>RDF/XML</OutputFormat>
+</OOPSRequest>`;
+}
+
+function splitNamespaceUri(uri) {
+  let index = uri.length;
+  while (index > 0 && /[A-Za-z0-9_.-]/.test(uri[index - 1])) {
+    index -= 1;
+  }
+  while (index < uri.length && !/[A-Za-z_]/.test(uri[index])) {
+    index += 1;
+  }
+  return index > 0 && index < uri.length ? { base: uri.slice(0, index), local: uri.slice(index) } : null;
+}
+
+function serializeQuadsToRdfXml(quads, prefixes = []) {
+  const declarations = new Map([["rdf", RDF_NAMESPACE]]);
+  const prefixByBase = new Map([[RDF_NAMESPACE, "rdf"]]);
+  let generated = 0;
+  const prefixFor = (base) => {
+    if (prefixByBase.has(base)) {
+      return prefixByBase.get(base);
+    }
+    const declared = prefixes.find(
+      (entry) => entry.base === base && /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(entry.prefix) && !declarations.has(entry.prefix)
+    );
+    let prefix = declared?.prefix;
+    while (!prefix || declarations.has(prefix)) {
+      prefix = `ns${generated}`;
+      generated += 1;
+    }
+    declarations.set(prefix, base);
+    prefixByBase.set(base, prefix);
+    return prefix;
+  };
+
+  const subjects = new Map();
+  const skipped = [];
+  for (const quad of quads) {
+    if (quad.predicate.termType !== "NamedNode") {
+      continue;
+    }
+    const split = splitNamespaceUri(quad.predicate.value);
+    if (!split) {
+      skipped.push(quad.predicate.value);
+      continue;
+    }
+    const key = `${quad.subject.termType}:${quad.subject.value}`;
+    if (!subjects.has(key)) {
+      subjects.set(key, { term: quad.subject, properties: [] });
+    }
+    subjects.get(key).properties.push({ qname: `${prefixFor(split.base)}:${split.local}`, object: quad.object });
+  }
+  if (skipped.length) {
+    console.warn(`Warning: ${skipped.length} triple(s) use a predicate IRI that cannot be written as RDF/XML and were omitted from the pitfall scan.`);
+  }
+
+  const body = [...subjects.values()]
+    .map(({ term, properties }) => {
+      const identifier = term.termType === "BlankNode"
+        ? ` rdf:nodeID="${escapeHtml(term.value)}"`
+        : ` rdf:about="${escapeHtml(term.value)}"`;
+      const rendered = properties
+        .map(({ qname, object }) => {
+          if (object.termType === "NamedNode") {
+            return `    <${qname} rdf:resource="${escapeHtml(object.value)}"/>`;
+          }
+          if (object.termType === "BlankNode") {
+            return `    <${qname} rdf:nodeID="${escapeHtml(object.value)}"/>`;
+          }
+          const annotation = object.language
+            ? ` xml:lang="${escapeHtml(object.language)}"`
+            : object.datatype?.value
+              ? ` rdf:datatype="${escapeHtml(object.datatype.value)}"`
+              : "";
+          return `    <${qname}${annotation}>${escapeHtml(object.value)}</${qname}>`;
+        })
+        .join("\n");
+      return `  <rdf:Description${identifier}>\n${rendered}\n  </rdf:Description>`;
+    })
+    .join("\n");
+
+  const namespaceAttributes = [...declarations.entries()]
+    .map(([prefix, base]) => `  xmlns:${prefix}="${escapeHtml(base)}"`)
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rdf:RDF\n${namespaceAttributes}>\n${body}\n</rdf:RDF>\n`;
+}
+
+async function parseOopsResponse(xml) {
+  const quads = [];
+  const parserStream = rdfParser.parse(Readable.from([xml]), { contentType: "application/rdf+xml", baseIRI: OOPS_NAMESPACE });
+  await new Promise((resolve, reject) => {
+    parserStream.on("data", (quad) => quads.push(quad));
+    parserStream.on("error", reject);
+    parserStream.on("end", resolve);
+  });
+
+  // OOPS! has moved its vocabulary namespace at least once, so descriptions are
+  // matched on the local name rather than the full predicate IRI.
+  const localName = (uri) => uri.slice(Math.max(uri.lastIndexOf("#"), uri.lastIndexOf("/")) + 1);
+  const descriptions = new Map();
+  for (const quad of quads) {
+    const key = quad.subject.value;
+    if (!descriptions.has(key)) {
+      descriptions.set(key, new Map());
+    }
+    const properties = descriptions.get(key);
+    const property = quad.predicate.value === RDF_TYPE ? "@type" : localName(quad.predicate.value);
+    if (!properties.has(property)) {
+      properties.set(property, []);
+    }
+    properties.get(property).push(quad.object.value);
+  }
+
+  const typedAs = (properties, type) => (properties.get("@type") || []).some((value) => localName(value) === type);
+  const first = (properties, key) => (properties.get(key) || [])[0] || "";
+
+  const errorSubject = [...descriptions.values()].find(
+    (properties) => typedAs(properties, "response") && !properties.has("hasPitfall") && properties.has("hasTitle")
+  );
+  if (errorSubject) {
+    const messages = errorSubject.get("hasMessage") || [];
+    return { pitfalls: [], error: [first(errorSubject, "hasTitle"), ...messages].filter(Boolean).join(" ") };
+  }
+
+  const pitfalls = [];
+  for (const [subject, properties] of descriptions) {
+    if (!typedAs(properties, "pitfall")) {
+      continue;
+    }
+    const affected = new Set(properties.get("hasAffectedElement") || []);
+    for (const key of ["noSuggestion", "hasSuggestion", "mightNotBeInverseOf", "hasEquivalentClass", "hasEquivalentProperty"]) {
+      for (const reference of properties.get(key) || []) {
+        for (const element of descriptions.get(reference)?.get("hasAffectedElement") || []) {
+          affected.add(element);
+        }
+      }
+    }
+    const declaredCount = Number.parseInt(first(properties, "hasNumberAffectedElements"), 10);
+    pitfalls.push({
+      id: subject,
+      code: first(properties, "hasCode"),
+      name: first(properties, "hasName"),
+      description: first(properties, "hasDescription").trim(),
+      importanceLevel: first(properties, "hasImportanceLevel") || "Minor",
+      numberAffectedElements: Number.isFinite(declaredCount) ? declaredCount : affected.size,
+      affectedElements: [...affected].sort(collator.compare)
+    });
+  }
+
+  pitfalls.sort((left, right) => {
+    const leftRank = OOPS_IMPORTANCE_ORDER.indexOf(left.importanceLevel);
+    const rightRank = OOPS_IMPORTANCE_ORDER.indexOf(right.importanceLevel);
+    const rankDiff = (leftRank === -1 ? OOPS_IMPORTANCE_ORDER.length : leftRank) - (rightRank === -1 ? OOPS_IMPORTANCE_ORDER.length : rightRank);
+    return rankDiff !== 0 ? rankDiff : collator.compare(left.code, right.code);
+  });
+
+  return { pitfalls, error: "" };
+}
+
+function summarizePitfalls(pitfalls) {
+  const byImportance = {};
+  for (const pitfall of pitfalls) {
+    byImportance[pitfall.importanceLevel] = (byImportance[pitfall.importanceLevel] || 0) + 1;
+  }
+  return {
+    total: pitfalls.length,
+    affectedElements: new Set(pitfalls.flatMap((pitfall) => pitfall.affectedElements)).size,
+    byImportance
+  };
 }
 
 function copyBrandingAssets(config) {
@@ -1355,13 +1734,15 @@ async function parseOntology(config, assets) {
     subjectUri: quad.subject.termType === "NamedNode" ? quad.subject.value : null,
     predicateUri: quad.predicate.termType === "NamedNode" ? quad.predicate.value : null,
     objectUri: quad.object.termType === "NamedNode" ? quad.object.value : null,
-    objectLiteral: quad.object.termType === "Literal" ? quad.object.value : null
+    objectLiteral: quad.object.termType === "Literal" ? quad.object.value : null,
+    objectLanguage: quad.object.termType === "Literal" ? quad.object.language || "" : ""
   }));
   const namespace = config.project.namespace;
   if (!prefixes.some((entry) => entry.base === namespace)) {
     prefixes.unshift({ prefix: "vocab", base: namespace });
   }
 
+  const ontologyMetadata = extractOntologyMetadata(triples, config);
   const termMap = new Map();
   const edgeCandidates = [];
 
@@ -1386,11 +1767,15 @@ async function parseOntology(config, assets) {
       triple.objectLiteral
     ) {
       term.label = triple.objectLiteral;
+      term.labelPredicate = triple.predicateUri;
+      term.labelLanguage = triple.objectLanguage;
     } else if (
       (triple.predicateUri === RDFS_COMMENT || triple.predicateUri === SKOS_DEFINITION) &&
       triple.objectLiteral
     ) {
       term.comment = triple.objectLiteral;
+      term.commentPredicate = triple.predicateUri;
+      term.commentLanguage = triple.objectLanguage;
     } else if (
       [RDFS_SUBCLASS_OF, RDFS_DOMAIN, RDFS_RANGE, SKOS_BROADER].includes(triple.predicateUri) &&
       triple.objectUri
@@ -1427,6 +1812,7 @@ async function parseOntology(config, assets) {
   }
 
   const nodes = Array.from(termMap.values()).sort(sortTerms);
+  assignTermPageNames(nodes);
   const layout = buildLayout(nodes, edges, config.graph.custom.layout);
   for (const node of nodes) {
     const point = layout.get(node.id);
@@ -1464,6 +1850,8 @@ async function parseOntology(config, assets) {
       maintainer: config.project.maintainer || ""
     },
     generatedAt: new Date().toISOString(),
+    ontology: ontologyMetadata,
+    prefixes,
     source: ontologyAsset.relativeSource,
     sourceFormat: format,
     namespace,
@@ -1483,6 +1871,46 @@ async function parseOntology(config, assets) {
   };
 }
 
+// vann:preferredNamespacePrefix / vann:preferredNamespaceUri are annotations on the
+// ontology header rather than on a declared term, so they need their own pass.
+function extractOntologyMetadata(triples, config) {
+  const namespace = config.project.namespace;
+  const documentIri = namespace.replace(/[#/]$/, "");
+  const ontologyIris = triples
+    .filter((triple) => triple.predicateUri === RDF_TYPE && triple.objectUri === OWL_ONTOLOGY && triple.subjectUri)
+    .map((triple) => triple.subjectUri);
+  const preferredIri = [config.project.canonicalUri, documentIri, namespace].find((candidate) =>
+    candidate && ontologyIris.includes(candidate)
+  );
+  const iri = preferredIri || ontologyIris[0] || "";
+  const annotation = (predicateUri) => {
+    const scoped = triples.find(
+      (triple) => triple.predicateUri === predicateUri && triple.subjectUri === iri && triple.objectLiteral
+    );
+    const fallback = triples.find((triple) => triple.predicateUri === predicateUri && triple.objectLiteral);
+    return (scoped || fallback)?.objectLiteral || "";
+  };
+
+  const literal = (predicateUris) => {
+    const match = triples.find(
+      (triple) => predicateUris.includes(triple.predicateUri) && triple.subjectUri === iri && triple.objectLiteral
+    );
+    return match
+      ? { value: match.objectLiteral, predicate: match.predicateUri, language: match.objectLanguage }
+      : null;
+  };
+
+  return {
+    iri,
+    label: literal([RDFS_LABEL, SKOS_PREF_LABEL]),
+    comment: literal([RDFS_COMMENT, SKOS_DEFINITION]),
+    preferredNamespacePrefix:
+      config.project.preferredNamespacePrefix || annotation(VANN_PREFERRED_NAMESPACE_PREFIX),
+    preferredNamespaceUri:
+      config.project.preferredNamespaceUri || annotation(VANN_PREFERRED_NAMESPACE_URI) || namespace
+  };
+}
+
 function ensureTerm(termMap, uri, orderedPrefixes, namespace, isExternal) {
   if (!termMap.has(uri)) {
     const qname = uriToQnameOrIri(uri, orderedPrefixes);
@@ -1492,7 +1920,11 @@ function ensureTerm(termMap, uri, orderedPrefixes, namespace, isExternal) {
       qname,
       localName: toLocalName(uri, namespace),
       label: qname,
+      labelPredicate: "",
+      labelLanguage: "",
       comment: "",
+      commentPredicate: "",
+      commentLanguage: "",
       termType: isExternal ? "external" : "declaredTerm",
       types: new Set(),
       isExternal
@@ -1535,6 +1967,15 @@ function relationFromPredicate(predicateUri) {
     return "broader";
   }
   return "relatedTo";
+}
+
+function predicateIriForRelation(relation) {
+  return {
+    subClassOf: RDFS_SUBCLASS_OF,
+    domain: RDFS_DOMAIN,
+    range: RDFS_RANGE,
+    broader: SKOS_BROADER
+  }[relation] || "";
 }
 
 function predicateQnameForRelation(relation) {
@@ -2191,7 +2632,7 @@ function referenceHierarchyTerm(node, config) {
       ? qname
       : `<span>${escapeHtml(displayLabel)}</span> ${qname}`;
   if (!node.isExternal && config.features.termPages) {
-    return `<a class="hierarchy-term" href="terms/${encodeURIComponent(node.localName || sanitizeFileName(node.qname))}.html">${content}</a>`;
+    return `<a class="hierarchy-term" href="${termPageHref(node, "terms/")}">${content}</a>`;
   }
   return `<span class="hierarchy-term">${content}</span>`;
 }
@@ -2201,8 +2642,7 @@ function writeTermPages(context) {
   writeText(path.join(TERMS_DIR, "index.html"), buildTermsIndexPage(context, declaredNodes));
 
   for (const node of declaredNodes) {
-    const fileName = `${encodeURIComponent(node.localName || sanitizeFileName(node.qname))}.html`;
-    writeText(path.join(TERMS_DIR, fileName), buildTermPage(context, node));
+    writeText(path.join(TERMS_DIR, termPageHref(node)), buildTermPage(context, node));
   }
 }
 
@@ -2283,7 +2723,8 @@ function buildGuidePage(context) {
       hierarchyAsset: true,
       hierarchyOverview: true,
       specPage: true,
-      usageGuidePage: true
+      usageGuidePage: true,
+      embeddedJsonLd: true
     },
     hierarchy: {
       title: "Ontology Structure",
@@ -2322,7 +2763,9 @@ function buildGuidePage(context) {
           density: 1.5,
           gridCellSize: 90,
           renderedSizeThreshold: 2,
-          forceAllUnder: 80
+          forceAllUnder: 80,
+          edgeLabels: true,
+          edgeLabelSize: 11
         }
       },
       webvowl: {
@@ -2405,6 +2848,7 @@ function buildGuidePage(context) {
         },
         metadata: {
           canonicalUri: "Vocabulary IRI",
+          preferredNamespacePrefix: "Preferred Prefix",
           version: "Release",
           maintainer: "Maintained by",
           unspecified: "Not provided",
@@ -2473,6 +2917,14 @@ function buildGuidePage(context) {
         documentationUrl: "https://github.com/ecrum19/ocg#readme"
       }
     },
+    pitfallScanner: {
+      enabled: false,
+      serviceUrl: "https://oops.linkeddata.es/rest",
+      pitfalls: [],
+      timeoutMs: 60000,
+      failOnError: false,
+      cache: true
+    },
     curation: {
       featuredTerms: ["yv:ImportantClass", "yv:importantProperty"],
       autoFeaturedTerms: true,
@@ -2528,6 +2980,8 @@ function buildGuidePage(context) {
         ["project.description", "Default project summary used when page-specific copy is not supplied."],
         ["project.namespace", "Namespace IRI used to identify the vocabulary and copy from the home page."],
         ["project.canonicalUri", "Canonical vocabulary IRI shown in the ontology snapshot."],
+        ["project.preferredNamespacePrefix", "Optional override for the prefix shown under Canonical URI. When omitted, OCG reads vann:preferredNamespacePrefix from the ontology header and hides the field if neither is present."],
+        ["project.preferredNamespaceUri", "Optional override for vann:preferredNamespaceUri; defaults to the ontology annotation, then to project.namespace."],
         ["project.version", "Optional vocabulary version shown in the ontology snapshot."],
         ["project.maintainer", "Optional maintainer shown in the ontology snapshot."]
       ],
@@ -2546,7 +3000,7 @@ function buildGuidePage(context) {
         ["site.resourcePanel.title", "Heading for the published-artifacts panel."],
         ["site.resourcePanel.body", "Supporting text for the published-artifacts panel."],
         ["site.home.actions", "Labels for the Reference, Graph, Terms, Specification, OWL Ontology, SHACL, and ShEx actions. Set reference, graph, terms, specification, ontology, shapes, and shex."],
-        ["site.home.metadata", "Home metadata labels and namespace-copy status messages. Set canonicalUri, version, maintainer, unspecified, copyNamespace, namespaceCopied, and namespaceCopyUnavailable."],
+        ["site.home.metadata", "Home metadata labels and namespace-copy status messages. Set canonicalUri, preferredNamespacePrefix, version, maintainer, unspecified, copyNamespace, namespaceCopied, and namespaceCopyUnavailable."],
         ["site.home.snapshot.title", "Heading above the ontology-derived metric cards."],
         ["site.home.snapshot.body", "Supporting copy above the ontology-derived metric cards."],
         ["site.home.overview.title", "Heading above site.overviewCards. Use this to replace Repository Workflow with vocabulary-specific guidance."],
@@ -2710,6 +3164,8 @@ function buildGuidePage(context) {
         ["graph.custom.labels.gridCellSize", "Sigma label-collision grid cell size in screen pixels."],
         ["graph.custom.labels.renderedSizeThreshold", "Minimum rendered node size before a non-forced label can appear."],
         ["graph.custom.labels.forceAllUnder", "For graphs at or below this node count, force every visible label. Larger graphs prioritize connected terms and reveal more labels when zoomed or selected."],
+        ["graph.custom.labels.edgeLabels", "Initial state of the 'Show predicate labels on edges' toggle. When on, each visible edge carries its prefixed predicate IRI so it can be read without hovering."],
+        ["graph.custom.labels.edgeLabelSize", "Font size in pixels for edge labels. Labels wider than the edge they annotate are omitted rather than truncated."],
         ["graph.webvowl.enabled", "Enables the WebVOWL representation toggle."],
         ["graph.webvowl.serviceUrl", "WebVOWL service URL loaded by the graph iframe."],
         ["graph.webvowl.ontologyUrl", "Optional public URL of the serialized ontology document; leave empty to derive the deployed asset URL. Do not use project.namespace or a URL ending in #."],
@@ -2729,12 +3185,42 @@ function buildGuidePage(context) {
       example: configExample.graph
     },
     {
+      id: "pitfalls",
+      badge: "Optional Page",
+      title: "Ontology Pitfall Report",
+      description: "Submits the configured ontology to OOPS! (OntOlogy Pitfall Scanner!) during the build and renders the returned pitfalls as ontology-pitfalls.html. Disabled by default: it is the only OCG feature that contacts a remote service at build time.",
+      options: [
+        ["pitfallScanner.enabled", "Set to true to run the scan and generate ontology-pitfalls.html with its navigation link."],
+        ["pitfallScanner.serviceUrl", "OOPS! REST endpoint. Point it at a self-hosted instance to keep ontology content inside your infrastructure."],
+        ["pitfallScanner.pitfalls", "Optional list of OOPS! pitfall codes such as ['P04', 'P11'] to scan for. Leave empty to request the full catalogue."],
+        ["pitfallScanner.timeoutMs", "Request timeout in milliseconds, between 1000 and 600000."],
+        ["pitfallScanner.failOnError", "Set to true to fail the build when the scan cannot complete. When false, OCG warns and publishes the page with an unavailable notice."],
+        ["pitfallScanner.cache", "Caches the report in .ocg-cache/ keyed by the submitted ontology, so repeated builds of unchanged sources do not re-contact the service."],
+        ["--refresh-pitfalls", "Build flag that ignores the cache and requests a fresh report."],
+        ["--skip-pitfall-scan", "Build flag that uses the cached report when present and skips the network request otherwise."]
+      ],
+      example: { pitfallScanner: configExample.pitfallScanner }
+    },
+    {
       id: "terms",
       badge: "Generated Pages",
       title: "Term Pages",
       description: "Creates one HTML page for each declared ontology term, with relationships and source links.",
       options: [["features.termPages", "Set to false to omit the terms directory and its navigation link."]],
       example: { features: { termPages: true } }
+    },
+    {
+      id: "embedded-json-ld",
+      badge: "Machine Readable",
+      title: "Embedded JSON-LD",
+      description: "Publishes the parsed RDF inside the generated HTML, so an agent that fetches a page gets machine-readable data without content negotiation. The home page carries the ontology header, the Reference page carries the whole vocabulary as an @graph, and each term page carries that term.",
+      options: [
+        ["features.embeddedJsonLd", "Set to false to omit every JSON-LD script block."],
+        ["Fidelity", "The emitted graph is a subset of the parsed ontology: the predicate that actually supplied a label or comment is re-used (rdfs:label or skos:prefLabel) and language tags are preserved."],
+        ["rdfs:isDefinedBy", "The one statement OCG adds itself, linking each term to the ontology IRI it was declared in."],
+        ["Hash namespaces", "Embedded data is reached by agents that fetch the term page directly. A client dereferencing a hash IRI such as vocab#Term still requests the no-fragment document, so this complements persistentIri rather than replacing it."]
+      ],
+      example: { features: { embeddedJsonLd: true } }
     },
     {
       id: "specification",
@@ -2809,12 +3295,13 @@ function buildGuidePage(context) {
     { id: "getting-started", label: "Getting Started", level: 0, marker: "02" },
     { id: "repository-layout", label: "Repository Layout", level: 0, marker: "03" },
     { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "04" },
-    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0, marker: "05" },
-    { id: "components", label: "Component Overview", level: 0, marker: "06" },
+    { id: "w3id-publication", label: "End-to-End w3id Publication", level: 0, marker: "05" },
+    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0, marker: "06" },
+    { id: "components", label: "Component Overview", level: 0, marker: "07" },
     ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1, marker: "" })),
-    { id: "configuration", label: "Complete Configuration", level: 0, marker: "07" },
-    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "08" },
-    { id: "commands", label: "Useful Commands", level: 0, marker: "09" }
+    { id: "configuration", label: "Complete Configuration", level: 0, marker: "08" },
+    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "09" },
+    { id: "commands", label: "Useful Commands", level: 0, marker: "10" }
   ];
   const guideToc = `
     <details class="guide-toc" open>
@@ -2933,17 +3420,52 @@ function buildGuidePage(context) {
         })}
       </section>
 
+      <section id="w3id-publication" class="section guide-section">
+        <div class="section-head"><h2>End-to-End w3id Publication</h2><p class="section-note">Follow these steps when starting with an existing ontology repository and ending with a GitHub Pages companion site that resolves through w3id.org.</p></div>
+        <div class="guide-callout"><strong>What you are building:</strong> GitHub Pages hosts the generated HTML and RDF files. w3id.org holds the permanent redirect rules and uses the HTTP <code>Accept</code> header to select an RDF representation. OCG prepares both sides, but you submit the w3id change separately.</div>
+        <ol class="guide-steps">
+          <li><strong>Start with a public ontology repository.</strong> Keep your primary ontology in its existing location. OCG accepts Turtle, RDF/XML, JSON-LD, and N-Triples as the primary ontology input; see <a href="#accepted-input-formats">Accepted Input Formats</a> before choosing the <code>--ontology</code> path.</li>
+          <li><strong>Install and initialize OCG.</strong> From the repository root, run <code>npm install --save-dev ontology-companion-generator</code>, then <code>npx ocg init --ontology path/to/ontology.ttl</code>. Replace the example path with your actual ontology file and use the matching extension for RDF/XML, JSON-LD, or N-Triples.</li>
+          <li><strong>Review the generated config.</strong> Update <code>project</code>, <code>sources</code>, feature switches, and page copy in <code>ocg.config.json</code>. Source paths are repository-relative, and OCG does not convert RDF formats or scan arbitrary directories.</li>
+          <li><strong>Choose the permanent identifier before publishing.</strong> Ask w3id for an available project path, such as <code>https://w3id.org/ocg/example-capability-vocabulary</code> for this bundled demonstration. This is a candidate example, not a guarantee of availability. Use the exact approved path in both the ontology namespace and OCG configuration.</li>
+          <li><strong>Update the ontology namespace consistently.</strong> For a hash namespace, use the document IRI plus <code>#</code>, for example <code>https://w3id.org/ocg/example-capability-vocabulary#</code>. Update prefixes and ontology IRIs in the ontology, examples, SHACL, ShEx, and specification source where they refer to the old namespace. OCG copies source files; it does not rewrite IRIs.</li>
+          <li><strong>Enable persistent IRI output.</strong> Set <code>persistentIri.enabled</code> to <code>true</code>, set <code>documentIri</code> to the no-fragment w3id IRI, and set <code>siteUrl</code> to the final GitHub Pages base URL, including its repository path and trailing slash.</li>
+          <li><strong>Validate and build locally.</strong> Run <code>npm run ocg:check</code>, then <code>npm run ocg:build</code>. Inspect the generated pages and confirm that <code>site/linked-data/ontology.ttl</code>, <code>site/iri-resolver.html</code>, and <code>site/persistent-iri/</code> exist.</li>
+          <li><strong>Deploy GitHub Pages first.</strong> In GitHub, open <strong>Settings → Pages</strong> and select <strong>GitHub Actions</strong>. Commit the config and source changes, push <code>main</code>, and confirm that the Pages workflow succeeds. The static RDF target must work before w3id redirects are merged.</li>
+          <li><strong>Prepare the w3id pull request.</strong> Fork the <a href="https://github.com/perma-id/w3id.org" target="_blank" rel="noreferrer">w3id.org repository</a>. Copy the generated <code>site/persistent-iri/w3id/&lt;project&gt;/.htaccess</code> and add a README with the identifier, GitHub Pages target, maintainer, and contact information. For the example path above, copy <code>site/persistent-iri/w3id/ocg/.htaccess</code> into the <code>ocg/</code> directory of the w3id fork. Submit the pull request following the <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id contribution guide</a>.</li>
+          <li><strong>Test both representations.</strong> After the w3id change is merged, open a term IRI such as <code>https://w3id.org/ocg/example-capability-vocabulary#Capability</code> in a browser and request the no-fragment document IRI with <code>Accept: text/turtle</code> from an RDF client.</li>
+        </ol>
+        <h3>Minimal persistent-IRI configuration</h3>
+        ${guideCode({
+          project: {
+            namespace: "https://w3id.org/ocg/example-capability-vocabulary#",
+            canonicalUri: "https://w3id.org/ocg/example-capability-vocabulary"
+          },
+          persistentIri: {
+            enabled: true,
+            documentIri: "https://w3id.org/ocg/example-capability-vocabulary",
+            siteUrl: "https://ecrum19.github.io/ocg/",
+            representations: []
+          }
+        })}
+        <p>For another ontology, replace the example identifier and Pages URL with your approved values. Keep <code>documentIri</code> free of <code>#</code>; use the fragment only when linking to a term.</p>
+        <h3>Final verification</h3>
+        ${guideCode("curl -L -H 'Accept: text/turtle' https://w3id.org/ocg/example-capability-vocabulary\ncurl -I -L -H 'Accept: text/turtle' https://w3id.org/ocg/example-capability-vocabulary")}
+        <p>The RDF request should redirect to <code>linked-data/ontology.ttl</code>. A browser request for <code>https://w3id.org/ocg/example-capability-vocabulary#Capability</code> should reach <code>terms/Capability.html</code>. If you add JSON-LD, RDF/XML, or N-Triples files under <code>persistentIri.representations</code>, repeat the curl test with each configured media type.</p>
+        <div class="guide-callout"><strong>Common mistake:</strong> do not submit the generated <code>.htaccess</code> before the GitHub Pages target exists, and do not point <code>documentIri</code> at a namespace ending in <code>#</code>. A server never receives a hash fragment, so w3id negotiates the full ontology while OCG resolves browser fragments to individual term pages.</div>
+      </section>
+
       <section id="persistent-iri-workflow" class="section guide-section persistent-iri-section">
         <div class="section-head"><h2>Persistent IRI Deployment</h2><p class="section-note">OCG can prepare static GitHub Pages output for linked-data dereferencing, with w3id.org providing the HTTP behavior that static hosting cannot.</p></div>
-        <p>A term IRI such as <code class="iri-example">https://w3id.org/your-project/vocab#ExampleTerm</code> has two jobs. In a browser, visitors should reach the generated <code>terms/ExampleTerm.html</code> page. In an RDF client, a request for the no-fragment document IRI with <code>Accept: text/turtle</code> should receive an RDF representation. GitHub Pages can serve both static files, but it cannot inspect the <code>Accept</code> header and choose between them.</p>
+        <p>A term IRI such as <code class="iri-example">https://w3id.org/your-project/vocab#Capability</code> has two jobs. In a browser, visitors should reach the generated <code>terms/Capability.html</code> page. In an RDF client, a request for the no-fragment document IRI with <code>Accept: text/turtle</code> should receive an RDF representation. GitHub Pages can serve both static files, but it cannot inspect the <code>Accept</code> header and choose between them.</p>
         <div class="guide-callout guide-callout--instruction"><strong>How to generate the w3id configuration:</strong> set <code>persistentIri.enabled</code> to <code>true</code>, provide the matching w3id document IRI and deployed GitHub Pages URL, then run <code>npm run ocg:build</code>. Copy <code>site/persistent-iri/w3id/&lt;project&gt;/.htaccess</code> and the generated <code>README.md</code> into the corresponding identifier directory in your <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id persistent-identifier publishing guide</a> pull request.</div>
         <ol class="guide-steps">
           <li><strong>Use a hash namespace.</strong> Set <code>project.namespace</code> to a w3id document IRI plus <code>#</code>, for example <code>https://w3id.org/your-project/vocab#</code>.</li>
           <li><strong>Publish static targets.</strong> OCG copies the primary ontology and any additional serializations into <code>site/linked-data/</code>. It does not convert RDF: provide each representation you intend to offer.</li>
           <li><strong>Let w3id negotiate.</strong> The generated <code>.htaccess</code> checks <code>Accept</code>, issues a <code>303</code> redirect to an RDF file when a supported media type is requested, and otherwise redirects to <code>iri-resolver.html</code>.</li>
-          <li><strong>Resolve the browser fragment client-side.</strong> URI fragments are never sent in an HTTP request. The resolver receives the preserved <code>#ExampleTerm</code> fragment in the browser and routes to the generated term page.</li>
+          <li><strong>Resolve the browser fragment client-side.</strong> URI fragments are never sent in an HTTP request. The resolver receives the preserved <code>#Capability</code> fragment in the browser and routes to the generated term page.</li>
         </ol>
-        <div class="guide-callout"><strong>Important limitation:</strong> because a server never receives <code>#ExampleTerm</code>, hash-based IRIs cannot negotiate RDF for one selected term. OCG returns a representation of the full ontology. Per-term RDF requires a different IRI design, such as slash IRIs, and server-side routing. See the <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id explanation of identifier redirects</a> and its <a href="https://github.com/perma-id/w3id.org/tree/master/examples" target="_blank" rel="noreferrer"><code>.htaccess</code> examples</a> for more context.</div>
+        <div class="guide-callout"><strong>Important limitation:</strong> because a server never receives <code>#Capability</code>, hash-based IRIs cannot negotiate RDF for one selected term. OCG returns a representation of the full ontology. Per-term RDF requires a different IRI design, such as slash IRIs, and server-side routing. See the <a href="https://github.com/perma-id/w3id.org#creating-a-new-identifier" target="_blank" rel="noreferrer">w3id explanation of identifier redirects</a> and its <a href="https://github.com/perma-id/w3id.org/tree/master/examples" target="_blank" rel="noreferrer"><code>.htaccess</code> examples</a> for more context.</div>
         <h3>Configuration example</h3>
         ${guideCode({
           project: { namespace: "https://w3id.org/your-project/vocab#" },
@@ -3032,6 +3554,7 @@ function buildIndexPage(context) {
   const shapesAsset = getAsset(assets, "shapes");
   const shexAsset = getAsset(assets, "shex");
   const featuredTerms = resolveFeaturedTerms(config, ontologyInfo);
+  const preferredNamespacePrefix = ontologyInfo.ontology?.preferredNamespacePrefix || "";
 
   const primaryHeroButtons = [
     config.features.referencePage
@@ -3099,7 +3622,7 @@ function buildIndexPage(context) {
           (term) => `
             <article class="card featured-term-card">
               <div class="term-badge">${escapeHtml(TERM_TYPE_INFO[term.termType].badge)}</div>
-              <h3><a href="terms/${encodeURIComponent(term.localName)}.html">${escapeHtml(term.qname)}</a></h3>
+              <h3><a href="${termPageHref(term, "terms/")}">${escapeHtml(term.qname)}</a></h3>
               <p>${escapeHtml(term.comment || term.label)}</p>
             </article>
           `
@@ -3184,6 +3707,15 @@ function buildIndexPage(context) {
             <dt>${escapeHtml(home.metadata.canonicalUri)}</dt>
             <dd><code>${escapeHtml(config.project.canonicalUri)}</code></dd>
           </div>
+          ${
+            preferredNamespacePrefix
+              ? `
+          <div class="meta-item--preferred-prefix">
+            <dt>${escapeHtml(home.metadata.preferredNamespacePrefix)}</dt>
+            <dd><code>${escapeHtml(preferredNamespacePrefix)}</code></dd>
+          </div>`
+              : ""
+          }
           <div>
             <dt>${escapeHtml(home.metadata.version)}</dt>
             <dd>${escapeHtml(config.project.version || home.metadata.unspecified)}</dd>
@@ -3270,6 +3802,7 @@ function buildIndexPage(context) {
 
   return renderPage({
     config,
+    jsonLd: buildOntologyJsonLd(context),
     title: `${config.project.title} Companion Site`,
     description: config.project.description,
     bodyClass: "page-home",
@@ -3383,7 +3916,7 @@ function buildReferencePage(context) {
           const relations = describeRelations(node, ontologyInfo);
           return `
             <tr>
-              <td><a href="terms/${encodeURIComponent(node.localName)}.html"><code>${escapeHtml(node.qname)}</code></a></td>
+              <td><a href="${termPageHref(node, "terms/")}"><code>${escapeHtml(node.qname)}</code></a></td>
               <td>${escapeHtml(node.label)}</td>
               <td>${escapeHtml(relations)}</td>
               <td>${escapeHtml(node.comment || "-")}</td>
@@ -3424,6 +3957,7 @@ function buildReferencePage(context) {
 
   return renderPage({
     config,
+    jsonLd: buildVocabularyJsonLd(context),
     title: `${config.project.title} Reference`,
     description: `Reference documentation for ${config.project.title}.`,
     currentNav: "reference",
@@ -3518,6 +4052,7 @@ function buildGraphPage(context) {
                   <label><input id="sigma-toggle-external" type="checkbox" checked /> Show external terms</label>
                   <label><input id="sigma-toggle-isolated" type="checkbox" checked /> Show isolated nodes</label>
                   <label><input id="sigma-toggle-labels" type="checkbox" checked /> Show node labels</label>
+                  <label><input id="sigma-toggle-edge-labels" type="checkbox"${config.graph.custom.labels.edgeLabels ? " checked" : ""} /> Show predicate labels on edges</label>
                 </div>
               </details>
 
@@ -3812,6 +4347,7 @@ function buildSigmaGraphScript(config) {
           const edgeTooltipEl = document.getElementById("sigma-edge-tooltip");
           const nodeTooltipEl = document.getElementById("sigma-node-tooltip");
           const statusEl = document.getElementById("sigma-status");
+          const edgeLabelToggleEl = document.getElementById("sigma-toggle-edge-labels");
 
           let graphPayload;
           let graphData;
@@ -4076,7 +4612,7 @@ function buildSigmaGraphScript(config) {
             if (node.isExternal) {
               return "<a href=\\\"" + escapeHtml(node.uri) + "\\\" target=\\\"_blank\\\" rel=\\\"noreferrer\\\">" + text + "</a>";
             }
-            return "<a href=\\\"terms/" + encodeURIComponent(node.localName || node.qname) + ".html\\\">" + text + "</a>";
+            return "<a href=\\\"terms/" + encodeURIComponent(node.pageName || node.localName || node.qname) + ".html\\\">" + text + "</a>";
           }
 
           function getFilterState() {
@@ -4367,14 +4903,28 @@ function buildSigmaGraphScript(config) {
               if (!visibleEdges.has(edge)) {
                 return { ...attrs, hidden: true };
               }
-              const result = { ...attrs, hidden: false };
+              // Sigma only draws an edge label when both endpoint labels happen to be
+              // displayed, so forceLabel is what makes every visible predicate readable
+              // without hovering it. This runs once per edge per refresh, so it reads the
+              // cached toggle rather than rebuilding the whole filter state.
+              const showEdgeLabels = edgeLabelToggleEl.checked;
+              const result = {
+                ...attrs,
+                hidden: false,
+                label: showEdgeLabels ? attrs.baseLabel : "",
+                forceLabel: showEdgeLabels,
+                labelColor: THEME_COLOR.muted
+              };
               if (selectedEdge) {
                 if (edge !== selectedEdge) {
                   result.color = colorToRgba(THEME_COLOR.muted, 0.16);
                   result.size = EDGE_DIM_SIZE;
+                  result.label = "";
+                  result.forceLabel = false;
                 } else {
                   result.size = attrs.baseSize * 1.7;
                   result.color = attrs.baseColor;
+                  result.labelColor = THEME_COLOR.accentStrong;
                   result.zIndex = 1;
                 }
                 return result;
@@ -4384,8 +4934,11 @@ function buildSigmaGraphScript(config) {
                 if (!adjacent) {
                   result.color = colorToRgba(THEME_COLOR.muted, 0.16);
                   result.size = EDGE_DIM_SIZE;
+                  result.label = "";
+                  result.forceLabel = false;
                 } else {
                   result.size = attrs.baseSize * 1.25;
+                  result.labelColor = THEME_COLOR.text;
                 }
               }
               return result;
@@ -4526,6 +5079,7 @@ function buildSigmaGraphScript(config) {
             ["sigma-toggle-external", "sigma-toggle-isolated"].forEach((id) => document.getElementById(id).addEventListener("change", () => { refresh(); fitCamera(); }));
             document.querySelectorAll("[data-custom-graph-mode]").forEach((tab) => tab.addEventListener("click", () => setCustomMode(tab.dataset.customGraphMode)));
             document.getElementById("sigma-toggle-labels").addEventListener("change", () => renderer.refresh());
+            document.getElementById("sigma-toggle-edge-labels").addEventListener("change", () => renderer.refresh());
             document.getElementById("sigma-focus-term").addEventListener("click", focusTerm);
             document.getElementById("sigma-clear-selection").addEventListener("click", clearSelection);
             document.getElementById("sigma-reset-view").addEventListener("click", () => { clearSelection(); refresh(); fitCamera(); setStatus("View reset to fit visible graph."); });
@@ -4608,6 +5162,44 @@ function buildSigmaGraphScript(config) {
             context.restore();
           }
 
+          function drawReadableEdgeLabel(context, edgeData, sourceData, targetData, settings) {
+            const label = edgeData.label;
+            if (!label) return;
+            const size = settings.edgeLabelSize;
+            const dx = targetData.x - sourceData.x;
+            const dy = targetData.y - sourceData.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < sourceData.size + targetData.size) return;
+            context.save();
+            context.font = settings.edgeLabelWeight + " " + size + "px " + settings.edgeLabelFont;
+            const available = distance - sourceData.size - targetData.size - 8;
+            const textWidth = context.measureText(label).width;
+            // Skip rather than ellipsize: a truncated prefixed IRI is worse than none,
+            // and the edge tooltip still carries the full value.
+            if (textWidth > available) {
+              context.restore();
+              return;
+            }
+            const centerX = (sourceData.x + targetData.x) / 2;
+            const centerY = (sourceData.y + targetData.y) / 2;
+            let angle = Math.atan2(dy, dx);
+            if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+              angle += Math.PI;
+            }
+            context.translate(centerX, centerY);
+            context.rotate(angle);
+            context.textAlign = "center";
+            context.textBaseline = "alphabetic";
+            context.lineJoin = "round";
+            context.miterLimit = 2;
+            context.strokeStyle = colorToRgba(THEME_COLOR.panel, 0.96);
+            context.lineWidth = 3.5;
+            context.strokeText(label, 0, -edgeData.size / 2 - 3);
+            context.fillStyle = edgeData.labelColor || THEME_COLOR.muted;
+            context.fillText(label, 0, -edgeData.size / 2 - 3);
+            context.restore();
+          }
+
           function buildGraph() {
             const graphology = window.graphology;
             const SigmaCtor = window.Sigma;
@@ -4648,11 +5240,17 @@ function buildSigmaGraphScript(config) {
             graphData.edges.forEach((edge, index) => {
               const color = TYPE_COLOR[edge.relation] || THEME_COLOR.muted;
               const id = edge.id || "rel-" + String(index + 1).padStart(3, "0");
-              graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: EDGE_BASE_SIZE, baseSize: EDGE_BASE_SIZE, relation: edge.relation, label: edge.label || edge.relation });
+              const edgeLabel = edge.predicateQname || edge.label || edge.relation;
+              graph.addDirectedEdgeWithKey(id, edge.source, edge.target, { type: "arrow", color, baseColor: color, size: EDGE_BASE_SIZE, baseSize: EDGE_BASE_SIZE, relation: edge.relation, label: edgeLabel, baseLabel: edgeLabel, labelColor: THEME_COLOR.muted });
             });
             renderer = new SigmaCtor(graph, container, {
               defaultEdgeType: "arrow",
-              renderEdgeLabels: false,
+              renderEdgeLabels: true,
+              edgeLabelFont: LABEL_FONT,
+              edgeLabelSize: LABEL_SETTINGS.edgeLabelSize,
+              edgeLabelWeight: "500",
+              edgeLabelColor: { attribute: "labelColor", color: THEME_COLOR.muted },
+              edgeLabelRenderer: drawReadableEdgeLabel,
               renderLabels: true,
               labelDensity: LABEL_SETTINGS.density,
               labelGridCellSize: LABEL_SETTINGS.gridCellSize,
@@ -4698,12 +5296,251 @@ function buildSigmaGraphScript(config) {
     `;
 }
 
+// ---------------------------------------------------------------------------
+// Embedded JSON-LD
+//
+// Term pages carry the triples OCG parsed for that term, so a crawler that
+// fetches the HTML gets machine-readable RDF without content negotiation. The
+// emitted graph is a faithful subset of the source: the predicate that actually
+// produced a label or comment is re-used, and language tags are preserved. The
+// one statement OCG adds of its own is rdfs:isDefinedBy, linking a term to the
+// ontology IRI it was declared in.
+// ---------------------------------------------------------------------------
+
+function jsonLdContext(ontologyInfo) {
+  const context = { ...JSON_LD_BASE_CONTEXT };
+  for (const { prefix, base } of ontologyInfo.prefixes || []) {
+    // A prefix from the ontology must not silently redefine a well-known one.
+    if (!context[prefix]) {
+      context[prefix] = base;
+    }
+  }
+  return context;
+}
+
+function jsonLdLiteral(entry) {
+  if (!entry?.value) {
+    return null;
+  }
+  return entry.language ? { "@value": entry.value, "@language": entry.language } : entry.value;
+}
+
+function jsonLdScript(document) {
+  // "</script>" inside the payload would close the element early; escaping "<"
+  // keeps the JSON equivalent and the element intact.
+  const serialized = JSON.stringify(document, null, 2).replaceAll("<", "\\u003C");
+  return `<script type="application/ld+json">${serialized}</script>`;
+}
+
+function buildTermJsonLdNode(context, node) {
+  const { ontologyInfo } = context;
+  const document = { "@id": node.uri };
+  if (node.types?.length) {
+    document["@type"] = node.types.length === 1 ? node.types[0] : [...node.types];
+  }
+
+  const label = jsonLdLiteral(
+    node.labelPredicate ? { value: node.label, language: node.labelLanguage } : null
+  );
+  if (label) {
+    document[uriToQnameOrIri(node.labelPredicate, ontologyInfo.prefixes)] = label;
+  }
+  const comment = jsonLdLiteral(
+    node.commentPredicate ? { value: node.comment, language: node.commentLanguage } : null
+  );
+  if (comment) {
+    document[uriToQnameOrIri(node.commentPredicate, ontologyInfo.prefixes)] = comment;
+  }
+
+  for (const edge of ontologyInfo.edges.filter((entry) => entry.source === node.id)) {
+    const predicateIri = predicateIriForRelation(edge.relation);
+    if (!predicateIri) {
+      continue;
+    }
+    const key = uriToQnameOrIri(predicateIri, ontologyInfo.prefixes);
+    const value = { "@id": edge.target };
+    if (!document[key]) {
+      document[key] = value;
+    } else if (Array.isArray(document[key])) {
+      document[key].push(value);
+    } else {
+      document[key] = [document[key], value];
+    }
+  }
+
+  if (ontologyInfo.ontology?.iri) {
+    document["rdfs:isDefinedBy"] = { "@id": ontologyInfo.ontology.iri };
+  }
+  return document;
+}
+
+function buildOntologyJsonLdNode(context) {
+  const { ontologyInfo } = context;
+  const ontology = ontologyInfo.ontology || {};
+  if (!ontology.iri) {
+    return null;
+  }
+  const document = { "@id": ontology.iri, "@type": "owl:Ontology" };
+  const label = jsonLdLiteral(ontology.label);
+  if (label) {
+    document[uriToQnameOrIri(ontology.label.predicate, ontologyInfo.prefixes)] = label;
+  }
+  const comment = jsonLdLiteral(ontology.comment);
+  if (comment) {
+    document[uriToQnameOrIri(ontology.comment.predicate, ontologyInfo.prefixes)] = comment;
+  }
+  if (ontology.preferredNamespacePrefix) {
+    document["vann:preferredNamespacePrefix"] = ontology.preferredNamespacePrefix;
+  }
+  if (ontology.preferredNamespaceUri) {
+    document["vann:preferredNamespaceUri"] = ontology.preferredNamespaceUri;
+  }
+  return document;
+}
+
+function buildTermJsonLd(context, node) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  return jsonLdScript({
+    "@context": jsonLdContext(context.ontologyInfo),
+    ...buildTermJsonLdNode(context, node)
+  });
+}
+
+function buildOntologyJsonLd(context) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  const ontology = buildOntologyJsonLdNode(context);
+  return ontology ? jsonLdScript({ "@context": jsonLdContext(context.ontologyInfo), ...ontology }) : "";
+}
+
+// The reference page shows the whole vocabulary, so it carries the whole graph:
+// one fetch gives a crawler every declared term.
+function buildVocabularyJsonLd(context) {
+  if (!context.config.features.embeddedJsonLd) {
+    return "";
+  }
+  const { ontologyInfo } = context;
+  const graph = [
+    buildOntologyJsonLdNode(context),
+    ...ontologyInfo.nodes
+      .filter((node) => !node.isExternal)
+      .map((node) => buildTermJsonLdNode(context, node))
+  ].filter(Boolean);
+  if (!graph.length) {
+    return "";
+  }
+  return jsonLdScript({ "@context": jsonLdContext(ontologyInfo), "@graph": graph });
+}
+
+function buildPitfallPage(context) {
+  const { config, ontologyInfo, pitfallReport } = context;
+  const nodeByUri = new Map(ontologyInfo.nodes.map((node) => [node.uri, node]));
+  const importanceLabel = (level) => (OOPS_IMPORTANCE_ORDER.includes(level) ? level : "Minor");
+
+  const renderElement = (uri) => {
+    const node = nodeByUri.get(uri);
+    const href = config.features.termPages ? termPageHref(node, "terms/") : null;
+    const text = escapeHtml(node?.qname || uriToQnameOrIri(uri, ontologyInfo.prefixes || []));
+    return href
+      ? `<li><a href="${href}"><code>${text}</code></a></li>`
+      : `<li><code>${text}</code></li>`;
+  };
+
+  const summaryCards = OOPS_IMPORTANCE_ORDER.map((level) => `
+        <div class="metric-card pitfall-metric pitfall-metric--${level.toLowerCase()}">
+          <div class="metric-number">${pitfallReport.summary.byImportance?.[level] || 0}</div>
+          <div class="metric-label">${escapeHtml(level)}</div>
+        </div>
+      `).join("");
+
+  const pitfallCards = pitfallReport.pitfalls
+    .map((pitfall) => `
+        <article class="card pitfall-card pitfall-card--${importanceLabel(pitfall.importanceLevel).toLowerCase()}">
+          <div class="pitfall-card-head">
+            <code class="pitfall-code">${escapeHtml(pitfall.code)}</code>
+            <span class="pitfall-importance">${escapeHtml(importanceLabel(pitfall.importanceLevel))}</span>
+          </div>
+          <h3>${escapeHtml(pitfall.name)}</h3>
+          <p>${escapeHtml(pitfall.description)}</p>
+          ${
+            pitfall.affectedElements.length
+              ? `<details class="pitfall-elements"><summary>${pitfall.numberAffectedElements} affected element${pitfall.numberAffectedElements === 1 ? "" : "s"}</summary><ul>${pitfall.affectedElements.map(renderElement).join("")}</ul></details>`
+              : `<p class="pitfall-scope">Reported for the ontology as a whole.</p>`
+          }
+          <a class="pitfall-reference" href="https://oops.linkeddata.es/catalogue.jsp" target="_blank" rel="noreferrer">Pitfall catalogue</a>
+        </article>
+      `)
+    .join("");
+
+  const status = pitfallReport.available
+    ? `<p class="section-note">Scanned ${escapeHtml(pitfallReport.scannedAt.slice(0, 10))} against <a href="${escapeHtml(pitfallReport.serviceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(pitfallReport.serviceUrl)}</a>${pitfallReport.fromCache ? " (cached report)" : ""}.</p>`
+    : `<div class="pitfall-unavailable"><strong>Report unavailable.</strong> ${escapeHtml(pitfallReport.error || "The OOPS! scan did not complete.")} Re-run <code>npm run ocg:build</code> once the service is reachable.</div>`;
+
+  const content = `
+    <section id="pitfall-overview" class="section">
+      <div class="section-head">
+        <div class="section-heading-row">
+          <h2>Ontology Pitfalls</h2>
+          ${howToLink(config, "pitfalls")}
+        </div>
+        <p class="section-note">Modelling pitfalls detected in <code>${escapeHtml(config.sources.ontology)}</code> by OOPS! (OntOlogy Pitfall Scanner!). Pitfalls are advisory: each one is a candidate improvement, not a validation error.</p>
+        ${status}
+      </div>
+      ${
+        pitfallReport.available
+          ? `<div class="metrics-grid" style="--metric-count: 4">
+        <div class="metric-card"><div class="metric-number">${pitfallReport.summary.total}</div><div class="metric-label">Pitfalls</div></div>
+        ${summaryCards}
+      </div>`
+          : ""
+      }
+    </section>
+
+    ${
+      pitfallReport.available
+        ? `<section id="pitfall-details" class="section">
+      <div class="section-head">
+        <h2>Detected Pitfalls</h2>
+        <p class="section-note">${pitfallReport.summary.total ? `${pitfallReport.summary.total} pitfall${pitfallReport.summary.total === 1 ? "" : "s"} across ${pitfallReport.summary.affectedElements} distinct ontology element${pitfallReport.summary.affectedElements === 1 ? "" : "s"}.` : "OOPS! reported no pitfalls for this ontology."}</p>
+      </div>
+      ${pitfallCards ? `<div class="card-grid pitfall-grid">${pitfallCards}</div>` : ""}
+    </section>`
+        : ""
+    }
+
+    <section id="pitfall-attribution" class="section">
+      <div class="section-head">
+        <h2>About This Report</h2>
+        <p class="section-note">OOPS! is an independent web service maintained by the Ontology Engineering Group. OCG only submits the configured ontology and renders the returned report; disable <code>pitfallScanner.enabled</code> to keep builds fully offline.</p>
+      </div>
+      <p>Poveda-Villalon, M., Gomez-Perez, A., Suarez-Figueroa, M. C. (2014). OOPS! (OntOlogy Pitfall Scanner!): An On-line Tool for Ontology Evaluation. <em>International Journal on Semantic Web and Information Systems</em>, 10(2), 7-34. <a href="https://oops.linkeddata.es" target="_blank" rel="noreferrer">oops.linkeddata.es</a></p>
+    </section>
+  `;
+
+  return renderPage({
+    config,
+    title: `${config.project.shortName} Pitfalls`,
+    description: `OOPS! pitfall report for ${config.project.title}.`,
+    currentNav: "pitfalls",
+    bodyClass: "page-pitfalls",
+    content,
+    pageToc: [
+      { id: "pitfall-overview", label: "Overview" },
+      ...(pitfallReport.available ? [{ id: "pitfall-details", label: "Detected Pitfalls" }] : []),
+      { id: "pitfall-attribution", label: "About This Report" }
+    ]
+  });
+}
+
 function buildTermsIndexPage(context, declaredNodes) {
   const { config } = context;
   const rowsFor = (nodes) => nodes
     .map((node) => `
         <tr>
-          <td><a href="${encodeURIComponent(node.localName)}.html"><code>${escapeHtml(node.qname)}</code></a></td>
+          <td><a href="${termPageHref(node)}"><code>${escapeHtml(node.qname)}</code></a></td>
           <td>${escapeHtml(TERM_TYPE_INFO[node.termType].label)}</td>
           <td>${escapeHtml(node.label)}</td>
           <td>${escapeHtml(node.comment || "-")}</td>
@@ -4775,9 +5612,7 @@ function buildTermPage(context, node) {
           .map((edge) => {
             const targetId = direction === "outgoing" ? edge.target : edge.source;
             const related = ontologyInfo.nodes.find((entry) => entry.id === targetId);
-            const href = related.isExternal
-              ? null
-              : `${encodeURIComponent(related.localName || sanitizeFileName(related.qname))}.html`;
+            const href = termPageHref(related);
             return `
               <tr>
                 <td>${escapeHtml(RELATION_INFO[edge.relation] || edge.relation)}</td>
@@ -4801,6 +5636,7 @@ function buildTermPage(context, node) {
 
   return renderPage({
     config,
+    jsonLd: buildTermJsonLd(context, node),
     title: `${node.qname} · ${config.project.shortName}`,
     description: node.comment || node.label,
     currentNav: "terms",
@@ -4948,7 +5784,7 @@ function buildPersistentIriResolverPage(context) {
   const termTargets = Object.fromEntries(
     ontologyInfo.nodes
       .filter((node) => !node.isExternal && node.localName)
-      .map((node) => [node.localName, `terms/${encodeURIComponent(node.localName)}.html`])
+      .map((node) => [node.localName, termPageHref(node, "terms/")])
   );
   const serializedTargets = JSON.stringify(termTargets).replaceAll("<", "\\u003c");
   const fallbackTarget = persistentIri.referenceTarget;
@@ -5021,7 +5857,7 @@ function buildPersistentIriLinkTags(config) {
     .join("\n  ");
 }
 
-function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [] }) {
+function renderPage({ config, title, description, currentNav, content, bodyClass = "", pathPrefix = "", pageToc = [], jsonLd = "" }) {
   const nav = buildNav(config, currentNav, pathPrefix);
   const pageTocMarkup = buildPageToc(config, pageToc);
   const pageBodyClass = [bodyClass, pageTocMarkup ? "page-has-toc" : ""].filter(Boolean).join(" ");
@@ -5041,6 +5877,7 @@ function renderPage({ config, title, description, currentNav, content, bodyClass
   <meta name="description" content="${escapeHtml(description)}" />
   ${buildFaviconLinks(config, pathPrefix)}
   ${buildPersistentIriLinkTags(config)}
+  ${jsonLd}
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=${encodeFontQuery(config.theme.fonts.heading)}:wght@500;600;700&family=${encodeFontQuery(config.theme.fonts.body)}:wght@300;400;500;600&family=${encodeFontQuery(config.theme.fonts.mono)}:wght@400;500&display=swap" rel="stylesheet" />
@@ -5090,6 +5927,7 @@ function buildNav(config, currentNav, pathPrefix) {
     config.features.referencePage ? { key: "reference", href: `${pathPrefix}ontology-reference.html`, label: "Reference" } : null,
     config.features.termPages ? { key: "terms", href: `${pathPrefix}terms/index.html`, label: "Terms" } : null,
     config.features.graphPage ? { key: "graph", href: `${pathPrefix}ontology-graph.html`, label: "Graph" } : null,
+    config.pitfallScanner.enabled ? { key: "pitfalls", href: `${pathPrefix}ontology-pitfalls.html`, label: "Pitfalls" } : null,
     config.features.specPage && config.sources.spec
       ? { key: "spec", href: `${pathPrefix}spec/index.html`, label: "Specification" }
       : null,
@@ -6411,6 +7249,85 @@ function sharedCss(config) {
       color: var(--muted);
       font-weight: 600;
     }
+    .pitfall-metric--critical .metric-number {
+      color: #b3261e;
+    }
+    .pitfall-metric--important .metric-number {
+      color: #a05a00;
+    }
+    .pitfall-metric--minor .metric-number {
+      color: var(--accent-strong);
+    }
+    .pitfall-grid {
+      align-items: start;
+    }
+    .pitfall-card {
+      border-left: 4px solid var(--border);
+    }
+    .pitfall-card--critical {
+      border-left-color: #b3261e;
+    }
+    .pitfall-card--important {
+      border-left-color: #a05a00;
+    }
+    .pitfall-card--minor {
+      border-left-color: var(--accent-strong);
+    }
+    .pitfall-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .pitfall-code {
+      font-weight: 700;
+      color: var(--accent-strong);
+    }
+    .pitfall-importance {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--accent-faint);
+      color: var(--accent-strong);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .pitfall-elements {
+      margin-top: 12px;
+    }
+    .pitfall-elements summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .pitfall-elements ul {
+      margin: 10px 0 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 6px;
+    }
+    .pitfall-elements li {
+      overflow-wrap: anywhere;
+    }
+    .pitfall-scope {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .pitfall-reference {
+      display: inline-flex;
+      margin-top: 14px;
+      font-weight: 600;
+      color: var(--accent-strong);
+    }
+    .pitfall-unavailable {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-left: 4px solid #a05a00;
+      border-radius: 12px;
+      background: var(--panel);
+    }
     .term-badge {
       display: inline-flex;
       margin-bottom: 12px;
@@ -7447,6 +8364,48 @@ function sortTerms(left, right) {
 
 function sanitizeFileName(value) {
   return value.replaceAll(/[^A-Za-z0-9._-]+/g, "_");
+}
+
+function termPageBaseName(node) {
+  const candidate = String(node.localName || "").replaceAll(/[\\/\u0000]+/g, "_").trim();
+  if (candidate && !/^\.+$/.test(candidate)) {
+    return candidate;
+  }
+  const fallback = sanitizeFileName(String(node.qname || node.uri || ""));
+  return fallback && !/^\.+$/.test(fallback) ? fallback : "term";
+}
+
+// Term pages live next to the generated terms/index.html listing, so a term whose
+// local name is "index" (or a name that only differs from another term by case on
+// a case-insensitive file system) would silently overwrite an existing page.
+function assignTermPageNames(nodes) {
+  const taken = new Set();
+  for (const node of nodes) {
+    if (node.isExternal) {
+      node.pageName = null;
+      continue;
+    }
+    const base = termPageBaseName(node);
+    let candidate = RESERVED_TERM_PAGE_NAMES.has(base.toLowerCase()) ? `${base}-term` : base;
+    let suffix = 2;
+    while (taken.has(termPageKey(candidate))) {
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+    taken.add(termPageKey(candidate));
+    node.pageName = candidate;
+  }
+}
+
+function termPageKey(value) {
+  return encodeURIComponent(value).toLowerCase();
+}
+
+function termPageHref(node, pathPrefix = "") {
+  if (!node || node.isExternal) {
+    return null;
+  }
+  return `${pathPrefix}${encodeURIComponent(node.pageName || termPageBaseName(node))}.html`;
 }
 
 function getBrandingAsset(sourceFile, kind) {

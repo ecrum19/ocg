@@ -43,7 +43,8 @@ const DEFAULT_CONFIG = {
     hierarchyAsset: true,
     hierarchyOverview: false,
     specPage: false,
-    usageGuidePage: true
+    usageGuidePage: true,
+    embeddedJsonLd: true
   },
   hierarchy: {
     title: "Ontology Structure",
@@ -82,7 +83,9 @@ const DEFAULT_CONFIG = {
         density: 1.5,
         gridCellSize: 90,
         renderedSizeThreshold: 2,
-        forceAllUnder: 80
+        forceAllUnder: 80,
+        edgeLabels: true,
+        edgeLabelSize: 11
       }
     },
     webvowl: {
@@ -110,6 +113,14 @@ const DEFAULT_CONFIG = {
     documentIri: "",
     siteUrl: "",
     representations: []
+  },
+  pitfallScanner: {
+    enabled: false,
+    serviceUrl: "https://oops.linkeddata.es/rest",
+    pitfalls: [],
+    timeoutMs: 60000,
+    failOnError: false,
+    cache: true
   },
   theme: {
     fonts: {
