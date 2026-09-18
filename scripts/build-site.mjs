@@ -1836,6 +1836,7 @@ async function parseOntology(config, assets) {
     },
     generatedAt: new Date().toISOString(),
     ontology: ontologyMetadata,
+    prefixes,
     source: ontologyAsset.relativeSource,
     sourceFormat: format,
     namespace,
@@ -5248,7 +5249,7 @@ function buildPitfallPage(context) {
   const renderElement = (uri) => {
     const node = nodeByUri.get(uri);
     const href = config.features.termPages ? termPageHref(node, "terms/") : null;
-    const text = escapeHtml(node?.qname || uri);
+    const text = escapeHtml(node?.qname || uriToQnameOrIri(uri, ontologyInfo.prefixes || []));
     return href
       ? `<li><a href="${href}"><code>${text}</code></a></li>`
       : `<li><code>${text}</code></li>`;
@@ -7108,6 +7109,9 @@ function sharedCss(config) {
       padding-left: 20px;
       display: grid;
       gap: 6px;
+    }
+    .pitfall-elements li {
+      overflow-wrap: anywhere;
     }
     .pitfall-scope {
       margin-top: 12px;
