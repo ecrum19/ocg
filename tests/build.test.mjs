@@ -19,7 +19,7 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(PACKAGE_VERSION, /^\d+\.\d+\.\d+$/);
   assert.equal(PACKAGE_JSON.engines.node, ">=22.19.0");
   assert.doesNotMatch(PACKAGE_JSON.engines.node, /</g, "the Node engine should not impose an upper version limit");
-  assert.equal(PACKAGE_JSON.repository.url, "git+https://github.com/ecrum19/ocg.git");
+  assert.equal(PACKAGE_JSON.repository.url, "git+https://github.com/ecrum19/ontology_companion_generator.git");
   assert.equal(PACKAGE_JSON.publishConfig.registry, "https://registry.npmjs.org/");
   for (const dependency of ["rdf-parse", "graphology", "graphology-layout-forceatlas2", "graphology-layout-noverlap", "sigma"]) {
     assert.ok(PACKAGE_JSON.dependencies?.[dependency], `${dependency} should be a declared dependency`);
@@ -96,8 +96,8 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(indexHtml, new RegExp(`Generated with <strong>OCG<\\/strong> v${escapeRegExp(PACKAGE_VERSION)}`));
   assert.match(indexHtml, /class="ocg-footer-repository"/);
   assert.match(indexHtml, /src="ocg-favicon\.png"/);
-  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg"/);
-  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ocg#readme"/);
+  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ontology_companion_generator"/);
+  assert.match(indexHtml, /href="https:\/\/github\.com\/ecrum19\/ontology_companion_generator#readme"/);
   assert.doesNotMatch(indexHtml, /Ontology Companion Generator template example\./);
   assert.doesNotMatch(indexHtml, /Edit ocg\.config\.json and the source\//);
   assert.match(indexHtml, /href="usage-guide\.html#home">How To</);

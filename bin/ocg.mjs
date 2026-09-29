@@ -230,8 +230,8 @@ const DEFAULT_CONFIG = {
     customSections: [],
     footer: { primary: "", secondary: "" },
     generator: {
-      repositoryUrl: "https://github.com/ecrum19/ocg",
-      documentationUrl: "https://github.com/ecrum19/ocg#readme"
+      repositoryUrl: "https://github.com/ecrum19/ontology_companion_generator",
+      documentationUrl: "https://github.com/ecrum19/ontology_companion_generator#readme"
     }
   },
   curation: {

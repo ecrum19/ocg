@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ecrum19/ocg/main/source/branding/ocg-logo.png" alt="Ontology Companion Generator logo" width="180" />
+  <img src="https://raw.githubusercontent.com/ecrum19/ontology_companion_generator/main/source/branding/ocg-logo.png" alt="Ontology Companion Generator logo" width="180" />
 </p>
 
 # Ontology Companion Generator
@@ -7,9 +7,9 @@
 <p>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/v/ontology-companion-generator?label=npm%20version&color=0e7b81" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/dm/ontology-companion-generator?label=npm%20downloads&color=cb3837" alt="npm monthly downloads" /></a>
-  <a href="https://github.com/ecrum19/ocg/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ocg?color=2f8040" alt="MIT license" /></a>
+  <a href="https://github.com/ecrum19/ontology_companion_generator/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ontology_companion_generator?color=2f8040" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/Node.js-22.19%2B-339933" alt="Node.js 22.19 or newer" />
-  <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
+  <a href="https://github.com/ecrum19/ontology_companion_generator/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ontology_companion_generator/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
 </p>
 
 OCG is a config-first npm package that builds a GitHub Pages companion site for an ontology or vocabulary. It generates reference, terms, graph, artifacts, optional ReSpec, and Usage Guide pages from your source files and `ocg.config.json`.
@@ -74,7 +74,7 @@ Source files can stay in their existing locations. Point to them with paths rela
 
 ### End-to-End w3id Publication
 
-For the complete beginner workflow from an existing ontology repository to a working GitHub Pages site with w3id content negotiation, follow the generated [End-to-End w3id Publication guide](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication). The short version is:
+For the complete beginner workflow from an existing ontology repository to a working GitHub Pages site with w3id content negotiation, follow the generated [End-to-End w3id Publication guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#w3id-publication). The short version is:
 
 1. Install OCG and run `npx ocg init --ontology path/to/ontology.ttl`.
 2. Review the generated config and update the project metadata, source paths, and supported input format.
@@ -159,23 +159,23 @@ OCG writes its styles to `site/assets/css/ocg.css`. The stylesheet is assembled 
 }
 ```
 
-Unknown components, unknown options, and values that could break out of a CSS declaration fail `npm run ocg:check`. The [Component Styling guide](https://ecrum19.github.io/ocg/usage-guide.html#styling) lists every option and the CSS variable it sets.
+Unknown components, unknown options, and values that could break out of a CSS declaration fail `npm run ocg:check`. The [Component Styling guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#styling) lists every option and the CSS variable it sets.
 
-Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
+Use the generated [Usage Guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
 
-- [Package and CLI](https://ecrum19.github.io/ocg/usage-guide.html#package-cli)
-- [Home](https://ecrum19.github.io/ocg/usage-guide.html#home)
-- [Artifacts](https://ecrum19.github.io/ocg/usage-guide.html#artifacts)
-- [Reference](https://ecrum19.github.io/ocg/usage-guide.html#reference)
-- [Graph](https://ecrum19.github.io/ocg/usage-guide.html#graph)
-- [Ontology Pitfall Report](https://ecrum19.github.io/ocg/usage-guide.html#pitfalls)
-- [Embedded JSON-LD](https://ecrum19.github.io/ocg/usage-guide.html#embedded-json-ld)
-- [End-to-End w3id Publication](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication)
-- [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ocg/usage-guide.html#persistent-iri)
-- [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
-- [Specification](https://ecrum19.github.io/ocg/usage-guide.html#specification)
-- [Branding and Footer](https://ecrum19.github.io/ocg/usage-guide.html#branding)
-- [Component Styling](https://ecrum19.github.io/ocg/usage-guide.html#styling)
+- [Package and CLI](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#package-cli)
+- [Home](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#home)
+- [Artifacts](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#artifacts)
+- [Reference](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#reference)
+- [Graph](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#graph)
+- [Ontology Pitfall Report](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#pitfalls)
+- [Embedded JSON-LD](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#embedded-json-ld)
+- [End-to-End w3id Publication](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#w3id-publication)
+- [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#persistent-iri)
+- [Terms](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#terms)
+- [Specification](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#specification)
+- [Branding and Footer](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#branding)
+- [Component Styling](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#styling)
 
 Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 
@@ -183,7 +183,7 @@ Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 
 All editorial home-page copy and labels are configured in `site`. Use `site.hero` and `site.resourcePanel` for the top area, and `site.home` for the action labels, metadata, snapshot, overview-card heading, featured terms, examples, source viewer, and built-in source artifacts. This means the `Repository Workflow` wording in the bundled example is not part of the generator: replace it with terminology appropriate to your ontology.
 
-`ocg init` writes every `site.home` option into the new config. The generated [Home guide](https://ecrum19.github.io/ocg/usage-guide.html#home) documents each option; this focused example shows the common editorial changes:
+`ocg init` writes every `site.home` option into the new config. The generated [Home guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#home) documents each option; this focused example shows the common editorial changes:
 
 ```json
 {
@@ -430,7 +430,7 @@ The npm workflow, `.github/workflows/publish-npm.yml`, publishes tags matching `
 To enable npm publishing once:
 
 1. Publish the initial package version manually if it is not already on npm.
-2. On npm, configure a GitHub Actions trusted publisher for owner `ecrum19`, repository `ocg`, workflow `publish-npm.yml`.
+2. On npm, configure a GitHub Actions trusted publisher for owner `ecrum19`, repository `ontology_companion_generator`, workflow `publish-npm.yml`. If the repository is renamed, update the trusted publisher to match; npm rejects tokens from a repository name it does not know.
 3. Enable GitHub Actions in the repository and push the workflow.
 
 For later releases:
@@ -482,14 +482,14 @@ If OCG supports published work, please cite it. The repository ships a [`CITATIO
 @software{crum_ocg,
   author  = {Crum, Elias},
   title   = {{Ontology Companion Generator (OCG)}},
-  url     = {https://github.com/ecrum19/ocg},
+  url     = {https://github.com/ecrum19/ontology_companion_generator},
   license = {MIT},
   version = {1.5.0},
   year    = {2026}
 }
 ```
 
-> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.5.0) [Computer software]. https://github.com/ecrum19/ocg
+> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.5.0) [Computer software]. https://github.com/ecrum19/ontology_companion_generator
 
 Update the `version` and `date-released` fields in `CITATION.cff` alongside `package.json` when cutting a release.
 

@@ -14,11 +14,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ecrum19/ocg.git"
+    "url": "git+https://github.com/ecrum19/ontology_companion_generator.git"
   },
-  "homepage": "https://github.com/ecrum19/ocg#readme",
+  "homepage": "https://github.com/ecrum19/ontology_companion_generator#readme",
   "bugs": {
-    "url": "https://github.com/ecrum19/ocg/issues"
+    "url": "https://github.com/ecrum19/ontology_companion_generator/issues"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

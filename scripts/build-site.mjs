@@ -3036,8 +3036,8 @@ function buildGuidePage(context) {
         secondary: "Maintained by the Vocabulary Team."
       },
       generator: {
-        repositoryUrl: "https://github.com/ecrum19/ocg",
-        documentationUrl: "https://github.com/ecrum19/ocg#readme"
+        repositoryUrl: "https://github.com/ecrum19/ontology_companion_generator",
+        documentationUrl: "https://github.com/ecrum19/ontology_companion_generator#readme"
       }
     },
     pitfallScanner: {
@@ -3598,7 +3598,7 @@ function buildGuidePage(context) {
           persistentIri: {
             enabled: true,
             documentIri: "https://w3id.org/ocg/example-capability-vocabulary",
-            siteUrl: "https://ecrum19.github.io/ocg/",
+            siteUrl: "https://ecrum19.github.io/ontology_companion_generator/",
             representations: []
           }
         })}
