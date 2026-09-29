@@ -1,0 +1,41 @@
+/* Panels: the section containers every page is built from, plus their headings. */
+.section,
+.hero-copy,
+.hero-panel {
+  border: 1px solid var(--ocg-panel-border);
+  border-radius: var(--ocg-panel-radius);
+  background: var(--ocg-panel-background);
+  box-shadow: var(--ocg-panel-shadow);
+}
+.section {
+  margin-bottom: 20px;
+  padding: var(--ocg-panel-padding);
+}
+.section-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.section-head:last-child {
+  margin-bottom: 0;
+}
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.section-heading-row h1,
+.section-heading-row h2 {
+  margin-bottom: 0;
+}
+.section-note {
+  max-width: 78ch;
+}
+.eyebrow {
+  color: var(--ocg-color-accent);
+  font-size: var(--ocg-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}

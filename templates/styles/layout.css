@@ -1,0 +1,54 @@
+/* Page shell, the optional table-of-contents column, and shared content grids. */
+.page-shell {
+  width: min(var(--ocg-shell-width), calc(100% - 32px));
+  margin: 0 auto;
+  padding: 12px 0 56px;
+}
+.page-has-toc .page-shell {
+  width: min(var(--ocg-shell-width-toc), calc(100% - 40px));
+}
+.page-graph .page-shell {
+  width: min(var(--ocg-shell-width-wide), calc(100% - 40px));
+  padding-bottom: 40px;
+}
+.page-content-layout {
+  --ocg-toc-motion: 0.24s;
+  --ocg-toc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  display: grid;
+  grid-template-columns: minmax(180px, 214px) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  transition:
+    grid-template-columns var(--ocg-toc-motion) var(--ocg-toc-ease),
+    gap var(--ocg-toc-motion) var(--ocg-toc-ease);
+}
+.page-content-layout--toc-collapsed {
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 20px;
+}
+.page-content {
+  min-width: 0;
+}
+.card-grid,
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1040px) {
+  .page-has-toc .page-shell {
+    width: min(var(--ocg-shell-width), calc(100% - 32px));
+  }
+  .page-content-layout,
+  .page-content-layout--toc-collapsed {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+@media (max-width: 860px) {
+  .page-shell,
+  .page-has-toc .page-shell,
+  .page-graph .page-shell {
+    width: calc(100% - 24px);
+  }
+}

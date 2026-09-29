@@ -1,0 +1,28 @@
+/* Form controls used by the graph sidebar. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--ocg-color-accent);
+}
+.sigma-search {
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 1px solid var(--ocg-input-border);
+  border-radius: var(--ocg-input-radius);
+  background: var(--ocg-input-background);
+  color: var(--ocg-input-text);
+  font: inherit;
+  font-size: var(--ocg-text-md);
+  transition:
+    border-color var(--ocg-duration-fast) var(--ocg-ease),
+    box-shadow var(--ocg-duration-fast) var(--ocg-ease);
+}
+.sigma-search::placeholder {
+  color: var(--ocg-color-text-secondary);
+  opacity: 0.8;
+}
+.sigma-search:focus {
+  border-color: var(--ocg-input-focus-border);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ocg-input-focus-border) 18%, transparent);
+}

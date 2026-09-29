@@ -1,0 +1,138 @@
+/*
+ * Design tokens.
+ *
+ * The primitive tokens (--ocg-color-*, --ocg-font-*, --ocg-radius-*) are generated
+ * from the `theme` section of ocg.config.json and emitted just before this file.
+ * Everything below derives from them, so changing a theme color or radius restyles
+ * every component that uses it.
+ *
+ * Component tokens (the last block) are the public styling surface: each one maps to
+ * a `theme.components.<component>.<option>` config key, and a `theme.customCss` file
+ * can override any of them directly.
+ */
+:root {
+  /* Semantic colors */
+  --ocg-color-text-secondary: var(--ocg-color-muted);
+  --ocg-color-subtle: var(--ocg-color-page-alt);
+  --ocg-color-subtle-soft: color-mix(in srgb, var(--ocg-color-page-alt) 50%, var(--ocg-color-panel));
+  --ocg-color-border-subtle: color-mix(in srgb, var(--ocg-color-border) 55%, var(--ocg-color-panel));
+  --ocg-color-border-strong: color-mix(in srgb, var(--ocg-color-border) 78%, var(--ocg-color-text));
+  --ocg-color-overlay-hover: color-mix(in srgb, var(--ocg-color-text) 5%, transparent);
+  --ocg-color-overlay-active: color-mix(in srgb, var(--ocg-color-text) 8%, transparent);
+  --ocg-color-accent-subtle: color-mix(in srgb, var(--ocg-color-accent) 8%, var(--ocg-color-panel));
+  --ocg-color-accent-muted: color-mix(in srgb, var(--ocg-color-accent) 24%, var(--ocg-color-panel));
+  --ocg-color-on-accent: var(--ocg-color-panel);
+  --ocg-color-focus: color-mix(in srgb, var(--ocg-color-accent) 60%, transparent);
+  --ocg-color-danger: #b3261e;
+  --ocg-color-warning: #a05a00;
+  --ocg-color-graph-surface: color-mix(in srgb, var(--ocg-color-panel) 97%, var(--ocg-color-page-alt));
+  --ocg-color-tooltip-background: color-mix(in srgb, var(--ocg-color-text) 94%, var(--ocg-color-accent-strong));
+  --ocg-color-tooltip-text: var(--ocg-color-panel);
+
+  /* Elevation: resting surfaces stay nearly flat; only floating elements cast a
+     soft, layered shadow. */
+  --ocg-shadow-sm: 0 1px 2px color-mix(in srgb, var(--ocg-color-text) 5%, transparent);
+  --ocg-shadow-md:
+    0 1px 2px color-mix(in srgb, var(--ocg-color-text) 5%, transparent),
+    0 4px 12px -2px color-mix(in srgb, var(--ocg-color-text) 10%, transparent);
+  --ocg-shadow-lg:
+    0 2px 4px -1px color-mix(in srgb, var(--ocg-color-text) 6%, transparent),
+    0 16px 32px -8px color-mix(in srgb, var(--ocg-color-text) 18%, transparent);
+
+  /* Type scale */
+  --ocg-text-xs: 0.75rem;
+  --ocg-text-sm: 0.8125rem;
+  --ocg-text-md: 0.875rem;
+  --ocg-text-base: 0.9375rem;
+  --ocg-text-lg: 1.0625rem;
+  --ocg-text-xl: 1.25rem;
+  --ocg-text-2xl: clamp(1.5rem, 1.1rem + 1.2vw, 1.875rem);
+  --ocg-text-3xl: clamp(1.875rem, 1.2rem + 2vw, 2.5rem);
+  --ocg-leading-tight: 1.2;
+  --ocg-leading-body: 1.6;
+
+  /* Motion */
+  --ocg-duration-fast: 120ms;
+  --ocg-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Layout. Breakpoints used by the layout and page files: 1100px (graph sidebar),
+     1040px (page TOC), 860px (single column), and 640px (full-screen graph). */
+  --ocg-shell-width: 1120px;
+  --ocg-shell-width-toc: 1320px;
+  --ocg-shell-width-wide: 1450px;
+
+  /* Component tokens: theme.components.<component>.<option> */
+  --ocg-header-background: transparent;
+  --ocg-header-border: transparent;
+  --ocg-header-divider: var(--ocg-color-border);
+  --ocg-header-radius: 0;
+  --ocg-header-shadow: none;
+  --ocg-header-padding: 18px 0 14px;
+
+  --ocg-nav-radius: var(--ocg-radius-md);
+  --ocg-nav-text: var(--ocg-color-text-secondary);
+  --ocg-nav-hover-background: var(--ocg-color-overlay-hover);
+  --ocg-nav-active-background: var(--ocg-color-overlay-active);
+  --ocg-nav-active-text: var(--ocg-color-text);
+
+  --ocg-button-radius: var(--ocg-radius-md);
+  --ocg-button-height: 36px;
+  --ocg-button-padding-x: 14px;
+  --ocg-button-font-size: var(--ocg-text-md);
+  --ocg-button-font-weight: 500;
+  --ocg-button-primary-background: var(--ocg-color-accent);
+  --ocg-button-primary-text: var(--ocg-color-on-accent);
+  --ocg-button-primary-border: var(--ocg-color-accent-border);
+  --ocg-button-primary-hover-background: var(--ocg-color-accent-strong);
+  --ocg-button-secondary-background: var(--ocg-color-panel);
+  --ocg-button-secondary-text: var(--ocg-color-text);
+  --ocg-button-secondary-border: var(--ocg-color-border-strong);
+  --ocg-button-secondary-hover-background: var(--ocg-color-subtle-soft);
+
+  --ocg-panel-background: var(--ocg-color-panel);
+  --ocg-panel-border: var(--ocg-color-border);
+  --ocg-panel-radius: var(--ocg-radius-xl);
+  --ocg-panel-shadow: var(--ocg-shadow-sm);
+  --ocg-panel-padding: 24px;
+
+  --ocg-card-background: var(--ocg-color-card);
+  --ocg-card-border: var(--ocg-color-border);
+  --ocg-card-radius: var(--ocg-radius-lg);
+  --ocg-card-shadow: none;
+  --ocg-card-padding: 16px;
+
+  --ocg-badge-background: var(--ocg-color-accent-subtle);
+  --ocg-badge-text: var(--ocg-color-accent-strong);
+  --ocg-badge-border: transparent;
+  --ocg-badge-radius: var(--ocg-radius-sm);
+
+  --ocg-tabs-background: var(--ocg-color-subtle);
+  --ocg-tabs-border: transparent;
+  --ocg-tabs-radius: var(--ocg-radius-lg);
+  --ocg-tabs-text: var(--ocg-color-text-secondary);
+  --ocg-tabs-active-background: var(--ocg-color-panel);
+  --ocg-tabs-active-text: var(--ocg-color-text);
+
+  --ocg-input-background: var(--ocg-color-panel);
+  --ocg-input-border: var(--ocg-color-border-strong);
+  --ocg-input-text: var(--ocg-color-text);
+  --ocg-input-radius: var(--ocg-radius-md);
+  --ocg-input-focus-border: var(--ocg-color-accent);
+
+  --ocg-table-border: var(--ocg-color-border);
+  --ocg-table-radius: var(--ocg-radius-lg);
+  --ocg-table-header-background: var(--ocg-color-subtle-soft);
+  --ocg-table-header-text: var(--ocg-color-text-secondary);
+  --ocg-table-stripe-background: transparent;
+  --ocg-table-hover-background: color-mix(in srgb, var(--ocg-color-page-alt) 45%, transparent);
+
+  --ocg-code-background: var(--ocg-color-subtle-soft);
+  --ocg-code-text: var(--ocg-color-text);
+  --ocg-code-border: var(--ocg-color-border-subtle);
+  --ocg-code-radius: var(--ocg-radius-lg);
+
+  --ocg-callout-background: var(--ocg-color-subtle-soft);
+  --ocg-callout-border: var(--ocg-color-border-subtle);
+  --ocg-callout-text: var(--ocg-color-text-secondary);
+  --ocg-callout-radius: var(--ocg-radius-md);
+}

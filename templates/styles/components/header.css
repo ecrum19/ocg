@@ -1,0 +1,152 @@
+/* Site header: brand mark, project identity, and page navigation. Also used by the
+   ReSpec specification page, so it sets its own font and link styles. */
+.site-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  margin-bottom: 24px;
+  padding: var(--ocg-header-padding);
+  border: 1px solid var(--ocg-header-border);
+  border-bottom-color: var(--ocg-header-divider);
+  border-radius: var(--ocg-header-radius);
+  background: var(--ocg-header-background);
+  box-shadow: var(--ocg-header-shadow);
+  color: var(--ocg-color-text);
+  font-family: var(--ocg-font-body);
+  line-height: 1.4;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 360px;
+  max-width: 100%;
+  min-width: 0;
+  color: var(--ocg-color-text);
+  text-decoration: none;
+}
+.brand:hover {
+  text-decoration: none;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 36px;
+  max-width: min(40vw, 320px);
+  height: 36px;
+  padding: 0 8px;
+  border-radius: var(--ocg-radius-md);
+  background: var(--ocg-color-accent);
+  color: var(--ocg-color-on-accent);
+  font-family: var(--ocg-font-heading);
+  font-size: var(--ocg-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.brand-mark--image {
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  padding: 3px;
+  border: 1px solid var(--ocg-color-border);
+  background: var(--ocg-color-panel);
+}
+.brand-mark--image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.brand-copy {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 1px;
+  min-width: 0;
+}
+.brand-copy strong,
+.brand-copy span {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.brand-copy strong {
+  color: var(--ocg-color-text);
+  font-family: var(--ocg-font-heading);
+  font-size: var(--ocg-text-base);
+  font-weight: 600;
+}
+.brand-copy span {
+  color: var(--ocg-color-text-secondary);
+  font-family: var(--ocg-font-mono);
+  font-size: var(--ocg-text-xs);
+}
+.site-nav {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.site-nav .nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--ocg-nav-radius);
+  color: var(--ocg-nav-text);
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  transition:
+    background-color var(--ocg-duration-fast) var(--ocg-ease),
+    color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.site-nav .nav-link:hover {
+  background: var(--ocg-nav-hover-background);
+  color: var(--ocg-color-text);
+  text-decoration: none;
+}
+.site-nav .nav-link.is-active {
+  background: var(--ocg-nav-active-background);
+  color: var(--ocg-nav-active-text);
+}
+.site-nav .nav-link--guide {
+  position: relative;
+  margin-left: 13px;
+}
+.site-nav .nav-link--guide::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  width: 1px;
+  height: 16px;
+  background: var(--ocg-color-border);
+  transform: translateY(-50%);
+}
+.site-nav .nav-link--how-to {
+  margin-left: 6px;
+  border-color: var(--ocg-color-border);
+  font-size: var(--ocg-text-sm);
+}
+@media (max-width: 860px) {
+  .site-header {
+    align-items: flex-start;
+  }
+  .site-nav {
+    justify-content: flex-start;
+    width: calc(100% + 10px);
+    margin-left: -10px;
+  }
+}

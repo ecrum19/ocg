@@ -1,0 +1,102 @@
+/* Element defaults shared by every generated page except the ReSpec document. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ocg-color-page);
+  color: var(--ocg-color-text);
+  font-family: var(--ocg-font-body);
+  font-size: var(--ocg-text-base);
+  line-height: var(--ocg-leading-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a {
+  color: var(--ocg-color-accent);
+  text-decoration: none;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+a:hover {
+  text-decoration: underline;
+}
+:focus-visible {
+  outline: 2px solid var(--ocg-color-focus);
+  outline-offset: 2px;
+}
+::selection {
+  background: color-mix(in srgb, var(--ocg-color-accent) 18%, transparent);
+}
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--ocg-color-text);
+  font-family: var(--ocg-font-heading);
+  font-weight: 600;
+  line-height: var(--ocg-leading-tight);
+  letter-spacing: -0.011em;
+}
+h1 {
+  margin-bottom: 12px;
+  font-size: var(--ocg-text-2xl);
+  letter-spacing: -0.02em;
+}
+h2 {
+  font-size: var(--ocg-text-xl);
+}
+h3 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+p {
+  margin: 0;
+  color: var(--ocg-color-text-secondary);
+  line-height: var(--ocg-leading-body);
+}
+strong {
+  font-weight: 600;
+}
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--ocg-font-mono);
+}
+code {
+  font-size: 0.9em;
+}
+pre code {
+  font-size: inherit;
+}
+img {
+  max-width: 100%;
+}
+section[id] {
+  scroll-margin-top: 22px;
+}
+.plain-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ocg-color-text-secondary);
+  line-height: 1.65;
+}
+.plain-list li + li {
+  margin-top: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

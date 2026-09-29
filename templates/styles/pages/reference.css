@@ -1,0 +1,151 @@
+/* Reference page: the ontology structure overview. */
+.hierarchy-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -8px 0 16px;
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-sm);
+  font-weight: 500;
+}
+.hierarchy-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.8fr);
+  align-items: start;
+  gap: 16px;
+}
+.hierarchy-tree,
+.hierarchy-links {
+  padding: 12px;
+  border: 1px solid var(--ocg-color-border-subtle);
+  border-radius: var(--ocg-radius-lg);
+  background: var(--ocg-color-panel);
+}
+.hierarchy-tree ul {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hierarchy-item {
+  min-width: 0;
+}
+.hierarchy-item details > ul {
+  margin: 1px 0 4px 11px;
+  padding-left: 10px;
+  border-left: 1px solid var(--ocg-color-border);
+}
+.hierarchy-item summary,
+.hierarchy-item--leaf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: var(--ocg-radius-md);
+  color: var(--ocg-color-text);
+  list-style: none;
+  transition: background-color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.hierarchy-item summary {
+  cursor: pointer;
+}
+.hierarchy-item summary::-webkit-details-marker {
+  display: none;
+}
+.hierarchy-item summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px 0 2px;
+  border: solid var(--ocg-color-text-secondary);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg);
+  transition: transform var(--ocg-duration-fast) var(--ocg-ease);
+}
+.hierarchy-item details[open] > summary::before {
+  transform: rotate(45deg);
+}
+.hierarchy-item--leaf::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 4px;
+  height: 4px;
+  margin: 0 4px 0 3px;
+  border-radius: 50%;
+  background: var(--ocg-color-border-strong);
+}
+.hierarchy-item summary:hover,
+.hierarchy-item--leaf:hover {
+  background: var(--ocg-color-overlay-hover);
+}
+.hierarchy-item summary .hierarchy-term,
+.hierarchy-item--leaf .hierarchy-term {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.hierarchy-term {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ocg-color-text);
+  font-size: var(--ocg-text-md);
+  overflow-wrap: anywhere;
+}
+.hierarchy-term:hover {
+  color: var(--ocg-color-accent);
+  text-decoration: none;
+}
+.hierarchy-term code {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-xs);
+}
+.hierarchy-child-count {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--ocg-badge-radius);
+  background: var(--ocg-color-subtle);
+  color: var(--ocg-color-text-secondary);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.hierarchy-links h3 {
+  margin: 0 0 10px;
+  font-size: var(--ocg-text-base);
+}
+.hierarchy-links ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-md);
+}
+.hierarchy-links li {
+  line-height: 1.5;
+}
+.hierarchy-links .hierarchy-term {
+  display: inline;
+}
+.hierarchy-relation {
+  display: inline-block;
+  margin: 0 3px;
+  color: var(--ocg-color-accent-strong);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+@media (max-width: 860px) {
+  .hierarchy-grid {
+    grid-template-columns: 1fr;
+  }
+}

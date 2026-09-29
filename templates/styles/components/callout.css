@@ -1,0 +1,43 @@
+/* Callouts: guide notes and instructions, plus the graph, hierarchy, and pitfall
+   notices that share the same treatment. */
+.guide-callout,
+.graph-view-note,
+.hierarchy-empty,
+.pitfall-unavailable {
+  padding: 12px 16px;
+  border: 1px solid var(--ocg-callout-border);
+  border-radius: var(--ocg-callout-radius);
+  background: var(--ocg-callout-background);
+  color: var(--ocg-callout-text);
+  font-size: var(--ocg-text-md);
+  line-height: 1.55;
+}
+.guide-callout strong,
+.graph-view-note strong,
+.pitfall-unavailable strong {
+  color: var(--ocg-color-text);
+}
+.guide-callout a {
+  color: var(--ocg-color-accent-strong);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+.guide-callout--instruction {
+  border-color: var(--ocg-color-accent-muted);
+  background: var(--ocg-color-accent-subtle);
+}
+.graph-view-note {
+  margin-bottom: 14px;
+}
+.hierarchy-empty {
+  border-style: dashed;
+  border-color: var(--ocg-color-border-strong);
+  background: transparent;
+}
+.pitfall-unavailable {
+  margin-top: 12px;
+  border-color: color-mix(in srgb, var(--ocg-color-warning) 35%, var(--ocg-color-panel));
+  background: color-mix(in srgb, var(--ocg-color-warning) 6%, var(--ocg-color-panel));
+}

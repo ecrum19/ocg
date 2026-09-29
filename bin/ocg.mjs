@@ -124,24 +124,30 @@ const DEFAULT_CONFIG = {
   },
   theme: {
     fonts: {
-      heading: "Space Grotesk",
+      heading: "IBM Plex Sans",
       body: "IBM Plex Sans",
       mono: "IBM Plex Mono"
     },
     colors: {
-      pageBackground: "#f6f1ea",
-      pageBackgroundAlt: "#edf3f7",
+      pageBackground: "#f7f7f8",
+      pageBackgroundAlt: "#f0f2f4",
       panelBackground: "#ffffff",
       cardBackground: "#ffffff",
-      text: "#1d1f22",
-      mutedText: "#5f6b7a",
+      text: "#1c1f23",
+      mutedText: "#5d6672",
       accent: "#1f6f78",
-      accentStart: "#248992",
-      accentBorder: "#1c7d86",
+      accentBorder: "#1f6f78",
       accentStrong: "#13535a",
-      border: "#d6dee6",
-      warmAccent: "#e1ab4e"
-    }
+      border: "#e3e5e8"
+    },
+    radius: {
+      sm: "4px",
+      md: "6px",
+      lg: "8px",
+      xl: "10px"
+    },
+    components: {},
+    customCss: ""
   },
   site: {
     basePath: "/",

@@ -1,0 +1,108 @@
+/* Buttons. `.btn--primary` and `.btn--ghost` map to the primary and secondary button
+   tokens; icon buttons and How To links reuse the secondary treatment. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--ocg-button-height);
+  padding: 6px var(--ocg-button-padding-x);
+  border: 1px solid transparent;
+  border-radius: var(--ocg-button-radius);
+  font-family: inherit;
+  font-size: var(--ocg-button-font-size);
+  font-weight: var(--ocg-button-font-weight);
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--ocg-duration-fast) var(--ocg-ease),
+    border-color var(--ocg-duration-fast) var(--ocg-ease),
+    color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.btn:hover {
+  text-decoration: none;
+}
+.btn--primary {
+  border-color: var(--ocg-button-primary-border);
+  background: var(--ocg-button-primary-background);
+  color: var(--ocg-button-primary-text);
+}
+.btn--primary:hover {
+  border-color: var(--ocg-button-primary-hover-background);
+  background: var(--ocg-button-primary-hover-background);
+}
+.btn--ghost {
+  border-color: var(--ocg-button-secondary-border);
+  background: var(--ocg-button-secondary-background);
+  color: var(--ocg-button-secondary-text);
+}
+.btn--ghost:hover {
+  background: var(--ocg-button-secondary-hover-background);
+}
+.btn--small {
+  min-height: calc(var(--ocg-button-height) - 6px);
+  padding: 4px max(8px, calc(var(--ocg-button-padding-x) - 4px));
+  font-size: var(--ocg-text-sm);
+}
+.icon-button {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 1px solid var(--ocg-button-secondary-border);
+  border-radius: var(--ocg-button-radius);
+  background: var(--ocg-button-secondary-background);
+  color: var(--ocg-color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--ocg-duration-fast) var(--ocg-ease),
+    border-color var(--ocg-duration-fast) var(--ocg-ease),
+    color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.icon-button:hover {
+  background: var(--ocg-button-secondary-hover-background);
+  color: var(--ocg-color-text);
+}
+.icon-button[data-copied="true"] {
+  border-color: var(--ocg-color-accent-muted);
+  background: var(--ocg-color-accent-subtle);
+  color: var(--ocg-color-accent-strong);
+}
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+.how-to-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 2px 9px;
+  border: 1px solid var(--ocg-color-border);
+  border-radius: var(--ocg-button-radius);
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  transition:
+    background-color var(--ocg-duration-fast) var(--ocg-ease),
+    border-color var(--ocg-duration-fast) var(--ocg-ease),
+    color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.how-to-link:hover {
+  border-color: var(--ocg-color-border-strong);
+  background: var(--ocg-color-overlay-hover);
+  color: var(--ocg-color-text);
+  text-decoration: none;
+}

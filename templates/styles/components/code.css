@@ -1,0 +1,32 @@
+/* Code blocks (artifact viewer and guide examples) and inline IRI examples. */
+.viewer-pane,
+.guide-code {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--ocg-code-border);
+  border-radius: var(--ocg-code-radius);
+  background: var(--ocg-code-background);
+  color: var(--ocg-code-text);
+  font-size: var(--ocg-text-sm);
+  line-height: 1.6;
+  overflow: auto;
+  tab-size: 2;
+}
+.viewer-pane {
+  min-height: 340px;
+  max-height: min(640px, 75vh);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.iri-example {
+  display: inline-block;
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--ocg-color-accent-muted);
+  border-radius: var(--ocg-radius-sm);
+  background: var(--ocg-color-accent-subtle);
+  color: var(--ocg-color-accent-strong);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  vertical-align: baseline;
+}

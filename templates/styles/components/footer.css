@@ -1,0 +1,55 @@
+/* Configured footer copy and the OCG attribution line. Also used by the ReSpec page. */
+.site-footer,
+.site-footer-generator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ocg-color-border);
+  color: var(--ocg-color-text-secondary);
+  font-family: var(--ocg-font-body);
+  font-size: var(--ocg-text-sm);
+  line-height: 1.5;
+}
+.site-footer {
+  justify-content: space-between;
+}
+.site-footer-generator {
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+}
+.site-footer + .site-footer-generator {
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: 0;
+}
+.site-footer-generator strong {
+  color: var(--ocg-color-text);
+  font-weight: 600;
+}
+.site-footer-generator a {
+  color: var(--ocg-color-text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+}
+.site-footer-generator a:hover {
+  color: var(--ocg-color-text);
+  text-decoration: underline;
+}
+.site-footer-separator {
+  color: var(--ocg-color-border-strong);
+}
+.ocg-footer-repository {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ocg-footer-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  object-fit: contain;
+}

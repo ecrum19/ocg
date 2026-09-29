@@ -1,0 +1,114 @@
+/* Usage guide: hero with contents, component cards, and long-form sections. */
+.guide-hero {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: stretch;
+  gap: 28px;
+  padding: 28px;
+}
+.guide-hero > .guide-toc {
+  width: fit-content;
+  max-width: min(100%, 360px);
+  margin: 0;
+  align-self: stretch;
+}
+.guide-hero > .guide-toc:not([open]) {
+  width: fit-content;
+  align-self: start;
+}
+.guide-hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 4px 0;
+}
+.guide-hero h1 {
+  max-width: 780px;
+  margin-bottom: 12px;
+  font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.25rem);
+  line-height: 1.15;
+}
+.guide-hero-copy > p {
+  max-width: 78ch;
+}
+.guide-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+.guide-section > * + * {
+  margin-top: 16px;
+}
+.guide-section > h3 {
+  margin-top: 28px;
+  margin-bottom: 0;
+}
+.guide-section > h3 + * {
+  margin-top: 10px;
+}
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+.guide-card .term-badge {
+  margin-bottom: 2px;
+}
+.guide-component {
+  scroll-margin-top: 28px;
+}
+.guide-component .section-head {
+  align-items: end;
+}
+.guide-component .section-head > div {
+  min-width: 0;
+}
+.guide-component .section-head .term-badge {
+  margin-bottom: 8px;
+}
+.guide-example-note {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-md);
+}
+.guide-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  color: var(--ocg-color-text-secondary);
+  line-height: 1.6;
+}
+.guide-steps::marker,
+.guide-steps li::marker {
+  color: var(--ocg-color-text-secondary);
+  font-weight: 500;
+}
+.guide-steps strong {
+  color: var(--ocg-color-text);
+}
+.persistent-iri-section .section-head .section-note {
+  max-width: none;
+}
+.persistent-iri-section > .guide-steps {
+  gap: 16px;
+  margin: 24px 0;
+}
+.persistent-iri-section > .guide-callout {
+  margin: 24px 0;
+}
+.persistent-iri-section > .guide-code {
+  margin-bottom: 24px;
+}
+@media (max-width: 860px) {
+  .guide-hero {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+  .guide-hero > .guide-toc {
+    width: 100%;
+    max-width: none;
+  }
+}

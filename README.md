@@ -65,11 +65,12 @@ Source files can stay in their existing locations. Point to them with paths rela
 - An optional ReSpec Specification page
 - An optional Pitfalls page with the OOPS! report
 - JSON-LD embedded in the generated HTML
+- A shared stylesheet, `assets/css/ocg.css`, generated from the theme settings
 - Copied ontology, SHACL, ShEx, specification, example, and configured additional artifacts
 
 ## Configuration And Guides
 
-`ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
+`ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, component styles, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
 
 ### End-to-End w3id Publication
 
@@ -101,32 +102,64 @@ Use `site.branding` to replace the abbreviation square in the upper-left header 
 
 `headerImage` accepts `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, or `.svg`; it replaces `project.shortName` in the square header mark, including the ReSpec page. `favicon` accepts `.ico`, `.png`, or `.svg`. Leave either value empty to retain the default text mark or existing `source/branding/favicon.png` and `favicon.ico` fallback.
 
-### Theme Colors
+### Theme Colors and Fonts
 
-Set `theme.colors` to restyle the generated page shell, panels, controls, tables, contextual TOCs, graph UI, and ReSpec navigation. The three accent variants control gradients, borders, and warm background details; the remaining tokens are the primary palette inputs used to derive shared surface and shadow colors.
+Set `theme.colors` to restyle the generated pages, tables, contextual TOCs, graph UI, and ReSpec navigation. These are palette inputs: subtle fills, dividers, hover states, and shadows are derived from them.
 
 ```json
 {
   "theme": {
+    "fonts": {
+      "heading": "IBM Plex Sans",
+      "body": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
+    },
     "colors": {
-      "pageBackground": "#f6f1ea",
-      "pageBackgroundAlt": "#edf3f7",
+      "pageBackground": "#f7f7f8",
+      "pageBackgroundAlt": "#f0f2f4",
       "panelBackground": "#ffffff",
       "cardBackground": "#ffffff",
-      "text": "#1d1f22",
-      "mutedText": "#5f6b7a",
+      "text": "#1c1f23",
+      "mutedText": "#5d6672",
       "accent": "#1f6f78",
-      "accentStart": "#248992",
-      "accentBorder": "#1c7d86",
+      "accentBorder": "#1f6f78",
       "accentStrong": "#13535a",
-      "border": "#d6dee6",
-      "warmAccent": "#e1ab4e"
+      "border": "#e3e5e8"
     }
   }
 }
 ```
 
-Use CSS color values, preferably hex or `rgb(...)` values so translucent graph highlights can be derived reliably. Graph node and relationship semantic colors remain separately configurable under `graph.colors`.
+Use CSS color values, preferably hex or `rgb(...)` values so translucent graph highlights can be derived reliably. Graph node and relationship semantic colors remain separately configurable under `graph.colors`. `accentStart` and `warmAccent` are still accepted for older configs, but the default theme no longer uses them; custom CSS can read them as `--ocg-color-accent-start` and `--ocg-color-warm-accent`.
+
+Fonts are loaded from Google Fonts, and each family is requested once. Set a generic family such as `system-ui` or `ui-monospace` to use the reader's system fonts without a font request.
+
+### Component Styling
+
+OCG writes its styles to `site/assets/css/ocg.css`. The stylesheet is assembled from the templates in [`templates/styles/`](templates/styles): design tokens, base elements, layout, one file per component, and one file per page. Every component reads its appearance from CSS variables, which you can set in three ways:
+
+- `theme.radius` sets the shared corner radius scale: `sm` for badges, `md` for buttons, inputs, tabs, and navigation, `lg` for cards, tables, and code, and `xl` for section panels.
+- `theme.components` overrides individual components: `header`, `nav`, `button` (including `primary` and `secondary` variants), `panel`, `card`, `badge`, `tabs`, `input`, `table`, `code`, and `callout`. Shadows accept `none`, `sm`, `md`, `lg`, or a CSS `box-shadow` value, and numeric lengths are read as pixels.
+- `theme.customCss` points to a repository-relative `.css` file that is loaded after the generated stylesheet on every page, including the ReSpec page (`body.ocg-spec-page`). OCG's own rules sit in cascade layers, so plain rules in this file take precedence without extra specificity and can override any `--ocg-*` variable or selector.
+
+```json
+{
+  "theme": {
+    "radius": { "sm": "2px", "md": "4px", "lg": "6px", "xl": "8px" },
+    "components": {
+      "button": {
+        "fontWeight": 600,
+        "primary": { "background": "#0f5c63", "hoverBackground": "#0a4449" }
+      },
+      "panel": { "shadow": "none" },
+      "card": { "shadow": "sm", "padding": "20px" }
+    },
+    "customCss": "source/branding/site.css"
+  }
+}
+```
+
+Unknown components, unknown options, and values that could break out of a CSS declaration fail `npm run ocg:check`. The [Component Styling guide](https://ecrum19.github.io/ocg/usage-guide.html#styling) lists every option and the CSS variable it sets.
 
 Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
 
@@ -142,6 +175,7 @@ Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) 
 - [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
 - [Specification](https://ecrum19.github.io/ocg/usage-guide.html#specification)
 - [Branding and Footer](https://ecrum19.github.io/ocg/usage-guide.html#branding)
+- [Component Styling](https://ecrum19.github.io/ocg/usage-guide.html#styling)
 
 Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 

@@ -1,0 +1,17 @@
+/* Badges label term types and guide sections. Page files reuse the badge tokens for
+   counts, severities, and graph selection types. */
+.term-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--ocg-badge-border);
+  border-radius: var(--ocg-badge-radius);
+  background: var(--ocg-badge-background);
+  color: var(--ocg-badge-text);
+  font-size: var(--ocg-text-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
