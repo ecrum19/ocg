@@ -315,8 +315,8 @@
           "type": "object",
           "description": "Palette inputs. Every surface, border, and hover color is derived from these values.",
           "properties": {
-            "pageBackground": { "$ref": "#/$defs/cssColor", "description": "Page background.", "default": "#f7f7f8" },
-            "pageBackgroundAlt": { "$ref": "#/$defs/cssColor", "description": "Subtle fill for table headers, code blocks, tabs, and metadata tiles.", "default": "#f0f2f4" },
+            "pageBackground": { "$ref": "#/$defs/cssColor", "description": "Page background.", "default": "#faf6ef" },
+            "pageBackgroundAlt": { "$ref": "#/$defs/cssColor", "description": "Subtle fill for table headers, code blocks, tabs, and metadata tiles.", "default": "#f2ece2" },
             "panelBackground": { "$ref": "#/$defs/cssColor", "description": "Section panel background.", "default": "#ffffff" },
             "cardBackground": { "$ref": "#/$defs/cssColor", "description": "Card background.", "default": "#ffffff" },
             "text": { "$ref": "#/$defs/cssColor", "description": "Primary text and headings.", "default": "#1c1f23" },
@@ -325,7 +325,7 @@
             "accentStart": { "$ref": "#/$defs/cssColor", "description": "Legacy gradient color. Unused by the default theme; available to custom CSS as --ocg-color-accent-start.", "default": "#248992" },
             "accentBorder": { "$ref": "#/$defs/cssColor", "description": "Primary button border.", "default": "#1f6f78" },
             "accentStrong": { "$ref": "#/$defs/cssColor", "description": "Hover and emphasis color for accent elements.", "default": "#13535a" },
-            "border": { "$ref": "#/$defs/cssColor", "description": "Shared border color.", "default": "#e3e5e8" },
+            "border": { "$ref": "#/$defs/cssColor", "description": "Shared border color.", "default": "#e6dfd3" },
             "warmAccent": { "$ref": "#/$defs/cssColor", "description": "Legacy highlight color. Unused by the default theme; available to custom CSS as --ocg-color-warm-accent.", "default": "#e1ab4e" }
           },
           "additionalProperties": true

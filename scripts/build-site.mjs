@@ -200,8 +200,8 @@ const DEFAULT_THEME = {
     mono: "IBM Plex Mono"
   },
   colors: {
-    pageBackground: "#f7f7f8",
-    pageBackgroundAlt: "#f0f2f4",
+    pageBackground: "#faf6ef",
+    pageBackgroundAlt: "#f2ece2",
     panelBackground: "#ffffff",
     cardBackground: "#ffffff",
     text: "#1c1f23",
@@ -210,7 +210,7 @@ const DEFAULT_THEME = {
     accentStart: "#248992",
     accentBorder: "#1f6f78",
     accentStrong: "#13535a",
-    border: "#e3e5e8",
+    border: "#e6dfd3",
     warmAccent: "#e1ab4e"
   },
   radius: {
@@ -492,6 +492,13 @@ const JSON_LD_BASE_CONTEXT = {
   vann: "http://purl.org/vocab/vann/",
   xsd: "http://www.w3.org/2001/XMLSchema#"
 };
+
+// At-rules whose blocks hold keyframe selectors or descriptors rather than style
+// rules, so scopeCss must copy them through untouched.
+// Upper bound on how long the ReSpec page may stay behind its loading overlay.
+const SPEC_LOADING_TIMEOUT_MS = 15000;
+
+const UNSCOPED_AT_RULES = new Set(["keyframes", "-webkit-keyframes", "font-face", "property", "counter-style", "page"]);
 
 // File names that the generated terms/ directory already uses for itself.
 const RESERVED_TERM_PAGE_NAMES = new Set(["index"]);
@@ -1748,6 +1755,45 @@ function writeSpecPage(config) {
       })();
     </script>
   `;
+  // ReSpec rewrites the whole document on load. Until it finishes, the raw source
+  // shows as unstyled markup, so cover it rather than let that flash through.
+  const loadingOverlay = `
+    <div class="ocg-spec-loading" id="ocg-spec-loading" role="status" aria-live="polite">
+      <div class="ocg-spec-loading-inner">
+        <span class="ocg-spec-loading-spinner" aria-hidden="true"></span>
+        <span>Preparing the specification\u2026</span>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const overlay = document.getElementById("ocg-spec-loading");
+        if (!overlay) return;
+        let dismissed = false;
+        function dismiss() {
+          if (dismissed) return;
+          dismissed = true;
+          overlay.classList.add("is-done");
+          setTimeout(() => overlay.remove(), 240);
+        }
+        function watchRespec() {
+          const ready = document.respec && document.respec.ready;
+          if (!ready || typeof ready.then !== "function") return false;
+          ready.then(dismiss, dismiss);
+          return true;
+        }
+        if (!watchRespec()) {
+          const poll = setInterval(() => {
+            if (watchRespec()) clearInterval(poll);
+          }, 100);
+          setTimeout(() => clearInterval(poll), ${SPEC_LOADING_TIMEOUT_MS});
+        }
+        document.addEventListener("respec-ready", dismiss);
+        // Never trap the reader: if ReSpec is slow, blocked, or missing, show the
+        // document anyway.
+        setTimeout(dismiss, ${SPEC_LOADING_TIMEOUT_MS});
+      })();
+    </script>
+  `;
   const headAdditions = [
     buildFaviconLinks(config, "../"),
     buildPersistentIriLinkTags(config),
@@ -1765,7 +1811,7 @@ function writeSpecPage(config) {
           `class=${classAttribute[1]}${classAttribute[2]} ocg-spec-page${classAttribute[1]}`
         )
       : `${attributes} class="ocg-spec-page"`;
-    return `<body${updatedAttributes}>${navigation}`;
+    return `<body${updatedAttributes}>${loadingOverlay}${navigation}`;
   });
   if (generated === styledSource) {
     throw new Error("Configured sources.spec must contain a body element for navigation injection");
@@ -2918,8 +2964,8 @@ function buildGuidePage(context) {
         mono: "IBM Plex Mono"
       },
       colors: {
-        pageBackground: "#f7f7f8",
-        pageBackgroundAlt: "#f0f2f4",
+        pageBackground: "#faf6ef",
+        pageBackgroundAlt: "#f2ece2",
         panelBackground: "#ffffff",
         cardBackground: "#ffffff",
         text: "#1c1f23",
@@ -2927,7 +2973,7 @@ function buildGuidePage(context) {
         accent: "#1f6f78",
         accentBorder: "#1f6f78",
         accentStrong: "#13535a",
-        border: "#e3e5e8"
+        border: "#e6dfd3"
       },
       radius: {
         sm: "4px",
@@ -3445,51 +3491,34 @@ function buildGuidePage(context) {
   ];
   const componentSectionsHtml = componentSections.map(guideComponentSection).join("");
   const guideTocItems = [
-    { id: "existing-repository", label: "Existing Repository Integration", level: 0, marker: "01" },
-    { id: "getting-started", label: "Getting Started", level: 0, marker: "02" },
-    { id: "repository-layout", label: "Repository Layout", level: 0, marker: "03" },
-    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "04" },
-    { id: "w3id-publication", label: "End-to-End w3id Publication", level: 0, marker: "05" },
-    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0, marker: "06" },
-    { id: "components", label: "Component Overview", level: 0, marker: "07" },
-    ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1, marker: "" })),
-    { id: "configuration", label: "Complete Configuration", level: 0, marker: "08" },
-    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "09" },
-    { id: "commands", label: "Useful Commands", level: 0, marker: "10" }
+    { id: "existing-repository", label: "Existing Repository Integration", level: 0 },
+    { id: "getting-started", label: "Getting Started", level: 0 },
+    { id: "repository-layout", label: "Repository Layout", level: 0 },
+    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0 },
+    { id: "w3id-publication", label: "End-to-End w3id Publication", level: 0 },
+    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0 },
+    { id: "components", label: "Component Overview", level: 0 },
+    ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1 })),
+    { id: "configuration", label: "Complete Configuration", level: 0 },
+    { id: "github-pages", label: "GitHub Pages", level: 0 },
+    { id: "commands", label: "Useful Commands", level: 0 }
   ];
-  const guideToc = `
-    <details class="guide-toc" open>
-      <summary class="guide-toc-summary">
-        <span class="guide-toc-heading"><h2>Contents</h2></span>
-        <span class="guide-toc-toggle" aria-hidden="true"></span>
-      </summary>
-      <nav class="guide-toc-nav" aria-label="Usage Guide table of contents">
-        <ol class="guide-toc-list">${guideTocItems
-          .map(
-            ({ id, label, level, marker }) => `<li class="guide-toc-item guide-toc-item--level-${level}"><a class="guide-toc-link" href="#${escapeHtml(id)}"><span class="guide-toc-marker" aria-hidden="true">${marker}</span><span>${escapeHtml(label)}</span></a></li>`
-          )
-          .join("")}</ol>
-      </nav>
-    </details>`;
-
   return renderPage({
     config,
     title: `${config.project.title} Usage Guide`,
     description: `Usage guide for the ${config.project.title} companion site.`,
     currentNav: "guide",
     pathPrefix: "",
+    pageToc: guideTocItems,
     content: `
       <section class="guide-hero section">
-        ${guideToc}
-        <div class="guide-hero-copy">
-          <div class="eyebrow">Usage Guide</div>
-          <h1>Guide to generating an ontology companion site using OCG.</h1>
-          <p>This guide shows how to add OCG to an existing ontology repository, point it at your current source files, customize the generated pages, and publish the companion site from that repository's <code>main</code> branch.</p>
-          <div class="guide-quick-links">
-            <a class="btn btn--primary" href="#existing-repository">Integrate OCG</a>
-            <a class="btn btn--ghost" href="#configuration">Configure OCG</a>
-            <a class="btn btn--ghost" href="#components">Explore Generated Components</a>
-          </div>
+        <div class="eyebrow">Usage Guide</div>
+        <h1>Publish a companion site for your ontology.</h1>
+        <p>Add OCG to the repository that already holds your ontology, point it at your existing source files, and deploy the generated site from GitHub Pages.</p>
+        <div class="guide-quick-links">
+          <a class="btn btn--primary" href="#existing-repository">Start here</a>
+          <a class="btn btn--ghost" href="#configuration">Configuration reference</a>
+          <a class="btn btn--ghost" href="#components">Generated components</a>
         </div>
       </section>
 
@@ -5903,7 +5932,7 @@ function buildPageToc(config, items = []) {
           <ol>
             ${tocItems
               .map(
-                (item) => `<li><a href="#${escapeHtml(item.id)}">${escapeHtml(item.label)}</a></li>`
+                (item) => `<li class="page-toc-item page-toc-item--level-${item.level === 1 ? 1 : 0}"><a href="#${escapeHtml(item.id)}">${escapeHtml(item.label)}</a></li>`
               )
               .join("")}
           </ol>
@@ -6189,7 +6218,16 @@ function scopeCss(css, scope) {
     const prelude = source.slice(index, open).trim();
     if (prelude.startsWith("@")) {
       const close = findClosingBrace(source, open);
-      rules.push(`${prelude} {\n${scopeCss(source.slice(open + 1, close), scope)}\n}`);
+      const body = source.slice(open + 1, close);
+      // @media, @supports and friends wrap ordinary rules, so their contents still
+      // need scoping. @keyframes and @font-face contain keyframe selectors and
+      // descriptors instead, which must be left exactly as written.
+      const name = prelude.slice(1).split(/[\s({]/, 1)[0].toLowerCase();
+      rules.push(
+        UNSCOPED_AT_RULES.has(name)
+          ? `${prelude} {${body}}`
+          : `${prelude} {\n${scopeCss(body, scope)}\n}`
+      );
       index = close + 1;
       continue;
     }

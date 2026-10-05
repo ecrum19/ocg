@@ -1,28 +1,10 @@
-/* Usage guide: hero with contents, component cards, and long-form sections. */
+/* Usage guide: hero, component cards, and long-form sections. */
 .guide-hero {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: stretch;
-  gap: 28px;
-  padding: 28px;
-}
-.guide-hero > .guide-toc {
-  width: fit-content;
-  max-width: min(100%, 360px);
-  margin: 0;
-  align-self: stretch;
-}
-.guide-hero > .guide-toc:not([open]) {
-  width: fit-content;
-  align-self: start;
-}
-.guide-hero-copy {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 14px;
-  min-width: 0;
-  padding: 4px 0;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px;
 }
 .guide-hero h1 {
   max-width: 780px;
@@ -30,14 +12,15 @@
   font-size: clamp(1.75rem, 1.2rem + 1.8vw, 2.25rem);
   line-height: 1.15;
 }
-.guide-hero-copy > p {
-  max-width: 78ch;
+.guide-hero > p {
+  max-width: 70ch;
+  margin: 0;
 }
 .guide-quick-links {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 8px;
 }
 .guide-section > * + * {
   margin-top: 16px;
@@ -104,11 +87,6 @@
 }
 @media (max-width: 860px) {
   .guide-hero {
-    grid-template-columns: 1fr;
     padding: 20px;
-  }
-  .guide-hero > .guide-toc {
-    width: 100%;
-    max-width: none;
   }
 }

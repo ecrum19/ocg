@@ -1,4 +1,4 @@
-/* Tables of contents: the collapsible page rail and the usage guide contents. */
+/* Table of contents: the collapsible rail every page with sections shares. */
 .page-toc {
   position: sticky;
   top: 20px;
@@ -76,7 +76,9 @@
 .page-toc nav {
   padding: 6px;
   border-top: 1px solid var(--ocg-color-border-subtle);
-  overflow: hidden;
+  max-height: calc(100vh - 7rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   opacity: 1;
   transition: opacity 0.18s ease-out;
 }
@@ -90,10 +92,12 @@
   max-height: 44px;
   border-radius: var(--ocg-radius-lg);
 }
+/* Fill the panel's content box rather than its border box: a hard 44px here
+   overhangs the 1px border and pushes the centred toggle off by 2px. */
 .page-toc.is-collapsed .page-toc-head {
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   padding: 0;
 }
 .page-toc.is-collapsed .page-toc-title,
@@ -101,6 +105,13 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
+}
+/* Collapsed, the panel is a square and the toggle is all that shows, so centre it
+   instead of leaving it pinned to the expanded panel's right edge. */
+.page-toc.is-collapsed .page-toc-toggle {
+  top: 50%;
+  right: 50%;
+  transform: translate(50%, -50%);
 }
 .page-toc.is-collapsed .page-toc-toggle-icon {
   transform: rotate(180deg);
@@ -131,151 +142,7 @@
   color: var(--ocg-color-text);
   text-decoration: none;
 }
-.guide-toc {
-  width: fit-content;
-  max-width: 100%;
-  margin-right: auto;
-  margin-left: auto;
-  overflow: hidden;
-  border: 1px solid var(--ocg-color-border-subtle);
-  border-radius: var(--ocg-radius-lg);
-  background: var(--ocg-color-subtle-soft);
-  scroll-margin-top: 28px;
-}
-.guide-toc-summary,
-.guide-toc-nav {
-  width: 100%;
-}
-.guide-toc-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
-  padding: 12px 16px;
-  cursor: pointer;
-  list-style: none;
-}
-.guide-toc-summary::-webkit-details-marker {
-  display: none;
-}
-.guide-toc-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.guide-toc-heading h2 {
-  font-size: 1rem;
-}
-.guide-toc[open] .guide-toc-summary {
-  border-bottom: 1px solid var(--ocg-color-border-subtle);
-}
-.guide-toc-toggle {
-  position: relative;
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--ocg-color-border);
-  border-radius: var(--ocg-radius-md);
-  background: var(--ocg-color-panel);
-}
-.guide-toc-toggle::before,
-.guide-toc-toggle::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 10px;
-  height: 1.5px;
-  background: var(--ocg-color-text-secondary);
-  transform: translate(-50%, -50%);
-}
-.guide-toc-toggle::after {
-  transform: translate(-50%, -50%) rotate(90deg);
-  transition: transform 0.18s ease;
-}
-.guide-toc[open] .guide-toc-toggle::after {
-  transform: translate(-50%, -50%) rotate(0deg);
-}
-.guide-toc-summary:hover .guide-toc-toggle {
-  border-color: var(--ocg-color-border-strong);
-}
-.guide-toc-nav {
-  padding: 10px 12px 14px;
-}
-.guide-toc-list {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.guide-toc-item--level-1 {
-  margin-left: 32px;
-}
-.guide-toc-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 30px;
-  padding: 4px 8px;
-  border-radius: var(--ocg-radius-md);
-  color: var(--ocg-color-text-secondary);
-  font-size: var(--ocg-text-sm);
+.page-toc-item--level-1 a {
+  padding-left: 20px;
   font-weight: 400;
-  transition:
-    background-color var(--ocg-duration-fast) var(--ocg-ease),
-    color var(--ocg-duration-fast) var(--ocg-ease);
-}
-.guide-toc-item--level-0 .guide-toc-link {
-  color: var(--ocg-color-text);
-  font-weight: 500;
-}
-.guide-toc-marker {
-  display: inline-grid;
-  flex: 0 0 22px;
-  place-items: center;
-  color: var(--ocg-color-text-secondary);
-  font-family: var(--ocg-font-mono);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-}
-.guide-toc-item--level-1 .guide-toc-marker {
-  flex-basis: 5px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--ocg-color-border-strong);
-  font-size: 0;
-}
-.guide-toc-link:hover {
-  background: var(--ocg-color-overlay-hover);
-  color: var(--ocg-color-text);
-  text-decoration: none;
-}
-@media (max-width: 1040px) {
-  .page-toc {
-    position: static;
-  }
-  .page-toc-panel {
-    --ocg-page-toc-panel-width: 100%;
-    width: 100%;
-    min-width: 0;
-  }
-  .page-toc-head {
-    padding-right: 14px;
-  }
-  .page-toc-toggle {
-    position: static;
-    margin-left: auto;
-  }
-  .page-toc.is-collapsed {
-    width: 100%;
-  }
-  .page-toc.is-collapsed .page-toc-title {
-    display: none;
-  }
-  .page-toc.is-collapsed .page-toc-toggle {
-    margin: 0 auto;
-  }
 }
