@@ -407,13 +407,24 @@ test("build-site produces the expected publish artifacts for the bundled example
   assert.match(stylesCss, /\.persistent-iri-section > \.guide-steps \{[\s\S]*?gap: 16px;[\s\S]*?margin: 24px 0;/);
   assert.match(guideHtml, /OWL\/XML/);
   assert.match(guideHtml, /source\/ontology\/my-vocabulary\.jsonld/);
-  assert.match(guideHtml, /<section class="guide-hero section">\s*<details class="guide-toc" open>/);
-  assert.doesNotMatch(guideHtml, />On This Page</);
-  assert.match(guideHtml, /class="guide-toc-summary"/);
-  assert.match(guideHtml, /aria-label="Usage Guide table of contents"/);
-  assert.match(guideHtml, /class="guide-toc-list"/);
-  assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-0"/);
-  assert.match(guideHtml, /class="guide-toc-item guide-toc-item--level-1"/);
+  // The guide uses the same collapsible left rail as every other page rather than
+  // its own contents block inside the hero.
+  assert.match(guideHtml, /<aside class="page-toc" aria-label="On this page">/);
+  assert.match(guideHtml, /data-page-toc-toggle/);
+  assert.match(guideHtml, /class="page-toc-item page-toc-item--level-0"><a href="#existing-repository">/);
+  assert.match(guideHtml, /class="page-toc-item page-toc-item--level-1"><a href="#package-cli">/);
+  assert.doesNotMatch(guideHtml, /guide-toc/);
+  assert.doesNotMatch(stylesCss, /\.guide-toc/);
+  // Twenty entries would otherwise run past the viewport inside a sticky rail.
+  assert.match(stylesCss, /\.page-toc nav \{[\s\S]*?max-height: calc\(100vh - 7rem\);[\s\S]*?overflow-y: auto;/);
+  assert.match(stylesCss, /\.page-toc-item--level-1 a \{\s*padding-left: 20px;/);
+  // The hero is a single column now that the contents moved out of it.
+  assert.match(guideHtml, /<section class="guide-hero section">\s*<div class="eyebrow">Usage Guide<\/div>/);
+  assert.match(guideHtml, /<h1>Publish a companion site for your ontology\.<\/h1>/);
+  assert.match(guideHtml, /href="#existing-repository">Start here</);
+  assert.match(guideHtml, /href="#configuration">Configuration reference</);
+  assert.match(guideHtml, /href="#components">Generated components</);
+  assert.doesNotMatch(stylesCss, /\.guide-hero-copy/);
   assert.match(guideHtml, /href="#graph">.*Ontology Graph/);
   assert.match(guideHtml, /href="#branding">.*Theme, Page Navigation, Footer, and Generator Links/);
   assert.match(guideHtml, /id="components"/);

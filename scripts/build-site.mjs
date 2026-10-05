@@ -3445,51 +3445,34 @@ function buildGuidePage(context) {
   ];
   const componentSectionsHtml = componentSections.map(guideComponentSection).join("");
   const guideTocItems = [
-    { id: "existing-repository", label: "Existing Repository Integration", level: 0, marker: "01" },
-    { id: "getting-started", label: "Getting Started", level: 0, marker: "02" },
-    { id: "repository-layout", label: "Repository Layout", level: 0, marker: "03" },
-    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0, marker: "04" },
-    { id: "w3id-publication", label: "End-to-End w3id Publication", level: 0, marker: "05" },
-    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0, marker: "06" },
-    { id: "components", label: "Component Overview", level: 0, marker: "07" },
-    ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1, marker: "" })),
-    { id: "configuration", label: "Complete Configuration", level: 0, marker: "08" },
-    { id: "github-pages", label: "GitHub Pages", level: 0, marker: "09" },
-    { id: "commands", label: "Useful Commands", level: 0, marker: "10" }
+    { id: "existing-repository", label: "Existing Repository Integration", level: 0 },
+    { id: "getting-started", label: "Getting Started", level: 0 },
+    { id: "repository-layout", label: "Repository Layout", level: 0 },
+    { id: "accepted-input-formats", label: "Accepted Input Formats", level: 0 },
+    { id: "w3id-publication", label: "End-to-End w3id Publication", level: 0 },
+    { id: "persistent-iri-workflow", label: "Persistent IRI Deployment", level: 0 },
+    { id: "components", label: "Component Overview", level: 0 },
+    ...componentSections.map(({ id, title }) => ({ id, label: title, level: 1 })),
+    { id: "configuration", label: "Complete Configuration", level: 0 },
+    { id: "github-pages", label: "GitHub Pages", level: 0 },
+    { id: "commands", label: "Useful Commands", level: 0 }
   ];
-  const guideToc = `
-    <details class="guide-toc" open>
-      <summary class="guide-toc-summary">
-        <span class="guide-toc-heading"><h2>Contents</h2></span>
-        <span class="guide-toc-toggle" aria-hidden="true"></span>
-      </summary>
-      <nav class="guide-toc-nav" aria-label="Usage Guide table of contents">
-        <ol class="guide-toc-list">${guideTocItems
-          .map(
-            ({ id, label, level, marker }) => `<li class="guide-toc-item guide-toc-item--level-${level}"><a class="guide-toc-link" href="#${escapeHtml(id)}"><span class="guide-toc-marker" aria-hidden="true">${marker}</span><span>${escapeHtml(label)}</span></a></li>`
-          )
-          .join("")}</ol>
-      </nav>
-    </details>`;
-
   return renderPage({
     config,
     title: `${config.project.title} Usage Guide`,
     description: `Usage guide for the ${config.project.title} companion site.`,
     currentNav: "guide",
     pathPrefix: "",
+    pageToc: guideTocItems,
     content: `
       <section class="guide-hero section">
-        ${guideToc}
-        <div class="guide-hero-copy">
-          <div class="eyebrow">Usage Guide</div>
-          <h1>Guide to generating an ontology companion site using OCG.</h1>
-          <p>This guide shows how to add OCG to an existing ontology repository, point it at your current source files, customize the generated pages, and publish the companion site from that repository's <code>main</code> branch.</p>
-          <div class="guide-quick-links">
-            <a class="btn btn--primary" href="#existing-repository">Integrate OCG</a>
-            <a class="btn btn--ghost" href="#configuration">Configure OCG</a>
-            <a class="btn btn--ghost" href="#components">Explore Generated Components</a>
-          </div>
+        <div class="eyebrow">Usage Guide</div>
+        <h1>Publish a companion site for your ontology.</h1>
+        <p>Add OCG to the repository that already holds your ontology, point it at your existing source files, and deploy the generated site from GitHub Pages.</p>
+        <div class="guide-quick-links">
+          <a class="btn btn--primary" href="#existing-repository">Start here</a>
+          <a class="btn btn--ghost" href="#configuration">Configuration reference</a>
+          <a class="btn btn--ghost" href="#components">Generated components</a>
         </div>
       </section>
 
@@ -5903,7 +5886,7 @@ function buildPageToc(config, items = []) {
           <ol>
             ${tocItems
               .map(
-                (item) => `<li><a href="#${escapeHtml(item.id)}">${escapeHtml(item.label)}</a></li>`
+                (item) => `<li class="page-toc-item page-toc-item--level-${item.level === 1 ? 1 : 0}"><a href="#${escapeHtml(item.id)}">${escapeHtml(item.label)}</a></li>`
               )
               .join("")}
           </ol>
