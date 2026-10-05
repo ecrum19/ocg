@@ -1,0 +1,43 @@
+/* Definition tiles for ontology metadata (home resource panel and term pages). */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.meta-grid > div {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ocg-color-border-subtle);
+  border-radius: var(--ocg-radius-md);
+  background: var(--ocg-color-subtle-soft);
+}
+.meta-grid dt {
+  margin-bottom: 2px;
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-xs);
+  font-weight: 500;
+}
+.meta-grid dd {
+  margin: 0;
+  color: var(--ocg-color-text);
+  font-size: var(--ocg-text-md);
+  overflow-wrap: anywhere;
+}
+.namespace-value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.namespace-value code {
+  min-width: 0;
+  overflow-x: auto;
+  font-size: var(--ocg-text-sm);
+  white-space: nowrap;
+}
+@media (max-width: 860px) {
+  .meta-grid {
+    grid-template-columns: 1fr;
+  }
+}

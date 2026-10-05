@@ -4,6 +4,23 @@
   "title": "Ontology Companion Generator Config",
   "type": "object",
   "required": ["project", "sources"],
+  "$defs": {
+    "cssColor": { "type": "string", "description": "A CSS color, such as #1f6f78 or rgb(31 111 120)." },
+    "cssLength": {
+      "description": "A CSS length, such as 6px or 0.5rem. Numbers are read as pixels.",
+      "anyOf": [{ "type": "string" }, { "type": "number", "minimum": 0 }]
+    },
+    "cssShadow": { "type": "string", "description": "none, sm, md, lg, or a CSS box-shadow value." },
+    "cssFontWeight": {
+      "description": "A CSS font weight, such as 500.",
+      "anyOf": [{ "type": "string" }, { "type": "integer", "minimum": 100, "maximum": 900 }]
+    },
+    "fontFamily": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-][A-Za-z0-9 ._-]*$",
+      "description": "A single font family name, such as IBM Plex Sans or system-ui."
+    }
+  },
   "properties": {
     "$schema": {
       "type": "string"
@@ -282,33 +299,213 @@
     },
     "theme": {
       "type": "object",
+      "description": "Site-wide styling. See the Component Styling section of the usage guide.",
       "properties": {
         "fonts": {
           "type": "object",
+          "description": "Font families. Google Fonts families are loaded automatically; generic families such as system-ui are used as-is.",
           "properties": {
-            "heading": { "type": "string" },
-            "body": { "type": "string" },
-            "mono": { "type": "string" }
+            "heading": { "$ref": "#/$defs/fontFamily", "description": "Headings and brand text.", "default": "IBM Plex Sans" },
+            "body": { "$ref": "#/$defs/fontFamily", "description": "Body copy and interface text.", "default": "IBM Plex Sans" },
+            "mono": { "$ref": "#/$defs/fontFamily", "description": "Code, IRIs, and source content.", "default": "IBM Plex Mono" }
           },
           "additionalProperties": false
         },
         "colors": {
           "type": "object",
+          "description": "Palette inputs. Every surface, border, and hover color is derived from these values.",
           "properties": {
-            "pageBackground": { "type": "string" },
-            "pageBackgroundAlt": { "type": "string" },
-            "panelBackground": { "type": "string" },
-            "cardBackground": { "type": "string" },
-            "text": { "type": "string" },
-            "mutedText": { "type": "string" },
-            "accent": { "type": "string" },
-            "accentStart": { "type": "string" },
-            "accentBorder": { "type": "string" },
-            "accentStrong": { "type": "string" },
-            "border": { "type": "string" },
-            "warmAccent": { "type": "string" }
+            "pageBackground": { "$ref": "#/$defs/cssColor", "description": "Page background.", "default": "#f7f7f8" },
+            "pageBackgroundAlt": { "$ref": "#/$defs/cssColor", "description": "Subtle fill for table headers, code blocks, tabs, and metadata tiles.", "default": "#f0f2f4" },
+            "panelBackground": { "$ref": "#/$defs/cssColor", "description": "Section panel background.", "default": "#ffffff" },
+            "cardBackground": { "$ref": "#/$defs/cssColor", "description": "Card background.", "default": "#ffffff" },
+            "text": { "$ref": "#/$defs/cssColor", "description": "Primary text and headings.", "default": "#1c1f23" },
+            "mutedText": { "$ref": "#/$defs/cssColor", "description": "Secondary text.", "default": "#5d6672" },
+            "accent": { "$ref": "#/$defs/cssColor", "description": "Links, primary buttons, and the brand mark.", "default": "#1f6f78" },
+            "accentStart": { "$ref": "#/$defs/cssColor", "description": "Legacy gradient color. Unused by the default theme; available to custom CSS as --ocg-color-accent-start.", "default": "#248992" },
+            "accentBorder": { "$ref": "#/$defs/cssColor", "description": "Primary button border.", "default": "#1f6f78" },
+            "accentStrong": { "$ref": "#/$defs/cssColor", "description": "Hover and emphasis color for accent elements.", "default": "#13535a" },
+            "border": { "$ref": "#/$defs/cssColor", "description": "Shared border color.", "default": "#e3e5e8" },
+            "warmAccent": { "$ref": "#/$defs/cssColor", "description": "Legacy highlight color. Unused by the default theme; available to custom CSS as --ocg-color-warm-accent.", "default": "#e1ab4e" }
           },
           "additionalProperties": true
+        },
+        "radius": {
+          "type": "object",
+          "description": "Corner radius scale shared by the components.",
+          "properties": {
+            "sm": { "$ref": "#/$defs/cssLength", "description": "Badges and small labels.", "default": "4px" },
+            "md": { "$ref": "#/$defs/cssLength", "description": "Buttons, inputs, tabs, and navigation links.", "default": "6px" },
+            "lg": { "$ref": "#/$defs/cssLength", "description": "Cards, tables, and code blocks.", "default": "8px" },
+            "xl": { "$ref": "#/$defs/cssLength", "description": "Section panels and the page table of contents.", "default": "10px" }
+          },
+          "additionalProperties": false
+        },
+        "components": {
+          "type": "object",
+          "description": "Optional per-component overrides. Each option sets the CSS variable named in its description.",
+          "properties": {
+            "header": {
+              "type": "object",
+              "description": "Site header bar holding the brand mark and page navigation.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-header-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-header-border)." },
+                "divider": { "$ref": "#/$defs/cssColor", "description": "Bottom divider color (--ocg-header-divider)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-header-radius)." },
+                "shadow": { "$ref": "#/$defs/cssShadow", "description": "Shadow: none, sm, md, lg, or a CSS box-shadow value (--ocg-header-shadow)." },
+                "padding": { "$ref": "#/$defs/cssLength", "description": "Inner padding (--ocg-header-padding)." }
+              },
+              "additionalProperties": false
+            },
+            "nav": {
+              "type": "object",
+              "description": "Page links in the site header.",
+              "properties": {
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-nav-radius)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-nav-text)." },
+                "hoverBackground": { "$ref": "#/$defs/cssColor", "description": "Background color on hover (--ocg-nav-hover-background)." },
+                "activeBackground": { "$ref": "#/$defs/cssColor", "description": "Background color of the active item (--ocg-nav-active-background)." },
+                "activeText": { "$ref": "#/$defs/cssColor", "description": "Text color of the active item (--ocg-nav-active-text)." }
+              },
+              "additionalProperties": false
+            },
+            "button": {
+              "type": "object",
+              "description": "Hero, viewer, and graph buttons plus How To links and the namespace copy button. primary styles the main call to action; secondary styles every other button.",
+              "properties": {
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-button-radius)." },
+                "height": { "$ref": "#/$defs/cssLength", "description": "Minimum height (--ocg-button-height)." },
+                "paddingX": { "$ref": "#/$defs/cssLength", "description": "Horizontal padding (--ocg-button-padding-x)." },
+                "fontSize": { "$ref": "#/$defs/cssLength", "description": "Font size (--ocg-button-font-size)." },
+                "fontWeight": { "$ref": "#/$defs/cssFontWeight", "description": "Font weight (--ocg-button-font-weight)." },
+                "primary": {
+                  "type": "object",
+                  "description": "Primary button colors.",
+                  "properties": {
+                    "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-button-primary-background)." },
+                    "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-button-primary-text)." },
+                    "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-button-primary-border)." },
+                    "hoverBackground": { "$ref": "#/$defs/cssColor", "description": "Background color on hover (--ocg-button-primary-hover-background)." }
+                  },
+                  "additionalProperties": false
+                },
+                "secondary": {
+                  "type": "object",
+                  "description": "Secondary button colors.",
+                  "properties": {
+                    "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-button-secondary-background)." },
+                    "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-button-secondary-text)." },
+                    "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-button-secondary-border)." },
+                    "hoverBackground": { "$ref": "#/$defs/cssColor", "description": "Background color on hover (--ocg-button-secondary-hover-background)." }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "panel": {
+              "type": "object",
+              "description": "Section containers, the home hero, and the page table of contents.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-panel-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-panel-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-panel-radius)." },
+                "shadow": { "$ref": "#/$defs/cssShadow", "description": "Shadow: none, sm, md, lg, or a CSS box-shadow value (--ocg-panel-shadow)." },
+                "padding": { "$ref": "#/$defs/cssLength", "description": "Inner padding (--ocg-panel-padding)." }
+              },
+              "additionalProperties": false
+            },
+            "card": {
+              "type": "object",
+              "description": "Overview, example, featured-term, metric, pitfall, and guide cards.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-card-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-card-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-card-radius)." },
+                "shadow": { "$ref": "#/$defs/cssShadow", "description": "Shadow: none, sm, md, lg, or a CSS box-shadow value (--ocg-card-shadow)." },
+                "padding": { "$ref": "#/$defs/cssLength", "description": "Inner padding (--ocg-card-padding)." }
+              },
+              "additionalProperties": false
+            },
+            "badge": {
+              "type": "object",
+              "description": "Term-type labels, guide section labels, and graph selection types.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-badge-background)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-badge-text)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-badge-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-badge-radius)." }
+              },
+              "additionalProperties": false
+            },
+            "tabs": {
+              "type": "object",
+              "description": "Artifact viewer tabs and the graph representation and mode tabs.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-tabs-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-tabs-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-tabs-radius)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-tabs-text)." },
+                "activeBackground": { "$ref": "#/$defs/cssColor", "description": "Background color of the active item (--ocg-tabs-active-background)." },
+                "activeText": { "$ref": "#/$defs/cssColor", "description": "Text color of the active item (--ocg-tabs-active-text)." }
+              },
+              "additionalProperties": false
+            },
+            "input": {
+              "type": "object",
+              "description": "The graph term search field.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-input-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-input-border)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-input-text)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-input-radius)." },
+                "focusBorder": { "$ref": "#/$defs/cssColor", "description": "Border color while focused (--ocg-input-focus-border)." }
+              },
+              "additionalProperties": false
+            },
+            "table": {
+              "type": "object",
+              "description": "Reference, term, and guide tables.",
+              "properties": {
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-table-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-table-radius)." },
+                "headerBackground": { "$ref": "#/$defs/cssColor", "description": "Header row background color (--ocg-table-header-background)." },
+                "headerText": { "$ref": "#/$defs/cssColor", "description": "Header row text color (--ocg-table-header-text)." },
+                "stripeBackground": { "$ref": "#/$defs/cssColor", "description": "Background color of alternate rows; transparent disables striping (--ocg-table-stripe-background)." },
+                "hoverBackground": { "$ref": "#/$defs/cssColor", "description": "Background color on hover (--ocg-table-hover-background)." }
+              },
+              "additionalProperties": false
+            },
+            "code": {
+              "type": "object",
+              "description": "Artifact viewer source and guide code examples.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-code-background)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-code-text)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-code-border)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-code-radius)." }
+              },
+              "additionalProperties": false
+            },
+            "callout": {
+              "type": "object",
+              "description": "Guide notes plus the graph, hierarchy, and pitfall notices.",
+              "properties": {
+                "background": { "$ref": "#/$defs/cssColor", "description": "Background color (--ocg-callout-background)." },
+                "border": { "$ref": "#/$defs/cssColor", "description": "Border color (--ocg-callout-border)." },
+                "text": { "$ref": "#/$defs/cssColor", "description": "Text color (--ocg-callout-text)." },
+                "radius": { "$ref": "#/$defs/cssLength", "description": "Corner radius (--ocg-callout-radius)." }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "customCss": {
+          "type": "string",
+          "pattern": "(^$|\\.css$)",
+          "description": "Optional repository-relative .css file loaded after the generated stylesheet on every page, including the ReSpec page."
         }
       },
       "additionalProperties": false

@@ -1,0 +1,61 @@
+/* Segmented tabs: the artifact viewer, graph representation, and graph mode tabs. */
+.tabs,
+.graph-view-tabs,
+.graph-mode-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 100%;
+  margin-bottom: 16px;
+  padding: 3px;
+  border: 1px solid var(--ocg-tabs-border);
+  border-radius: var(--ocg-tabs-radius);
+  background: var(--ocg-tabs-background);
+}
+.tab,
+.graph-view-tab,
+.graph-mode-tab {
+  appearance: none;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: max(0px, calc(var(--ocg-tabs-radius) - 3px));
+  background: transparent;
+  color: var(--ocg-tabs-text);
+  font: inherit;
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background-color var(--ocg-duration-fast) var(--ocg-ease),
+    box-shadow var(--ocg-duration-fast) var(--ocg-ease),
+    color var(--ocg-duration-fast) var(--ocg-ease);
+}
+.tab:hover,
+.graph-view-tab:hover,
+.graph-mode-tab:hover {
+  color: var(--ocg-color-text);
+}
+.tab.active,
+.graph-view-tab.active,
+.graph-mode-tab.active {
+  background: var(--ocg-tabs-active-background);
+  color: var(--ocg-tabs-active-text);
+  box-shadow:
+    0 0 0 1px var(--ocg-color-border-subtle),
+    var(--ocg-shadow-sm);
+}
+@media (max-width: 640px) {
+  .tabs,
+  .graph-view-tabs,
+  .graph-mode-tabs {
+    display: flex;
+    width: 100%;
+  }
+  .tab,
+  .graph-view-tab,
+  .graph-mode-tab {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

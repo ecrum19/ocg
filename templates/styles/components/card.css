@@ -1,0 +1,81 @@
+/* Cards: overview, example, featured-term, metric, and guide cards. Cards sit on a
+   panel, so they are separated by a border rather than by elevation. */
+.card,
+.metric-card,
+.guide-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: var(--ocg-card-padding);
+  border: 1px solid var(--ocg-card-border);
+  border-radius: var(--ocg-card-radius);
+  background: var(--ocg-card-background);
+  box-shadow: var(--ocg-card-shadow);
+}
+.card h3,
+.guide-card h3 {
+  margin: 0;
+  font-size: var(--ocg-text-base);
+}
+.card p,
+.guide-card p {
+  font-size: var(--ocg-text-md);
+  line-height: 1.55;
+}
+.card-link {
+  display: inline-flex;
+  margin-top: 4px;
+  color: var(--ocg-color-accent);
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+}
+.metric-card {
+  gap: 2px;
+}
+.metric-number {
+  color: var(--ocg-color-text);
+  font-family: var(--ocg-font-heading);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.metric-label {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-sm);
+  font-weight: 500;
+}
+.featured-terms-grid {
+  align-items: stretch;
+}
+.featured-term-card {
+  grid-template-rows: auto auto 1fr;
+  min-width: 0;
+  overflow: hidden;
+}
+.featured-term-card h3,
+.featured-term-card p {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.featured-term-card h3 {
+  font-family: var(--ocg-font-mono);
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.featured-term-card h3 a {
+  color: var(--ocg-color-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.featured-term-card h3 a:hover,
+.guide-card h3 a:hover {
+  color: var(--ocg-color-accent);
+  text-decoration: none;
+}
+.guide-card h3 a {
+  color: var(--ocg-color-text);
+}

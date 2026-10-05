@@ -1,0 +1,61 @@
+/* ReSpec specification page: a fixed companion header above the ReSpec document.
+   Only this file, the tokens, and the header and footer components are loaded on
+   the spec page, and each rule is scoped to body.ocg-spec-page at build time so it
+   wins over the W3C ReSpec styles. */
+body.ocg-spec-page {
+  --ocg-spec-header-height: 64px;
+  padding-top: calc(var(--ocg-spec-header-height) + 24px) !important;
+}
+body.ocg-spec-page #toc {
+  top: var(--ocg-spec-header-height) !important;
+}
+.ocg-spec-nav-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  display: block !important;
+  width: 100vw !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 max(16px, 4vw);
+  border-bottom: 1px solid var(--ocg-header-divider);
+  background: var(--ocg-color-panel);
+  box-sizing: border-box;
+}
+.ocg-spec-header {
+  width: min(var(--ocg-shell-width), 100%);
+  margin: 0 auto;
+  padding: 13px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ocg-spec-header a,
+.ocg-spec-footer a {
+  border-bottom: 0;
+  text-decoration: none;
+}
+.ocg-spec-footer {
+  width: min(var(--ocg-shell-width), calc(100% - 32px));
+  margin: 48px auto 40px;
+}
+@media (max-width: 860px) {
+  body.ocg-spec-page {
+    --ocg-spec-header-height: 112px;
+  }
+}
+/* The W3C ReSpec styles follow the reader's color scheme; keep the companion
+   header in step with a dark document. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ocg-color-page: #121417;
+    --ocg-color-page-alt: #1c1f23;
+    --ocg-color-panel: #16181c;
+    --ocg-color-text: #e8eaed;
+    --ocg-color-muted: #a0a7b1;
+    --ocg-color-border: #2d3137;
+    --ocg-color-on-accent: #ffffff;
+  }
+}

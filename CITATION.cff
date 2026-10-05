@@ -12,11 +12,11 @@ authors:
     family-names: Crum
     affiliation: "IDLab, Ghent University - imec"
     email: elias.crum@ugent.be
-repository-code: "https://github.com/ecrum19/ocg"
-url: "https://ecrum19.github.io/ocg/"
+repository-code: "https://github.com/ecrum19/ontology_companion_generator"
+url: "https://ecrum19.github.io/ontology_companion_generator/"
 license: MIT
-version: 1.5.0
-date-released: "2026-09-18"
+version: 1.6.0
+date-released: "2026-10-05"
 keywords:
   - ontology
   - vocabulary

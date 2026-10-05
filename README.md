@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ecrum19/ocg/main/source/branding/ocg-logo.png" alt="Ontology Companion Generator logo" width="180" />
+  <img src="https://raw.githubusercontent.com/ecrum19/ontology_companion_generator/main/source/branding/ocg-logo.png" alt="Ontology Companion Generator logo" width="180" />
 </p>
 
 # Ontology Companion Generator
@@ -7,9 +7,9 @@
 <p>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/v/ontology-companion-generator?label=npm%20version&color=0e7b81" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/ontology-companion-generator"><img src="https://img.shields.io/npm/dm/ontology-companion-generator?label=npm%20downloads&color=cb3837" alt="npm monthly downloads" /></a>
-  <a href="https://github.com/ecrum19/ocg/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ocg?color=2f8040" alt="MIT license" /></a>
+  <a href="https://github.com/ecrum19/ontology_companion_generator/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ecrum19/ontology_companion_generator?color=2f8040" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/Node.js-22.19%2B-339933" alt="Node.js 22.19 or newer" />
-  <a href="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ocg/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
+  <a href="https://github.com/ecrum19/ontology_companion_generator/actions/workflows/publish-pages.yml"><img src="https://github.com/ecrum19/ontology_companion_generator/actions/workflows/publish-pages.yml/badge.svg?branch=main" alt="GitHub Pages workflow status" /></a>
 </p>
 
 OCG is a config-first npm package that builds a GitHub Pages companion site for an ontology or vocabulary. It generates reference, terms, graph, artifacts, optional ReSpec, and Usage Guide pages from your source files and `ocg.config.json`.
@@ -65,15 +65,16 @@ Source files can stay in their existing locations. Point to them with paths rela
 - An optional ReSpec Specification page
 - An optional Pitfalls page with the OOPS! report
 - JSON-LD embedded in the generated HTML
+- A shared stylesheet, `assets/css/ocg.css`, generated from the theme settings
 - Copied ontology, SHACL, ShEx, specification, example, and configured additional artifacts
 
 ## Configuration And Guides
 
-`ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
+`ocg.config.json` is the main customization surface. It controls metadata, source paths, page features, graph modes, featured terms, copy, branding, colors, fonts, component styles, and footer links. The schema is available at [`ocg.config.schema.json`](ocg.config.schema.json).
 
 ### End-to-End w3id Publication
 
-For the complete beginner workflow from an existing ontology repository to a working GitHub Pages site with w3id content negotiation, follow the generated [End-to-End w3id Publication guide](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication). The short version is:
+For the complete beginner workflow from an existing ontology repository to a working GitHub Pages site with w3id content negotiation, follow the generated [End-to-End w3id Publication guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#w3id-publication). The short version is:
 
 1. Install OCG and run `npx ocg init --ontology path/to/ontology.ttl`.
 2. Review the generated config and update the project metadata, source paths, and supported input format.
@@ -101,47 +102,80 @@ Use `site.branding` to replace the abbreviation square in the upper-left header 
 
 `headerImage` accepts `.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, or `.svg`; it replaces `project.shortName` in the square header mark, including the ReSpec page. `favicon` accepts `.ico`, `.png`, or `.svg`. Leave either value empty to retain the default text mark or existing `source/branding/favicon.png` and `favicon.ico` fallback.
 
-### Theme Colors
+### Theme Colors and Fonts
 
-Set `theme.colors` to restyle the generated page shell, panels, controls, tables, contextual TOCs, graph UI, and ReSpec navigation. The three accent variants control gradients, borders, and warm background details; the remaining tokens are the primary palette inputs used to derive shared surface and shadow colors.
+Set `theme.colors` to restyle the generated pages, tables, contextual TOCs, graph UI, and ReSpec navigation. These are palette inputs: subtle fills, dividers, hover states, and shadows are derived from them.
 
 ```json
 {
   "theme": {
+    "fonts": {
+      "heading": "IBM Plex Sans",
+      "body": "IBM Plex Sans",
+      "mono": "IBM Plex Mono"
+    },
     "colors": {
-      "pageBackground": "#f6f1ea",
-      "pageBackgroundAlt": "#edf3f7",
+      "pageBackground": "#f7f7f8",
+      "pageBackgroundAlt": "#f0f2f4",
       "panelBackground": "#ffffff",
       "cardBackground": "#ffffff",
-      "text": "#1d1f22",
-      "mutedText": "#5f6b7a",
+      "text": "#1c1f23",
+      "mutedText": "#5d6672",
       "accent": "#1f6f78",
-      "accentStart": "#248992",
-      "accentBorder": "#1c7d86",
+      "accentBorder": "#1f6f78",
       "accentStrong": "#13535a",
-      "border": "#d6dee6",
-      "warmAccent": "#e1ab4e"
+      "border": "#e3e5e8"
     }
   }
 }
 ```
 
-Use CSS color values, preferably hex or `rgb(...)` values so translucent graph highlights can be derived reliably. Graph node and relationship semantic colors remain separately configurable under `graph.colors`.
+Use CSS color values, preferably hex or `rgb(...)` values so translucent graph highlights can be derived reliably. Graph node and relationship semantic colors remain separately configurable under `graph.colors`. `accentStart` and `warmAccent` are still accepted for older configs, but the default theme no longer uses them; custom CSS can read them as `--ocg-color-accent-start` and `--ocg-color-warm-accent`.
 
-Use the generated [Usage Guide](https://ecrum19.github.io/ocg/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
+Fonts are loaded from Google Fonts, and each family is requested once. Set a generic family such as `system-ui` or `ui-monospace` to use the reader's system fonts without a font request.
 
-- [Package and CLI](https://ecrum19.github.io/ocg/usage-guide.html#package-cli)
-- [Home](https://ecrum19.github.io/ocg/usage-guide.html#home)
-- [Artifacts](https://ecrum19.github.io/ocg/usage-guide.html#artifacts)
-- [Reference](https://ecrum19.github.io/ocg/usage-guide.html#reference)
-- [Graph](https://ecrum19.github.io/ocg/usage-guide.html#graph)
-- [Ontology Pitfall Report](https://ecrum19.github.io/ocg/usage-guide.html#pitfalls)
-- [Embedded JSON-LD](https://ecrum19.github.io/ocg/usage-guide.html#embedded-json-ld)
-- [End-to-End w3id Publication](https://ecrum19.github.io/ocg/usage-guide.html#w3id-publication)
-- [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ocg/usage-guide.html#persistent-iri)
-- [Terms](https://ecrum19.github.io/ocg/usage-guide.html#terms)
-- [Specification](https://ecrum19.github.io/ocg/usage-guide.html#specification)
-- [Branding and Footer](https://ecrum19.github.io/ocg/usage-guide.html#branding)
+### Component Styling
+
+OCG writes its styles to `site/assets/css/ocg.css`. The stylesheet is assembled from the templates in [`templates/styles/`](templates/styles): design tokens, base elements, layout, one file per component, and one file per page. Every component reads its appearance from CSS variables, which you can set in three ways:
+
+- `theme.radius` sets the shared corner radius scale: `sm` for badges, `md` for buttons, inputs, tabs, and navigation, `lg` for cards, tables, and code, and `xl` for section panels.
+- `theme.components` overrides individual components: `header`, `nav`, `button` (including `primary` and `secondary` variants), `panel`, `card`, `badge`, `tabs`, `input`, `table`, `code`, and `callout`. Shadows accept `none`, `sm`, `md`, `lg`, or a CSS `box-shadow` value, and numeric lengths are read as pixels.
+- `theme.customCss` points to a repository-relative `.css` file that is loaded after the generated stylesheet on every page, including the ReSpec page (`body.ocg-spec-page`). OCG's own rules sit in cascade layers, so plain rules in this file take precedence without extra specificity and can override any `--ocg-*` variable or selector.
+
+```json
+{
+  "theme": {
+    "radius": { "sm": "2px", "md": "4px", "lg": "6px", "xl": "8px" },
+    "components": {
+      "button": {
+        "fontWeight": 600,
+        "primary": { "background": "#0f5c63", "hoverBackground": "#0a4449" }
+      },
+      "panel": { "shadow": "none" },
+      "card": { "shadow": "sm", "padding": "20px" }
+    },
+    "customCss": "source/branding/site.css"
+  }
+}
+```
+
+Unknown components, unknown options, and values that could break out of a CSS declaration fail `npm run ocg:check`. The [Component Styling guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#styling) lists every option and the CSS variable it sets.
+
+Use the generated [Usage Guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html) for complete option tables and examples. Its component-specific How To sections are also linked from the generated pages:
+
+- [Package and CLI](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#package-cli)
+- [Home](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#home)
+- [Artifacts](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#artifacts)
+- [Reference](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#reference)
+- [Graph](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#graph)
+- [Ontology Pitfall Report](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#pitfalls)
+- [Embedded JSON-LD](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#embedded-json-ld)
+- [End-to-End w3id Publication](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#w3id-publication)
+- [Persistent IRI and Content Negotiation](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#persistent-iri)
+- [Terms](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#terms)
+- [Specification](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#specification)
+- [Branding and Footer](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#branding)
+- [Component Styling](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#styling)
 
 Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 
@@ -149,7 +183,7 @@ Set `features.usageGuidePage` to `false` if the in-app guide is not needed.
 
 All editorial home-page copy and labels are configured in `site`. Use `site.hero` and `site.resourcePanel` for the top area, and `site.home` for the action labels, metadata, snapshot, overview-card heading, featured terms, examples, source viewer, and built-in source artifacts. This means the `Repository Workflow` wording in the bundled example is not part of the generator: replace it with terminology appropriate to your ontology.
 
-`ocg init` writes every `site.home` option into the new config. The generated [Home guide](https://ecrum19.github.io/ocg/usage-guide.html#home) documents each option; this focused example shows the common editorial changes:
+`ocg init` writes every `site.home` option into the new config. The generated [Home guide](https://ecrum19.github.io/ontology_companion_generator/usage-guide.html#home) documents each option; this focused example shows the common editorial changes:
 
 ```json
 {
@@ -396,7 +430,7 @@ The npm workflow, `.github/workflows/publish-npm.yml`, publishes tags matching `
 To enable npm publishing once:
 
 1. Publish the initial package version manually if it is not already on npm.
-2. On npm, configure a GitHub Actions trusted publisher for owner `ecrum19`, repository `ocg`, workflow `publish-npm.yml`.
+2. On npm, configure a GitHub Actions trusted publisher for owner `ecrum19`, repository `ontology_companion_generator`, workflow `publish-npm.yml`. If the repository is renamed, update the trusted publisher to match; npm rejects tokens from a repository name it does not know.
 3. Enable GitHub Actions in the repository and push the workflow.
 
 For later releases:
@@ -448,14 +482,14 @@ If OCG supports published work, please cite it. The repository ships a [`CITATIO
 @software{crum_ocg,
   author  = {Crum, Elias},
   title   = {{Ontology Companion Generator (OCG)}},
-  url     = {https://github.com/ecrum19/ocg},
+  url     = {https://github.com/ecrum19/ontology_companion_generator},
   license = {MIT},
-  version = {1.5.0},
+  version = {1.6.0},
   year    = {2026}
 }
 ```
 
-> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.5.0) [Computer software]. https://github.com/ecrum19/ocg
+> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.6.0) [Computer software]. https://github.com/ecrum19/ontology_companion_generator
 
 Update the `version` and `date-released` fields in `CITATION.cff` alongside `package.json` when cutting a release.
 

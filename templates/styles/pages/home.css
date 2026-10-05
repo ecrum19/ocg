@@ -1,0 +1,113 @@
+/* Home page: hero, resource panel, snapshot metrics, and overview cards. */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.hero-copy {
+  padding: 32px;
+}
+.hero-copy .eyebrow {
+  margin-bottom: 12px;
+}
+.hero-copy h1 {
+  margin-bottom: 12px;
+  font-size: var(--ocg-text-3xl);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.hero-copy > p {
+  max-width: 62ch;
+  font-size: 1rem;
+}
+.hero-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 20px;
+}
+.hero-panel h2 {
+  font-size: var(--ocg-text-lg);
+}
+.hero-panel > p {
+  font-size: var(--ocg-text-md);
+  line-height: 1.5;
+}
+.hero-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.hero-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.hero-action-group--artifacts {
+  display: grid;
+  grid-template-columns: repeat(var(--artifact-count, 1), minmax(0, 1fr));
+  padding-top: 12px;
+  border-top: 1px solid var(--ocg-color-border-subtle);
+}
+.hero-action-group--artifacts .btn {
+  width: 100%;
+}
+.meta-item--namespace,
+.meta-item--canonical {
+  grid-column: 1 / -1;
+}
+.page-home .metrics-grid {
+  grid-template-columns: repeat(var(--metric-count, 1), minmax(0, 1fr));
+}
+.page-home .section--overview .section-note {
+  max-width: none;
+}
+.page-home .section--overview .card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+}
+.page-home .section--overview .card h3,
+.page-home .section--overview .card p,
+.page-home .section--overview .card-link {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.page-home .section--overview .card-link {
+  margin-top: auto;
+  padding-top: 8px;
+}
+.viewer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.viewer-head strong {
+  font-size: var(--ocg-text-base);
+}
+.viewer-note {
+  margin-top: 2px;
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-sm);
+}
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .hero-copy {
+    padding: 24px;
+  }
+  .hero-action-group--artifacts {
+    grid-template-columns: 1fr;
+  }
+  .page-home .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

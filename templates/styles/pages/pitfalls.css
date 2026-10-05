@@ -1,0 +1,79 @@
+/* OOPS! pitfall report: severity metrics and pitfall cards. */
+.pitfall-metric--critical .metric-number {
+  color: var(--ocg-color-danger);
+}
+.pitfall-metric--important .metric-number {
+  color: var(--ocg-color-warning);
+}
+.pitfall-metric--minor .metric-number {
+  color: var(--ocg-color-accent-strong);
+}
+.pitfall-grid {
+  align-items: start;
+}
+.pitfall-card {
+  border-left: 3px solid var(--ocg-color-border-strong);
+}
+.pitfall-card--critical {
+  border-left-color: var(--ocg-color-danger);
+}
+.pitfall-card--important {
+  border-left-color: var(--ocg-color-warning);
+}
+.pitfall-card--minor {
+  border-left-color: var(--ocg-color-accent);
+}
+.pitfall-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pitfall-code {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-sm);
+  font-weight: 500;
+}
+.pitfall-importance {
+  padding: 1px 8px;
+  border: 1px solid var(--ocg-badge-border);
+  border-radius: var(--ocg-badge-radius);
+  background: var(--ocg-badge-background);
+  color: var(--ocg-badge-text);
+  font-size: var(--ocg-text-xs);
+  font-weight: 500;
+}
+.pitfall-card--critical .pitfall-importance {
+  background: color-mix(in srgb, var(--ocg-color-danger) 9%, var(--ocg-color-panel));
+  color: var(--ocg-color-danger);
+}
+.pitfall-card--important .pitfall-importance {
+  background: color-mix(in srgb, var(--ocg-color-warning) 9%, var(--ocg-color-panel));
+  color: var(--ocg-color-warning);
+}
+.pitfall-elements summary {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+  cursor: pointer;
+}
+.pitfall-elements ul {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+}
+.pitfall-elements li {
+  overflow-wrap: anywhere;
+}
+.pitfall-scope {
+  color: var(--ocg-color-text-secondary);
+  font-size: var(--ocg-text-md);
+}
+.pitfall-reference {
+  display: inline-flex;
+  margin-top: 4px;
+  color: var(--ocg-color-accent);
+  font-size: var(--ocg-text-md);
+  font-weight: 500;
+}
