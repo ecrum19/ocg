@@ -484,12 +484,12 @@ If OCG supports published work, please cite it. The repository ships a [`CITATIO
   title   = {{Ontology Companion Generator (OCG)}},
   url     = {https://github.com/ecrum19/ontology_companion_generator},
   license = {MIT},
-  version = {1.5.0},
+  version = {1.6.0},
   year    = {2026}
 }
 ```
 
-> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.5.0) [Computer software]. https://github.com/ecrum19/ontology_companion_generator
+> Crum, E. (2026). *Ontology Companion Generator (OCG)* (Version 1.6.0) [Computer software]. https://github.com/ecrum19/ontology_companion_generator
 
 Update the `version` and `date-released` fields in `CITATION.cff` alongside `package.json` when cutting a release.
 
