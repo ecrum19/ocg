@@ -200,8 +200,8 @@ const DEFAULT_THEME = {
     mono: "IBM Plex Mono"
   },
   colors: {
-    pageBackground: "#f7f7f8",
-    pageBackgroundAlt: "#f0f2f4",
+    pageBackground: "#faf6ef",
+    pageBackgroundAlt: "#f2ece2",
     panelBackground: "#ffffff",
     cardBackground: "#ffffff",
     text: "#1c1f23",
@@ -210,7 +210,7 @@ const DEFAULT_THEME = {
     accentStart: "#248992",
     accentBorder: "#1f6f78",
     accentStrong: "#13535a",
-    border: "#e3e5e8",
+    border: "#e6dfd3",
     warmAccent: "#e1ab4e"
   },
   radius: {
@@ -492,6 +492,13 @@ const JSON_LD_BASE_CONTEXT = {
   vann: "http://purl.org/vocab/vann/",
   xsd: "http://www.w3.org/2001/XMLSchema#"
 };
+
+// At-rules whose blocks hold keyframe selectors or descriptors rather than style
+// rules, so scopeCss must copy them through untouched.
+// Upper bound on how long the ReSpec page may stay behind its loading overlay.
+const SPEC_LOADING_TIMEOUT_MS = 15000;
+
+const UNSCOPED_AT_RULES = new Set(["keyframes", "-webkit-keyframes", "font-face", "property", "counter-style", "page"]);
 
 // File names that the generated terms/ directory already uses for itself.
 const RESERVED_TERM_PAGE_NAMES = new Set(["index"]);
@@ -1748,6 +1755,45 @@ function writeSpecPage(config) {
       })();
     </script>
   `;
+  // ReSpec rewrites the whole document on load. Until it finishes, the raw source
+  // shows as unstyled markup, so cover it rather than let that flash through.
+  const loadingOverlay = `
+    <div class="ocg-spec-loading" id="ocg-spec-loading" role="status" aria-live="polite">
+      <div class="ocg-spec-loading-inner">
+        <span class="ocg-spec-loading-spinner" aria-hidden="true"></span>
+        <span>Preparing the specification\u2026</span>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const overlay = document.getElementById("ocg-spec-loading");
+        if (!overlay) return;
+        let dismissed = false;
+        function dismiss() {
+          if (dismissed) return;
+          dismissed = true;
+          overlay.classList.add("is-done");
+          setTimeout(() => overlay.remove(), 240);
+        }
+        function watchRespec() {
+          const ready = document.respec && document.respec.ready;
+          if (!ready || typeof ready.then !== "function") return false;
+          ready.then(dismiss, dismiss);
+          return true;
+        }
+        if (!watchRespec()) {
+          const poll = setInterval(() => {
+            if (watchRespec()) clearInterval(poll);
+          }, 100);
+          setTimeout(() => clearInterval(poll), ${SPEC_LOADING_TIMEOUT_MS});
+        }
+        document.addEventListener("respec-ready", dismiss);
+        // Never trap the reader: if ReSpec is slow, blocked, or missing, show the
+        // document anyway.
+        setTimeout(dismiss, ${SPEC_LOADING_TIMEOUT_MS});
+      })();
+    </script>
+  `;
   const headAdditions = [
     buildFaviconLinks(config, "../"),
     buildPersistentIriLinkTags(config),
@@ -1765,7 +1811,7 @@ function writeSpecPage(config) {
           `class=${classAttribute[1]}${classAttribute[2]} ocg-spec-page${classAttribute[1]}`
         )
       : `${attributes} class="ocg-spec-page"`;
-    return `<body${updatedAttributes}>${navigation}`;
+    return `<body${updatedAttributes}>${loadingOverlay}${navigation}`;
   });
   if (generated === styledSource) {
     throw new Error("Configured sources.spec must contain a body element for navigation injection");
@@ -2918,8 +2964,8 @@ function buildGuidePage(context) {
         mono: "IBM Plex Mono"
       },
       colors: {
-        pageBackground: "#f7f7f8",
-        pageBackgroundAlt: "#f0f2f4",
+        pageBackground: "#faf6ef",
+        pageBackgroundAlt: "#f2ece2",
         panelBackground: "#ffffff",
         cardBackground: "#ffffff",
         text: "#1c1f23",
@@ -2927,7 +2973,7 @@ function buildGuidePage(context) {
         accent: "#1f6f78",
         accentBorder: "#1f6f78",
         accentStrong: "#13535a",
-        border: "#e3e5e8"
+        border: "#e6dfd3"
       },
       radius: {
         sm: "4px",
@@ -6172,7 +6218,16 @@ function scopeCss(css, scope) {
     const prelude = source.slice(index, open).trim();
     if (prelude.startsWith("@")) {
       const close = findClosingBrace(source, open);
-      rules.push(`${prelude} {\n${scopeCss(source.slice(open + 1, close), scope)}\n}`);
+      const body = source.slice(open + 1, close);
+      // @media, @supports and friends wrap ordinary rules, so their contents still
+      // need scoping. @keyframes and @font-face contain keyframe selectors and
+      // descriptors instead, which must be left exactly as written.
+      const name = prelude.slice(1).split(/[\s({]/, 1)[0].toLowerCase();
+      rules.push(
+        UNSCOPED_AT_RULES.has(name)
+          ? `${prelude} {${body}}`
+          : `${prelude} {\n${scopeCss(body, scope)}\n}`
+      );
       index = close + 1;
       continue;
     }

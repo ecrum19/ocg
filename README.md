@@ -115,8 +115,8 @@ Set `theme.colors` to restyle the generated pages, tables, contextual TOCs, grap
       "mono": "IBM Plex Mono"
     },
     "colors": {
-      "pageBackground": "#f7f7f8",
-      "pageBackgroundAlt": "#f0f2f4",
+      "pageBackground": "#faf6ef",
+      "pageBackgroundAlt": "#f2ece2",
       "panelBackground": "#ffffff",
       "cardBackground": "#ffffff",
       "text": "#1c1f23",
@@ -124,7 +124,7 @@ Set `theme.colors` to restyle the generated pages, tables, contextual TOCs, grap
       "accent": "#1f6f78",
       "accentBorder": "#1f6f78",
       "accentStrong": "#13535a",
-      "border": "#e3e5e8"
+      "border": "#e6dfd3"
     }
   }
 }
@@ -240,7 +240,7 @@ Use `site.home.metadata` to rename the canonical-IRI, preferred-prefix, version,
 
 ### Page Navigation
 
-OCG adds a compact table of contents to Home, Reference, Terms, and individual term pages when they contain multiple sections. It remains a sticky side rail on wide displays; its icon control contracts it to a compact square and expands the page content. On narrower screens it becomes an inline panel. The graph, Usage Guide, and ReSpec source page are intentionally excluded to avoid duplicate or distracting controls.
+OCG adds a compact table of contents to Home, Reference, Terms, individual term pages, and the Usage Guide when they contain multiple sections. It remains a sticky side rail on wide displays; its icon control contracts it to a compact square and expands the page content. On narrower screens it becomes an inline panel. Long contents lists scroll within the rail rather than running past the viewport, and nested entries such as the Usage Guide's component sections are indented. The graph and the ReSpec source page are intentionally excluded to avoid duplicate or distracting controls.
 
 ```json
 {

@@ -59,3 +59,47 @@ body.ocg-spec-page #toc {
     --ocg-color-on-accent: #ffffff;
   }
 }
+
+/* Loading cover: ReSpec rewrites the document on load, so the raw source is hidden
+   until it finishes. A script removes this element, with a timeout so a slow or
+   missing ReSpec can never leave the page covered. */
+.ocg-spec-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  background: var(--ocg-color-page);
+  opacity: 1;
+  transition: opacity 0.22s var(--ocg-ease);
+}
+.ocg-spec-loading.is-done {
+  opacity: 0;
+  pointer-events: none;
+}
+.ocg-spec-loading-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ocg-color-text-secondary);
+  font-family: var(--ocg-font-body);
+  font-size: var(--ocg-text-sm);
+}
+.ocg-spec-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--ocg-color-border);
+  border-top-color: var(--ocg-color-accent);
+  border-radius: 50%;
+  animation: ocg-spec-spin 0.7s linear infinite;
+}
+@keyframes ocg-spec-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ocg-spec-loading-spinner {
+    animation-duration: 2.4s;
+  }
+}

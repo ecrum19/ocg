@@ -92,10 +92,12 @@
   max-height: 44px;
   border-radius: var(--ocg-radius-lg);
 }
+/* Fill the panel's content box rather than its border box: a hard 44px here
+   overhangs the 1px border and pushes the centred toggle off by 2px. */
 .page-toc.is-collapsed .page-toc-head {
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   padding: 0;
 }
 .page-toc.is-collapsed .page-toc-title,
@@ -103,6 +105,13 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
+}
+/* Collapsed, the panel is a square and the toggle is all that shows, so centre it
+   instead of leaving it pinned to the expanded panel's right edge. */
+.page-toc.is-collapsed .page-toc-toggle {
+  top: 50%;
+  right: 50%;
+  transform: translate(50%, -50%);
 }
 .page-toc.is-collapsed .page-toc-toggle-icon {
   transform: rotate(180deg);

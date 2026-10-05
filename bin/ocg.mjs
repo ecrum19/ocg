@@ -129,8 +129,8 @@ const DEFAULT_CONFIG = {
       mono: "IBM Plex Mono"
     },
     colors: {
-      pageBackground: "#f7f7f8",
-      pageBackgroundAlt: "#f0f2f4",
+      pageBackground: "#faf6ef",
+      pageBackgroundAlt: "#f2ece2",
       panelBackground: "#ffffff",
       cardBackground: "#ffffff",
       text: "#1c1f23",
@@ -138,7 +138,7 @@ const DEFAULT_CONFIG = {
       accent: "#1f6f78",
       accentBorder: "#1f6f78",
       accentStrong: "#13535a",
-      border: "#e3e5e8"
+      border: "#e6dfd3"
     },
     radius: {
       sm: "4px",
